@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Código compartilhado entre o serviço (IntegracaoSolidesDP.Worker) e a aplicação Web
+    (IntegracaoSolidesDP.Web): regras da seção Sync, modelos de estado e as tabelas da gestão.
+    Os namespaces continuam os de origem (IntegracaoSolidesDP.Worker.*) para não alterar o serviço.
+  -->
+  <PropertyGroup>
+    <RootNamespace>IntegracaoSolidesDP.Worker</RootNamespace>
+    <AssemblyName>IntegracaoSolidesDP.Core</AssemblyName>
+    <!-- Mesmas plataformas do worker: o packages.lock.json precisa cobrir o publish com -r. -->
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+</Project>

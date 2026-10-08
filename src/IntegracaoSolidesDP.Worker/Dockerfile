@@ -12,8 +12,10 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG VERSION=1.0.0
 WORKDIR /repo
 COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
+COPY src/IntegracaoSolidesDP.Core/IntegracaoSolidesDP.Core.csproj src/IntegracaoSolidesDP.Core/packages.lock.json src/IntegracaoSolidesDP.Core/
 COPY src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj src/IntegracaoSolidesDP.Worker/packages.lock.json src/IntegracaoSolidesDP.Worker/
 RUN dotnet restore src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj --locked-mode
+COPY src/IntegracaoSolidesDP.Core/ src/IntegracaoSolidesDP.Core/
 COPY src/IntegracaoSolidesDP.Worker/ src/IntegracaoSolidesDP.Worker/
 RUN dotnet publish src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj -c Release --no-restore \
       -o /app/publish -p:UseAppHost=false -p:Version=$VERSION \
