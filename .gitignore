@@ -12,3 +12,5 @@ artifacts/
 # Senha local do SQL Server de desenvolvimento (gerada por scripts/dev-sql.sh)
 .env.local
 appsettings.*.local.json
+# Bibliotecas de front-end restauradas no build pelo libman.json
+src/IntegracaoSolidesDP.Web/wwwroot/lib/

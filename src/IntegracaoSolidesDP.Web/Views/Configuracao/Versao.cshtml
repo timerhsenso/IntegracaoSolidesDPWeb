@@ -1,0 +1,41 @@
+@model VersaoViewModel
+@{
+    var v = Model.Versao;
+    ViewData["Title"] = $"Configuração versão {v.Versao}";
+}
+<div class="small mb-3">
+    Gravada por <strong>@v.CriadoPor</strong> em @F.Data(v.CriadoEm) · integração @(v.Ativo ? "ativa" : "desativada")
+    @if (!string.IsNullOrWhiteSpace(v.Observacao))
+    {
+        <span>· Motivo: @v.Observacao</span>
+    }
+    · <a asp-action="Historico">Voltar ao histórico</a>
+</div>
+<div class="row g-3">
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">@(Model.Anterior is null ? "Valores da primeira versão" : $"O que mudou desde a versão {Model.Anterior.Versao}")</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Campo</th><th>Antes</th><th>Depois</th></tr></thead>
+                    <tbody>
+                        @foreach (var d in Model.Diferencas)
+                        {
+                            <tr><td><code>@d.Campo</code></td><td class="small mensagem">@d.Antes</td><td class="small mensagem">@d.Depois</td></tr>
+                        }
+                        @if (Model.Diferencas.Count == 0)
+                        {
+                            <tr><td colspan="3" class="text-body-secondary small p-3">Sem diferenças.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">Seção Sync gravada (JSON)</div>
+            <div class="card-body"><pre class="resultado mb-0">@v.SyncJson</pre></div>
+        </div>
+    </div>
+</div>

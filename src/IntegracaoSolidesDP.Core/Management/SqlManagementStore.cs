@@ -6,7 +6,10 @@ namespace IntegracaoSolidesDP.Worker.Management;
 
 public interface IManagementStore
 {
-    /// <summary>Cria as tabelas da gestão. Depende de solidesdp.runs (IStateStore.EnsureSchemaAsync antes).</summary>
+    /// <summary>
+    /// Cria as tabelas da gestão (idempotente). Pode rodar antes do serviço (a Web chama no start):
+    /// as colunas novas de solidesdp.runs entram quando a tabela existir.
+    /// </summary>
     Task EnsureSchemaAsync(CancellationToken ct);
 
     Task<ConfigurationVersion?> GetCurrentConfigurationAsync(string instanceName, CancellationToken ct);
@@ -39,6 +42,8 @@ public interface IManagementStore
 public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvider clock) : IManagementStore
 {
     private const string SchemaSql = """
+        IF SCHEMA_ID(N'solidesdp') IS NULL EXEC(N'CREATE SCHEMA solidesdp');
+
         IF OBJECT_ID(N'solidesdp.configuracao', N'U') IS NULL
         CREATE TABLE solidesdp.configuracao (
             id             int IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_configuracao PRIMARY KEY,
@@ -63,7 +68,7 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
                 solicitado_em  datetimeoffset(7) NOT NULL,
                 iniciado_em    datetimeoffset(7) NULL,
                 concluido_em   datetimeoffset(7) NULL,
-                run_id         uniqueidentifier  NULL CONSTRAINT fk_solidesdp_comando_run REFERENCES solidesdp.runs(run_id),
+                run_id         uniqueidentifier  NULL, -- solidesdp.runs.run_id (sem FK: a fila pode existir antes de runs)
                 resultado      nvarchar(max)     NULL
             );
             CREATE INDEX ix_solidesdp_comando_fila ON solidesdp.comando(instance_name, status, id);

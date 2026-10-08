@@ -1,0 +1,31 @@
+@model PrimeiroAcessoViewModel
+@{
+    ViewData["Title"] = "Primeiro acesso: criar o administrador";
+    Layout = "_LayoutLogin";
+}
+<p class="small text-body-secondary">Ainda não há nenhum usuário. Crie o administrador; ele cadastra os demais em <strong>Usuários</strong>.</p>
+<form asp-action="Index" method="post" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+    <div class="mb-3">
+        <label asp-for="Usuario" class="form-label"></label>
+        <input asp-for="Usuario" class="form-control" autocomplete="username" autofocus />
+        <span asp-validation-for="Usuario" class="text-danger small"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="NomeCompleto" class="form-label"></label>
+        <input asp-for="NomeCompleto" class="form-control" />
+        <span asp-validation-for="NomeCompleto" class="text-danger small"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Senha" class="form-label"></label>
+        <input asp-for="Senha" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="Senha" class="text-danger small"></span>
+        <div class="form-text">Pelo menos 8 caracteres, com letra maiúscula, minúscula e número.</div>
+    </div>
+    <div class="mb-4">
+        <label asp-for="ConfirmarSenha" class="form-label"></label>
+        <input asp-for="ConfirmarSenha" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmarSenha" class="text-danger small"></span>
+    </div>
+    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-person-check"></i> Criar administrador</button>
+</form>

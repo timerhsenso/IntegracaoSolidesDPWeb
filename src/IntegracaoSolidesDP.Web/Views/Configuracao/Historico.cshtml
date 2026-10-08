@@ -1,0 +1,30 @@
+@model IReadOnlyList<VersaoConfiguracao>
+@{
+    ViewData["Title"] = "Histórico da configuração";
+}
+<p class="small text-body-secondary">Cada alteração (inclusive ativar e desativar) gera uma versão nova. Nenhuma versão é alterada ou apagada.</p>
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr><th>Versão</th><th>Integração</th><th>Gravada por</th><th>Em</th><th>Motivo</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var versao in Model)
+                {
+                    <tr>
+                        <td><a asp-action="Versao" asp-route-id="@versao.Versao">@versao.Versao</a>@(versao == Model[0] ? " (em vigor)" : "")</td>
+                        <td>@(versao.Ativo ? "ativa" : "desativada")</td>
+                        <td>@versao.CriadoPor</td>
+                        <td class="text-nowrap">@F.Data(versao.CriadoEm)</td>
+                        <td class="small">@versao.Observacao</td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="5" class="text-body-secondary small p-3">Nenhuma versão gravada ainda.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

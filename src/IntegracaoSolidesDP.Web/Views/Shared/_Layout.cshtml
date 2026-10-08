@@ -1,0 +1,74 @@
+@{
+    var controller = ViewContext.RouteData.Values["controller"] as string;
+    string Ativo(string alvo) => string.Equals(controller, alvo, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    var nome = User.FindFirst(ClaimsWeb.Nome)?.Value ?? User.Identity?.Name;
+    var perfil = Perfis.Todos.LastOrDefault(User.IsInRole) ?? "—";
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · Integração Sólides DP</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/lib/datatables-bs5/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <aside class="app-sidebar">
+        <a class="brand" asp-controller="Painel" asp-action="Index">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>RHSenso <small>→ Sólides DP</small></span>
+        </a>
+        <nav class="nav flex-column">
+            <a class="nav-link @Ativo("Painel")" asp-controller="Painel" asp-action="Index"><i class="bi bi-speedometer2"></i> Painel</a>
+            <a class="nav-link @Ativo("Execucoes")" asp-controller="Execucoes" asp-action="Index"><i class="bi bi-clock-history"></i> Execuções</a>
+            <a class="nav-link @Ativo("Migrados")" asp-controller="Migrados" asp-action="Index"><i class="bi bi-people"></i> O que foi migrado</a>
+            <a class="nav-link @Ativo("Pendencias")" asp-controller="Pendencias" asp-action="Index"><i class="bi bi-exclamation-triangle"></i> Pendências</a>
+            <a class="nav-link @Ativo("Comandos")" asp-controller="Comandos" asp-action="Index"><i class="bi bi-terminal"></i> Pedidos ao serviço</a>
+            <a class="nav-link @Ativo("Configuracao")" asp-controller="Configuracao" asp-action="Index"><i class="bi bi-sliders"></i> Configuração</a>
+            @if (User.IsInRole(Perfis.Admin))
+            {
+                <div class="nav-titulo">Administração</div>
+                <a class="nav-link @Ativo("Usuarios")" asp-controller="Usuarios" asp-action="Index"><i class="bi bi-person-gear"></i> Usuários</a>
+                <a class="nav-link @Ativo("Auditoria")" asp-controller="Auditoria" asp-action="Index"><i class="bi bi-journal-text"></i> Auditoria</a>
+            }
+        </nav>
+    </aside>
+
+    <div class="app-main">
+        <header class="app-topbar d-flex align-items-center px-3 py-2 gap-3">
+            <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none" data-alternar-menu aria-label="Menu"><i class="bi bi-list"></i></button>
+            <h1 class="h5 mb-0 flex-grow-1">@ViewData["Title"]</h1>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle"></i> @nome <span class="badge text-bg-secondary ms-1">@perfil</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" asp-controller="Conta" asp-action="AlterarSenha"><i class="bi bi-key"></i> Alterar senha</a></li>
+                    <li><hr class="dropdown-divider" /></li>
+                    <li>
+                        <form asp-controller="Conta" asp-action="Sair" method="post">
+                            <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right"></i> Sair</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </header>
+
+        <main class="p-3 p-lg-4">
+            <partial name="_Mensagens" />
+            @RenderBody()
+        </main>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/datatables/js/dataTables.min.js"></script>
+    <script src="~/lib/datatables-bs5/js/dataTables.bootstrap5.min.js"></script>
+    <script>window.rotulos = @Json.Serialize(Rotulos.ParaJavaScript); window.appBase = @Json.Serialize(Url.Content("~/"));</script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Aplicação Web de gestão da integração (IIS). Lê o histórico gravado pelo serviço,
+    versiona a configuração e grava pedidos na fila solidesdp.comando. Nunca fala com a
+    API do Sólides DP: quem executa é o serviço.
+  -->
+  <PropertyGroup>
+    <RootNamespace>IntegracaoSolidesDP.Web</RootNamespace>
+    <AssemblyName>IntegracaoSolidesDP.Web</AssemblyName>
+    <UserSecretsId>integracao-solidesdp-web</UserSecretsId>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IntegracaoSolidesDP.Core\IntegracaoSolidesDP.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <!-- Restaura no build as bibliotecas de front-end do libman.json (wwwroot/lib, fora do git). -->
+    <PackageReference Include="Microsoft.Web.LibraryManager.Build" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Settings.Configuration" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+</Project>

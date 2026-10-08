@@ -1,0 +1,26 @@
+@{
+    ViewData["Title"] = "Execuções";
+}
+<div class="card">
+    <div class="card-body">
+        <table id="execucoes" class="table table-sm table-hover w-100">
+            <thead>
+                <tr><th>Início</th><th>Modo</th><th>Origem</th><th>Pedida por</th><th>Status</th><th>Duração</th><th>Config.</th><th>Resumo</th></tr>
+            </thead>
+        </table>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        app.grid('#execucoes', '@Url.Action("Dados")', [
+            { data: 'inicio', render: (v, t, r) => `<a href="@Url.Action("Detalhe")/${r.runId}">${app.data(v)}</a>` },
+            { data: 'dryRun', render: v => v ? '<span class="badge text-bg-info">Simulação</span>' : '<span class="badge text-bg-primary">Real</span>' },
+            { data: 'origem', render: v => app.origem(v) },
+            { data: 'solicitadoPor', render: v => app.esc(v || '') },
+            { data: 'status', render: v => app.badge(v) },
+            { data: 'duracao', render: v => app.duracao(v) },
+            { data: 'configVersao', render: v => v ?? '' },
+            { data: 'resumoJson', orderable: false, render: (v, t, r) => app.resumo(v, r.erro) }
+        ]);
+    </script>
+}

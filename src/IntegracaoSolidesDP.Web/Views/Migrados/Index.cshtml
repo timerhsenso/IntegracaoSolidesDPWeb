@@ -1,0 +1,66 @@
+@model MigradosViewModel
+@using IntegracaoSolidesDP.Worker.State
+@{
+    ViewData["Title"] = "O que foi migrado";
+    var ferias = Model.Tipo == EntityTypes.Vacation;
+}
+<ul class="nav nav-tabs mb-3">
+    @foreach (var tipo in IntegracaoSolidesDP.Web.Controllers.MigradosController.Tipos)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(tipo == Model.Tipo ? "active" : "")" asp-action="Index" asp-route-tipo="@tipo">@Rotulos.Entidade(tipo)</a>
+        </li>
+    }
+</ul>
+<p class="small text-body-secondary">
+    Registros que a integração criou ou adotou no Sólides DP, com o id de lá. Clique no registro para ver o histórico de envios.
+</p>
+<div class="card">
+    <div class="card-body">
+        <table id="migrados" class="table table-sm table-hover w-100">
+            <thead>
+                @if (ferias)
+                {
+                    <tr><th>Colaborador</th><th>Nome</th><th>Início</th><th>Fim</th><th>Id no DP</th><th>Status</th><th>Tentativas</th><th>Atualizado em</th></tr>
+                }
+                else
+                {
+                    <tr><th>Código</th><th>Nome</th><th>Id no DP</th><th>Status</th><th>Atualizado em</th></tr>
+                }
+            </thead>
+        </table>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        const tipo = '@Model.Tipo';
+        const url = '@Url.Action("Dados", new { tipo = Model.Tipo })';
+        @if (ferias)
+        {
+            <text>
+            app.grid('#migrados', url, [
+                { data: 'externalId', render: v => app.linkHistorico('employee', v) },
+                { data: 'nome', render: v => app.esc(v || '') },
+                { data: 'inicio', render: v => app.dia(v) },
+                { data: 'fim', render: v => app.dia(v) },
+                { data: 'remoteId', render: v => v ?? '' },
+                { data: 'status', render: (v, t, r) => app.badge(v) + (r.ultimoErro ? `<div class="small text-danger mensagem">${app.esc(r.ultimoErro)}</div>` : '') },
+                { data: 'tentativas' },
+                { data: 'atualizadoEm', render: v => app.data(v) }
+            ], { order: [[2, 'desc']] });
+            </text>
+        }
+        else
+        {
+            <text>
+            app.grid('#migrados', url, [
+                { data: 'externalId', render: v => app.linkHistorico(tipo, v) },
+                { data: 'nome', render: v => app.esc(v || '') },
+                { data: 'remoteId', render: v => v ?? '' },
+                { data: 'status', render: v => app.badge(v) },
+                { data: 'atualizadoEm', render: v => app.data(v) }
+            ], { order: [[0, 'asc']] });
+            </text>
+        }
+    </script>
+}

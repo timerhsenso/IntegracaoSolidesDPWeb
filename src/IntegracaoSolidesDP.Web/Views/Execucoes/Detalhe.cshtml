@@ -1,0 +1,64 @@
+@model ExecucaoDetalheViewModel
+@{
+    var e = Model.Execucao;
+    ViewData["Title"] = $"Execução de {F.Data(e.Inicio)}";
+}
+<div class="row g-3 mb-3">
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5">Status</dt><dd class="col-7">@Rotulos.Badge(e.Status)</dd>
+                    <dt class="col-5">Modo</dt><dd class="col-7">@(e.DryRun ? "Simulação (dry-run): nada foi enviado" : "Real")</dd>
+                    <dt class="col-5">Origem</dt><dd class="col-7">@Rotulos.Origem(e.Origem)@(e.SolicitadoPor is null ? "" : $", pedida por {e.SolicitadoPor}")</dd>
+                    <dt class="col-5">Início</dt><dd class="col-7">@F.Data(e.Inicio)</dd>
+                    <dt class="col-5">Fim</dt><dd class="col-7">@F.Data(e.Fim) (@Formatador.Duracao(e.Duracao))</dd>
+                    <dt class="col-5">Configuração</dt>
+                    <dd class="col-7">
+                        @if (e.ConfigVersao is { } versao)
+                        {
+                            <a asp-controller="Configuracao" asp-action="Versao" asp-route-id="@versao">versão @versao</a>
+                        }
+                        else
+                        {
+                            <span>appsettings.json do serviço</span>
+                        }
+                    </dd>
+                    <dt class="col-5">Id</dt><dd class="col-7"><code>@e.RunId</code></dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header">Contagem por entidade</div>
+            <div class="card-body">
+                @if (e.Erro is not null)
+                {
+                    <div class="alert alert-danger small"><pre class="mb-0 mensagem">@e.Erro</pre></div>
+                }
+                @foreach (var (entidade, porStatus) in Model.Contagens)
+                {
+                    <div class="mb-2">
+                        <strong class="small">@Rotulos.Entidade(entidade)</strong>
+                        @foreach (var (status, quantidade) in porStatus)
+                        {
+                            <span class="ms-1">@Rotulos.Badge(status) <small>@quantidade</small></span>
+                        }
+                    </div>
+                }
+                @if (Model.Contagens.Count == 0 && e.Erro is null)
+                {
+                    <span class="text-body-secondary small">Sem itens.</span>
+                }
+                <div class="form-text">"Sem alteração" aparece só na contagem: esses itens não são gravados um a um.</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header">Itens da execução</div>
+    <div class="card-body">
+        <partial name="_ItensExecucao" model="new ItensExecucaoModel(e.RunId, false)" />
+    </div>
+</div>

@@ -1,0 +1,57 @@
+@using IntegracaoSolidesDP.Worker.Management
+@{
+    ViewData["Title"] = "Pedidos ao serviço";
+    var podeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin);
+}
+<p class="small text-body-secondary">
+    A Web não fala com o Sólides DP: ela registra o pedido e o serviço o atende em alguns segundos, um de cada vez.
+    O resultado fica gravado no pedido.
+</p>
+@if (podeOperar)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2">
+                @foreach (var tipo in CommandTypes.All)
+                {
+                    <div class="col-md-6 col-xl-4">
+                        <form asp-action="Solicitar" method="post" class="d-flex gap-2 align-items-start border rounded p-2 h-100"
+                              data-confirmar="@(tipo == CommandTypes.Run ? "Executar a sincronização agora? Com o envio real ligado, os dados vão para o Sólides DP." : "")">
+                            <input type="hidden" name="tipo" value="@tipo" />
+                            <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary") text-nowrap">@Rotulos.Comando(tipo)</button>
+                            <span class="small text-body-secondary">@(tipo switch
+                            {
+                                CommandTypes.Run => "Sincroniza agora, com a configuração em vigor (real ou simulação).",
+                                CommandTypes.DryRun => "Simula sem enviar nada e mostra o que seria feito. Permitido mesmo com a integração desativada.",
+                                CommandTypes.CheckConfig => "Confere o banco, a configuração e o token do Sólides DP.",
+                                CommandTypes.Discover => "Lista empresas, escalas, regras de ponto e motivos cadastrados no Sólides DP.",
+                                _ => "Confere se os colaboradores enviados ainda existem no Sólides DP (sem corrigir nada).",
+                            })</span>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+<div class="card">
+    <div class="card-body">
+        <table id="comandos" class="table table-sm table-hover w-100">
+            <thead>
+                <tr><th>#</th><th>Pedido</th><th>Status</th><th>Pedido por</th><th>Pedido em</th><th>Concluído em</th></tr>
+            </thead>
+        </table>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        app.grid('#comandos', '@Url.Action("Dados")', [
+            { data: 'id', render: v => `<a href="@Url.Action("Detalhe")/${v}">${v}</a>` },
+            { data: 'tipo', render: v => app.comando(v) },
+            { data: 'status', render: v => app.badge(v) },
+            { data: 'solicitadoPor', render: v => app.esc(v) },
+            { data: 'solicitadoEm', render: v => app.data(v) },
+            { data: 'concluidoEm', render: v => app.data(v) }
+        ]);
+    </script>
+}

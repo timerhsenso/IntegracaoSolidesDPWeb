@@ -1,0 +1,216 @@
+@model PainelViewModel
+@using IntegracaoSolidesDP.Worker.Management
+@{
+    ViewData["Title"] = "Painel";
+    var podeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin);
+    var ehAdmin = User.IsInRole(Perfis.Admin);
+    var ativa = Model.Configuracao?.Active ?? true;
+    var maximoDia = Math.Max(1, Model.PorDia.Count == 0 ? 1 : Model.PorDia.Max(d => d.Total));
+}
+
+@if (!Model.GestaoPreparada)
+{
+    <div class="alert alert-info">
+        <h2 class="h6"><i class="bi bi-info-circle"></i> O serviço ainda não preparou o banco para a Web</h2>
+        <p class="mb-2">As telas de execuções, migrados e pedidos leem as tabelas que o serviço cria. Para liberar:</p>
+        <ol class="mb-0">
+            <li>No <code>appsettings.json</code> do serviço, ligue <code>"Gestao": { "Habilitada": true }</code>.</li>
+            <li>Rode o serviço uma vez (ou <code>IntegracaoSolidesDP --check-config</code>) e recarregue esta página.</li>
+        </ol>
+    </div>
+    return;
+}
+
+@if (Model.PedidoParadoDesde is { } parado)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-hourglass-split"></i> Há pedido esperando o serviço desde <strong>@F.Data(parado)</strong>.
+        Verifique se o serviço está rodando e com <code>Gestao:Habilitada = true</code>.
+    </div>
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6 col-xl-3">
+        <div class="card h-100 border-@(ativa ? "success" : "danger")">
+            <div class="card-body">
+                <div class="text-body-secondary small">Integração</div>
+                <div class="kpi-valor @(ativa ? "text-success" : "text-danger")">
+                    <i class="bi @(ativa ? "bi-play-circle" : "bi-pause-circle")"></i> @(ativa ? "Ativa" : "Desativada")
+                </div>
+                <div class="small">
+                    @if (Model.DryRunConfigurado == true)
+                    {
+                        <span class="badge text-bg-info">Modo simulação (dry-run)</span>
+                    }
+                    else if (Model.DryRunConfigurado == false)
+                    {
+                        <span class="badge text-bg-primary">Envio real</span>
+                    }
+                    @if (Model.Configuracao is { } config)
+                    {
+                        <div class="text-body-secondary mt-1">
+                            Configuração versão <a asp-controller="Configuracao" asp-action="Versao" asp-route-id="@config.Version">@config.Version</a>,
+                            por @config.CreatedBy em @F.Data(config.CreatedAt)
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-body-secondary mt-1">Sem configuração no banco ainda (vale o appsettings.json do serviço).</div>
+                    }
+                </div>
+            </div>
+            @if (ehAdmin && Model.Configuracao is not null)
+            {
+                <div class="card-footer bg-transparent">
+                    @if (ativa)
+                    {
+                        <form asp-controller="Configuracao" asp-action="Desativar" method="post" data-motivo="Motivo para DESATIVAR a integração:">
+                            <input type="hidden" name="motivo" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-pause-fill"></i> Desativar</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form asp-controller="Configuracao" asp-action="Ativar" method="post" data-motivo="Motivo para ATIVAR a integração:">
+                            <input type="hidden" name="motivo" />
+                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-play-fill"></i> Ativar</button>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small">Última execução</div>
+                @if (Model.EmAndamento is { } andamento)
+                {
+                    <div class="kpi-valor text-info"><span class="spinner-border spinner-border-sm"></span> Em andamento</div>
+                    <div class="small">desde @F.Data(andamento.Inicio) · @Rotulos.Origem(andamento.Origem)</div>
+                }
+                else if (Model.UltimaExecucao is { } ultima)
+                {
+                    <div class="kpi-valor">@Rotulos.Badge(ultima.Status)</div>
+                    <div class="small">
+                        @F.Data(ultima.Inicio) · @Formatador.Duracao(ultima.Duracao)<br />
+                        @(ultima.DryRun ? "Simulação" : "Real") · @Rotulos.Origem(ultima.Origem)@(ultima.SolicitadoPor is null ? "" : $" ({ultima.SolicitadoPor})")
+                    </div>
+                    <a class="small" asp-controller="Execucoes" asp-action="Detalhe" asp-route-id="@ultima.RunId">Ver detalhes</a>
+                }
+                else
+                {
+                    <div class="kpi-valor text-body-secondary">Nenhuma</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small">Pendências da última execução real</div>
+                <div class="kpi-valor @(Model.PendenciasUltimaReal > 0 ? "text-warning" : "text-success")">@Model.PendenciasUltimaReal</div>
+                <div class="small text-body-secondary">itens com falha ou bloqueados</div>
+                <a class="small" asp-controller="Pendencias" asp-action="Index">Ver pendências</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small">No Sólides DP pela integração</div>
+                <div class="kpi-valor">@Model.Total("employee", "synced")</div>
+                <div class="small">
+                    colaboradores ativos · @Model.Total("employee", "dismissed") desligados<br />
+                    @Model.Total("job_role") cargos · @Model.Total("workplace") locais · @Model.Total("vacation", "synced") férias
+                </div>
+                <a class="small" asp-controller="Migrados" asp-action="Index">Ver o que foi migrado</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (podeOperar)
+{
+    <div class="card mb-3">
+        <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+            <span class="me-2 text-body-secondary small">Pedir ao serviço:</span>
+            @foreach (var tipo in CommandTypes.All)
+            {
+                var bloqueado = tipo == CommandTypes.Run && !ativa;
+                <form asp-controller="Comandos" asp-action="Solicitar" method="post"
+                      data-confirmar="@(tipo == CommandTypes.Run ? "Executar a sincronização agora? Com o envio real ligado, os dados vão para o Sólides DP." : "")">
+                    <input type="hidden" name="tipo" value="@tipo" />
+                    <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary")" disabled="@bloqueado"
+                            title="@(bloqueado ? "Integração desativada" : "")">
+                        @Rotulos.Comando(tipo)
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <div class="card h-100">
+            <div class="card-header">Execuções nos últimos 14 dias</div>
+            <div class="card-body">
+                <table class="table table-sm align-middle mb-0">
+                    <tbody>
+                        @foreach (var dia in Model.PorDia.Reverse())
+                        {
+                            <tr>
+                                <td class="text-nowrap small" style="width: 6.5rem">@F.Dia(dia.Dia)</td>
+                                <td>
+                                    <div class="barra-dia" title="@dia.Concluidas concluídas, @dia.ComErros com erros, @dia.Falhas falhas">
+                                        <span class="bg-success" style="width: @Formatador.Percentual(dia.Concluidas, maximoDia)"></span>
+                                        <span class="bg-warning" style="width: @Formatador.Percentual(dia.ComErros, maximoDia)"></span>
+                                        <span class="bg-danger" style="width: @Formatador.Percentual(dia.Falhas, maximoDia)"></span>
+                                    </div>
+                                </td>
+                                <td class="text-end small text-nowrap" style="width: 3rem">@dia.Total</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <div class="small text-body-secondary mt-2">
+                    <span class="legenda bg-success"></span> concluídas
+                    <span class="legenda bg-warning ms-2"></span> com erros
+                    <span class="legenda bg-danger ms-2"></span> falhas
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card h-100">
+            <div class="card-header d-flex">
+                <span class="flex-grow-1">Pedidos recentes ao serviço</span>
+                <a class="small" asp-controller="Comandos" asp-action="Index">Todos</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <tbody>
+                        @foreach (var comando in Model.ComandosRecentes)
+                        {
+                            <tr>
+                                <td class="small"><a asp-controller="Comandos" asp-action="Detalhe" asp-route-id="@comando.Id">@Rotulos.Comando(comando.Tipo)</a></td>
+                                <td class="small">@comando.SolicitadoPor</td>
+                                <td class="small text-nowrap">@F.Data(comando.SolicitadoEm)</td>
+                                <td>@Rotulos.Badge(comando.Status)</td>
+                            </tr>
+                        }
+                        @if (Model.ComandosRecentes.Count == 0)
+                        {
+                            <tr><td class="text-body-secondary small p-3">Nenhum pedido ainda.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,24 @@
+@{
+    ViewData["Title"] = "Auditoria";
+}
+<p class="small text-body-secondary">Tudo o que foi feito na Web: logins, pedidos ao serviço, alterações de configuração e de usuários. Somente leitura.</p>
+<div class="card">
+    <div class="card-body">
+        <table id="auditoria" class="table table-sm table-hover w-100">
+            <thead>
+                <tr><th>Quando</th><th>Usuário</th><th>Ação</th><th>Detalhe</th><th>IP</th></tr>
+            </thead>
+        </table>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        app.grid('#auditoria', '@Url.Action("Dados")', [
+            { data: 'ocorridoEm', render: v => app.data(v) },
+            { data: 'usuario', render: v => app.esc(v) },
+            { data: 'acao', render: v => `<code>${app.esc(v)}</code>` },
+            { data: 'detalhe', render: v => `<span class="mensagem">${app.esc(v || '')}</span>` },
+            { data: 'ip', render: v => app.esc(v || '') }
+        ]);
+    </script>
+}

@@ -1,0 +1,20 @@
+@model EntrarViewModel
+@{
+    ViewData["Title"] = "Entrar";
+    Layout = "_LayoutLogin";
+}
+<form asp-action="Entrar" method="post" novalidate>
+    <input type="hidden" asp-for="ReturnUrl" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+    <div class="mb-3">
+        <label asp-for="Usuario" class="form-label"></label>
+        <input asp-for="Usuario" class="form-control" autocomplete="username" autofocus />
+        <span asp-validation-for="Usuario" class="text-danger small"></span>
+    </div>
+    <div class="mb-4">
+        <label asp-for="Senha" class="form-label"></label>
+        <input asp-for="Senha" class="form-control" autocomplete="current-password" />
+        <span asp-validation-for="Senha" class="text-danger small"></span>
+    </div>
+    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right"></i> Entrar</button>
+</form>

@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\IntegracaoSolidesDP.Worker\IntegracaoSolidesDP.Worker.csproj" />
+    <ProjectReference Include="..\..\src\IntegracaoSolidesDP.Web\IntegracaoSolidesDP.Web.csproj" />
     <ProjectReference Include="..\..\src\SolidesDP.Fake\SolidesDP.Fake.csproj" />
   </ItemGroup>
 

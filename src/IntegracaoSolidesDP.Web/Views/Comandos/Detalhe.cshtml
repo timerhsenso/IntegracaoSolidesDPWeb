@@ -1,0 +1,33 @@
+@model Comando
+@using IntegracaoSolidesDP.Worker.Management
+@{
+    ViewData["Title"] = $"Pedido {Model.Id}: {Rotulos.Comando(Model.Tipo)}";
+    var emAberto = Model.Status is CommandStatuses.Pending or CommandStatuses.Running;
+}
+@if (emAberto)
+{
+    <meta http-equiv="refresh" content="5" />
+    <div class="alert alert-info"><span class="spinner-border spinner-border-sm"></span> Aguardando o serviço. Esta página se atualiza sozinha.</div>
+}
+<div class="card mb-3">
+    <div class="card-body">
+        <dl class="row mb-0 small">
+            <dt class="col-sm-3">Status</dt><dd class="col-sm-9">@Rotulos.Badge(Model.Status)</dd>
+            <dt class="col-sm-3">Pedido por</dt><dd class="col-sm-9">@Model.SolicitadoPor em @F.Data(Model.SolicitadoEm)</dd>
+            <dt class="col-sm-3">Início / fim</dt><dd class="col-sm-9">@F.Data(Model.IniciadoEm) / @F.Data(Model.ConcluidoEm)</dd>
+            @if (Model.RunId is { } runId)
+            {
+                <dt class="col-sm-3">Execução</dt>
+                <dd class="col-sm-9"><a asp-controller="Execucoes" asp-action="Detalhe" asp-route-id="@runId">ver a execução e os itens</a></dd>
+            }
+        </dl>
+    </div>
+</div>
+@if (!string.IsNullOrWhiteSpace(Model.Resultado))
+{
+    <div class="card">
+        <div class="card-header">Resultado</div>
+        <div class="card-body"><pre class="resultado mb-0">@Model.Resultado</pre></div>
+    </div>
+}
+<a class="btn btn-outline-secondary mt-3" asp-action="Index"><i class="bi bi-arrow-left"></i> Pedidos</a>

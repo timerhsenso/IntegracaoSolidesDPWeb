@@ -100,6 +100,37 @@ Independentemente da gestão:
 - os itens `unchanged` entram só na contagem da execução (`summary_json`), não em `solidesdp.run_items`;
 - execuções que ficaram `running` por uma parada abrupta são marcadas como `failed` na execução seguinte.
 
+## Aplicação Web (`src/IntegracaoSolidesDP.Web`)
+
+ASP.NET Core MVC (Bootstrap 5 + DataTables) para acompanhar e operar a integração sem acessar o servidor:
+
+| Tela | Perfil | O que mostra / faz |
+|---|---|---|
+| Painel | todos | Ativa/desativada, modo (real ou simulação), última execução, pendências, totais no DP, execuções por dia, pedidos recentes |
+| Execuções | todos | Histórico de `solidesdp.runs` e os itens de cada execução |
+| O que foi migrado | todos | Colaboradores, cargos, locais e férias que existem no DP pela integração, com o histórico de cada registro |
+| Pendências | todos | Falhas, bloqueios, ignorados, avisos e adiados da última execução |
+| Pedidos ao serviço | Operador | Executar agora, simular (dry-run), verificar configuração, consultar o DP, conferir enviados |
+| Configuração | Admin altera | Seção `Sync` versionada, com histórico e diferenças entre versões; ativar/desativar |
+| Usuários e Auditoria | Admin | Usuários (nunca excluídos, só desativados) e tudo o que foi feito na Web |
+
+- **Arquitetura.** A Web não fala com o Sólides DP nem guarda o token: ela lê as tabelas do serviço e grava pedidos em `solidesdp.comando`, que o serviço atende (gestão ligada: `Gestao:Habilitada=true`).
+- **Login.** ASP.NET Core Identity no schema `solidesdp_auth`, com perfis Consulta, Operador e Admin.
+  - Senha com no mínimo 8 caracteres, maiúscula, minúscula e número; bloqueio de 15 minutos após 5 erros.
+  - O primeiro administrador é criado na tela de primeiro acesso, que só abre no próprio servidor e só enquanto não existe nenhum usuário.
+- **Nada é excluído.** Configuração, pedidos, execuções e auditoria são só INSERT. Usuário é desativado, nunca apagado.
+- **Front-end.** Bibliotecas em `libman.json`, restauradas no build em `wwwroot/lib` (fora do git): o servidor não precisa de internet.
+- **Migrations do login:** `dotnet ef migrations add <Nome> --project src/IntegracaoSolidesDP.Web --output-dir Migrations`. São aplicadas ao iniciar a Web (`Web:AplicarMigrationsNoStart`).
+
+Desenvolvimento no Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\dev-db.ps1      # SQL Server no Docker + tabelas e dados de exemplo
+dotnet run --project src/SolidesDP.Fake                            # fake da API em http://localhost:5080 (deixe aberto)
+dotnet run --project src/IntegracaoSolidesDP.Worker                # serviço em Development (gestão ligada, aponta para o fake)
+dotnet run --project src/IntegracaoSolidesDP.Web                   # Web em https://localhost:7180
+```
+
 ## Comandos
 
 ```bash

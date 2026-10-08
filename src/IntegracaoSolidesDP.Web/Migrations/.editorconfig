@@ -1,0 +1,4 @@
+# Migrations são geradas pelo "dotnet ef migrations add": código gerado, fora dos analisadores.
+[*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

@@ -1,0 +1,40 @@
+@model AlterarSenhaViewModel
+@{
+    ViewData["Title"] = "Alterar senha";
+    var obrigatoria = User.HasClaim(ClaimsWeb.TrocaSenha, "1");
+}
+<div class="row">
+    <div class="col-lg-5">
+        @if (obrigatoria)
+        {
+            <div class="alert alert-warning"><i class="bi bi-key"></i> Sua senha foi definida pelo administrador. Escolha uma senha nova para continuar.</div>
+        }
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="AlterarSenha" method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+                    <div class="mb-3">
+                        <label asp-for="SenhaAtual" class="form-label"></label>
+                        <input asp-for="SenhaAtual" class="form-control" autocomplete="current-password" />
+                        <span asp-validation-for="SenhaAtual" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="NovaSenha" class="form-label"></label>
+                        <input asp-for="NovaSenha" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="NovaSenha" class="text-danger small"></span>
+                        <div class="form-text">Pelo menos 8 caracteres, com letra maiúscula, minúscula e número.</div>
+                    </div>
+                    <div class="mb-4">
+                        <label asp-for="ConfirmarSenha" class="form-label"></label>
+                        <input asp-for="ConfirmarSenha" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="ConfirmarSenha" class="text-danger small"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Alterar senha</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidacaoScripts" />
+}

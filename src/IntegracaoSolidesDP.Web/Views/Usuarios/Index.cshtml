@@ -1,0 +1,47 @@
+@model IReadOnlyList<UsuarioListaItem>
+@{
+    ViewData["Title"] = "Usuários";
+}
+<div class="d-flex mb-3">
+    <p class="small text-body-secondary flex-grow-1 mb-0">Usuários não são excluídos: são desativados e o histórico é mantido.</p>
+    <a class="btn btn-primary btn-sm" asp-action="Novo"><i class="bi bi-person-plus"></i> Novo usuário</a>
+</div>
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th>Situação</th><th>Criado em</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var u in Model)
+                {
+                    <tr class="@(u.Ativo ? "" : "text-body-secondary")">
+                        <td><code>@u.Usuario</code></td>
+                        <td>@u.Nome</td>
+                        <td>@(u.Perfil ?? "—")</td>
+                        <td>
+                            @if (!u.Ativo)
+                            {
+                                <span class="badge text-bg-secondary">Desativado</span>
+                            }
+                            else if (u.BloqueadoAte is { } ate)
+                            {
+                                <span class="badge text-bg-warning" title="Excesso de tentativas">Bloqueado até @F.Data(ate)</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-success">Ativo</span>
+                            }
+                            @if (u.DeveTrocarSenha)
+                            {
+                                <span class="badge text-bg-light border">troca a senha no próximo acesso</span>
+                            }
+                        </td>
+                        <td class="small text-nowrap">@F.Data(u.CriadoEm)</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-secondary" asp-action="Editar" asp-route-id="@u.Id"><i class="bi bi-pencil"></i> Editar</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

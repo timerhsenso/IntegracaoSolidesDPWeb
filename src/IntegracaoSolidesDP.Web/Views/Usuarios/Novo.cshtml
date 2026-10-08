@@ -1,0 +1,40 @@
+@model UsuarioNovoViewModel
+@{
+    ViewData["Title"] = "Novo usuário";
+}
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Novo" method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger small"></div>
+                    <div class="mb-3">
+                        <label asp-for="Usuario" class="form-label"></label>
+                        <input asp-for="Usuario" class="form-control" autocomplete="off" />
+                        <span asp-validation-for="Usuario" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="NomeCompleto" class="form-label"></label>
+                        <input asp-for="NomeCompleto" class="form-control" />
+                        <span asp-validation-for="NomeCompleto" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Perfil" class="form-label"></label>
+                        <select asp-for="Perfil" class="form-select" asp-items="@(new SelectList(Perfis.Todos))"></select>
+                        <div class="form-text">Consulta: só vê. Operador: também pede execuções. Admin: também configura, ativa/desativa e gerencia usuários.</div>
+                    </div>
+                    <div class="mb-4">
+                        <label asp-for="Senha" class="form-label"></label>
+                        <input asp-for="Senha" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="Senha" class="text-danger small"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> Criar</button>
+                    <a class="btn btn-link" asp-action="Index">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidacaoScripts" />
+}

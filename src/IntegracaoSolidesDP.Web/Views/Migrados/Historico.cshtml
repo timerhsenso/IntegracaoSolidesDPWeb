@@ -1,0 +1,36 @@
+@model HistoricoViewModel
+@{
+    ViewData["Title"] = $"Histórico: {Rotulos.Entidade(Model.Tipo)} {Model.ExternalId}";
+}
+<p class="small text-body-secondary">
+    Últimos 200 envios (ou tentativas) deste registro, do mais recente para o mais antigo.
+    Para colaborador, inclui as férias dele. Execuções sem alteração não aparecem.
+</p>
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr><th>Execução</th><th>Modo</th><th>Entidade</th><th>Registro</th><th>Ação</th><th>Status</th><th>HTTP</th><th>Mensagem</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Itens)
+                {
+                    <tr>
+                        <td class="text-nowrap small"><a asp-controller="Execucoes" asp-action="Detalhe" asp-route-id="@item.RunId">@F.Data(item.Data)</a></td>
+                        <td class="small">@(item.DryRun ? "Simulação" : "Real")</td>
+                        <td class="small">@Rotulos.Entidade(item.Entidade)</td>
+                        <td class="small"><code>@item.ExternalId</code></td>
+                        <td class="small">@(Rotulos.Acoes.TryGetValue(item.Acao, out var acao) ? acao : item.Acao)</td>
+                        <td>@Rotulos.Badge(item.Status)</td>
+                        <td class="small">@item.Http</td>
+                        <td class="small mensagem">@item.Mensagem</td>
+                    </tr>
+                }
+                @if (Model.Itens.Count == 0)
+                {
+                    <tr><td colspan="8" class="text-body-secondary small p-3">Nenhum envio registrado para este registro.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

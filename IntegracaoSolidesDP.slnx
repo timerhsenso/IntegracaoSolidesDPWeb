@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/IntegracaoSolidesDP.Core/IntegracaoSolidesDP.Core.csproj" />
+    <Project Path="src/IntegracaoSolidesDP.Web/IntegracaoSolidesDP.Web.csproj" />
     <Project Path="src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj" />
     <Project Path="src/SolidesDP.Fake/SolidesDP.Fake.csproj" />
   </Folder>

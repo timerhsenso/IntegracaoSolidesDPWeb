@@ -1,0 +1,80 @@
+@model UsuarioEditarViewModel
+@{
+    ViewData["Title"] = $"Usuário {Model.Usuario}";
+}
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">Dados</div>
+            <div class="card-body">
+                <form asp-action="Editar" method="post" novalidate>
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger small"></div>
+                    <div class="mb-3">
+                        <label asp-for="Usuario" class="form-label"></label>
+                        <input asp-for="Usuario" class="form-control" disabled />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="NomeCompleto" class="form-label"></label>
+                        <input asp-for="NomeCompleto" class="form-control" />
+                        <span asp-validation-for="NomeCompleto" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-4">
+                        <label asp-for="Perfil" class="form-label"></label>
+                        @if (Model.EhOProprioUsuario)
+                        {
+                            <input type="hidden" asp-for="Perfil" />
+                            <input class="form-control" value="@Model.Perfil" disabled />
+                            <div class="form-text">Você não pode alterar o próprio perfil.</div>
+                        }
+                        else
+                        {
+                            <select asp-for="Perfil" class="form-select" asp-items="@(new SelectList(Perfis.Todos))"></select>
+                        }
+                        <span asp-validation-for="Perfil" class="text-danger small"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar</button>
+                    <a class="btn btn-link" asp-action="Index">Voltar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card mb-3">
+            <div class="card-header">Redefinir senha</div>
+            <div class="card-body">
+                <form asp-action="RedefinirSenha" method="post" class="d-flex gap-2" data-confirmar="Redefinir a senha deste usuário?">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="password" name="novaSenha" class="form-control" placeholder="Nova senha" autocomplete="new-password" required />
+                    <button type="submit" class="btn btn-outline-primary text-nowrap">Redefinir</button>
+                </form>
+                <div class="form-text">O usuário troca a senha no próximo acesso. Também desbloqueia quem errou a senha muitas vezes.</div>
+            </div>
+        </div>
+        @if (!Model.EhOProprioUsuario)
+        {
+            <div class="card">
+                <div class="card-header">Situação</div>
+                <div class="card-body">
+                    @if (Model.Ativo)
+                    {
+                        <form asp-action="Desativar" method="post" data-confirmar="Desativar este usuário? Ele perde o acesso em até 1 minuto.">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-person-slash"></i> Desativar</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form asp-action="Ativar" method="post">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-success"><i class="bi bi-person-check"></i> Ativar</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidacaoScripts" />
+}

@@ -1,0 +1,40 @@
+@model ItensExecucaoModel
+@* Grade dos itens de uma execução (Execuções › Detalhe e Pendências). *@
+<div class="d-flex flex-wrap gap-2 mb-2">
+    <select id="filtro-entidade" class="form-select form-select-sm w-auto">
+        <option value="">Todas as entidades</option>
+        @foreach (var entidade in Rotulos.Entidades)
+        {
+            <option value="@entidade.Key">@entidade.Value</option>
+        }
+    </select>
+    <select id="filtro-status" class="form-select form-select-sm w-auto">
+        <option value="">@(Model.SomentePendencias ? "Todas as pendências" : "Todos os status")</option>
+        @foreach (var status in Model.StatusDisponiveis)
+        {
+            <option value="@status">@Rotulos.Status[status].Texto</option>
+        }
+    </select>
+</div>
+<table id="itens" class="table table-sm table-hover w-100">
+    <thead>
+        <tr><th>#</th><th>Entidade</th><th>Registro</th><th>Ação</th><th>Status</th><th>HTTP</th><th>Mensagem</th></tr>
+    </thead>
+</table>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const grade = app.grid('#itens', '@Url.Action("Itens", "Execucoes", new { id = Model.RunId, pendencias = Model.SomentePendencias })', [
+            { data: 'id' },
+            { data: 'entidade', render: v => app.entidade(v) },
+            { data: 'externalId', render: (v, t, r) => app.linkHistorico(r.entidade, v) },
+            { data: 'acao', render: v => app.acao(v) },
+            { data: 'status', render: v => app.badge(v) },
+            { data: 'http', render: v => v ?? '' },
+            { data: 'mensagem', render: v => `<span class="mensagem">${app.esc(v || '')}</span>` }
+        ], {
+            order: [[0, 'asc']],
+            params: () => ({ entidade: $('#filtro-entidade').val(), status: $('#filtro-status').val() })
+        });
+        $('#filtro-entidade, #filtro-status').on('change', () => grade.ajax.reload());
+    });
+</script>

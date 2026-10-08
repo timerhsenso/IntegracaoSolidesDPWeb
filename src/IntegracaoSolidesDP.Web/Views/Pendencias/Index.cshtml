@@ -1,0 +1,19 @@
+@model Execucao?
+@{
+    ViewData["Title"] = "Pendências";
+}
+@if (Model is null)
+{
+    <div class="alert alert-info">Ainda não há execuções.</div>
+    return;
+}
+<div class="alert alert-light border small">
+    Itens da execução de <a asp-controller="Execucoes" asp-action="Detalhe" asp-route-id="@Model.RunId">@F.Data(Model.Inicio)</a>
+    (@(Model.DryRun ? "simulação" : "real"), @Rotulos.Badge(Model.Status)) que pedem atenção: falhas, bloqueios, ignorados, avisos e adiados.
+    A maioria se resolve corrigindo o cadastro no RHSenso (CPF, cargo, filial...); a próxima execução reenvia.
+</div>
+<div class="card">
+    <div class="card-body">
+        <partial name="_ItensExecucao" model="new ItensExecucaoModel(Model.RunId, true)" />
+    </div>
+</div>
