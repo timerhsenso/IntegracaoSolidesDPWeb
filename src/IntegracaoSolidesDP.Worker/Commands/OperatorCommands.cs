@@ -1,5 +1,6 @@
 using Dapper;
 using IntegracaoSolidesDP.Worker.Api;
+using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
@@ -15,6 +16,8 @@ public sealed class OperatorCommands(
     IOptions<SolidesDpOptions> solidesOptions,
     IOptions<SyncOptions> syncOptions,
     IOptions<ExecutionOptions> executionOptions,
+    IOptions<ManagementOptions> managementOptions,
+    IManagementStore management,
     TextWriter output)
 {
     private static readonly string[] RequiredTables = ["func1", "cargo1", "test1", "tcus1", "tsitu1", "feria2"];
@@ -52,6 +55,16 @@ public sealed class OperatorCommands(
 
             await state.EnsureSchemaAsync(ct);
             await output.WriteLineAsync("[OK] Schema solidesdp criado/atualizado");
+
+            if (managementOptions.Value.Habilitada)
+            {
+                await management.EnsureSchemaAsync(ct);
+                var current = await management.GetCurrentConfigurationAsync(sync.InstanceName, ct);
+                await output.WriteLineAsync(current is null
+                    ? "[--] Gestão pela Web ligada: a configuração será criada a partir do appsettings.json na primeira execução"
+                    : $"[OK] Gestão pela Web ligada: valem as regras da versão {current.Version} ({(current.Active ? "ativa" : "DESATIVADA")}), " +
+                      $"gravada por {current.CreatedBy} em {current.CreatedAt:yyyy-MM-dd HH:mm}; o modo e os filtros acima são os do appsettings.json");
+            }
         }
         catch (Exception ex) when (ex is Microsoft.Data.SqlClient.SqlException or InvalidOperationException)
         {

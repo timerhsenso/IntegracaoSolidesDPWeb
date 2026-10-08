@@ -1,10 +1,10 @@
 using System.Text.Json;
 using IntegracaoSolidesDP.Worker.Api;
+using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
-using Microsoft.Extensions.Options;
 
 namespace IntegracaoSolidesDP.Worker.Pipeline.Steps;
 
@@ -18,9 +18,9 @@ public sealed class EmployeeStep(
     IStateStore state,
     EmployeeMapper mapper,
     EpochDates dates,
-    IOptions<SyncOptions> syncOptions)
+    SyncOptionsAccessor syncOptions)
 {
-    private SyncOptions Options => syncOptions.Value;
+    private SyncOptions Options => syncOptions.Current;
 
     public async Task ExecuteAsync(SyncContext context, EmployeePlan plan, CancellationToken ct)
     {

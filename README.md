@@ -62,6 +62,8 @@ Toda chave pode vir do `appsettings.json`, de uma variável de ambiente (`Sync__
 | `SolidesDP:TimeoutSeconds` | `30` | Por tentativa; o total é 4x. |
 | `SolidesDP:SkipUnifiedSync` | `true` | Não propaga para a base unificada (CUC) da Sólides. Confirmar com a Sólides. |
 | `SolidesDP:AllowProductionApiOutsideProduction` | `false` | Opt-in para usar a API real fora de Production. |
+| `Gestao:Habilitada` | `false` | Liga a gestão pela Web (veja [Gestão pela Web](#gestão-pela-web)). |
+| `Gestao:IntervaloComandos` | `00:00:15` | Com a gestão ligada, frequência com que o serviço procura comandos pedidos na Web. |
 | `Execution:Interval` | `00:30:00` | Frequência. Use esta **ou** `TimesOfDay`. |
 | `Execution:TimesOfDay` | — | Ex.: `["07:00", "13:00"]`, no fuso abaixo. |
 | `Execution:TimeZone` | `America/Bahia` | Fuso dos horários e das datas do RHSenso. |
@@ -80,6 +82,23 @@ Toda chave pode vir do `appsettings.json`, de uma variável de ambiente (`Sync__
 | `Sync:FeriasMotivoId` | descoberto | Id do motivo FÉRIAS no DP. |
 | `Sync:FeriasEndDateMode` | `InicioDoDiaSeguinte` | Como calcular o `endDate` (calibrar com o DP real). |
 | `Sync:MaxCreatesPerRun` / `Sync:MaxCancellationsPerRun` | `300` / `20` | Travas de segurança. |
+
+## Gestão pela Web
+
+Com `Gestao:Habilitada=true`, o serviço passa a ser operado pela aplicação Web (em construção), sem mudar a forma de instalar:
+
+- **Configuração no banco.** As regras da seção `Sync` vêm da versão vigente de `solidesdp.configuracao`.
+  - Na primeira execução, a versão 1 é criada a partir do `appsettings.json`.
+  - Cada alteração grava uma versão nova; nenhuma versão é alterada nem apagada.
+  - Continuam vindo do `appsettings.json`: `ConnectionStrings`, `SolidesDP` (token), `Execution`, `Sync:InstanceName` e `Sync:ReportDirectory`.
+  - Uma versão inválida não chega à API: a execução é registrada como `failed` com `config_invalid` e o motivo.
+- **Ativar/desativar** também é uma versão da configuração. Desativada, a integração não faz execuções reais (agendadas ou pedidas); o dry-run continua permitido.
+- **Fila de comandos.** A Web grava o pedido em `solidesdp.comando` e o serviço o atende, um por vez, entre as execuções: `EXECUTAR`, `EXECUTAR_DRYRUN`, `CHECK_CONFIG`, `DISCOVER` e `RECONCILE` (só conferência; o `--repair` continua sendo pela linha de comando). Só o serviço fala com a API do Sólides DP.
+- **Rastreio.** `solidesdp.runs` grava quem pediu (`solicitado_por`) e a versão da configuração usada (`config_versao`).
+
+Independentemente da gestão:
+- os itens `unchanged` entram só na contagem da execução (`summary_json`), não em `solidesdp.run_items`;
+- execuções que ficaram `running` por uma parada abrupta são marcadas como `failed` na execução seguinte.
 
 ## Comandos
 

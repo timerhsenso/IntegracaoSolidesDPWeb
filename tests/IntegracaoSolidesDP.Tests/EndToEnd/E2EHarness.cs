@@ -1,6 +1,7 @@
 using IntegracaoSolidesDP.Tests.Sql;
 using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Infrastructure;
+using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Pipeline;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -61,6 +62,15 @@ public sealed class E2EHarness : IAsyncDisposable
         await using var provider = BuildWorker();
         await using var scope = provider.CreateAsyncScope();
         return await scope.ServiceProvider.GetRequiredService<SyncPipeline>().RunAsync("e2e", dryRunOverride: null, ct);
+    }
+
+    /// <summary>Atende a fila solidesdp.comando como o serviço faria entre duas execuções.</summary>
+    public async Task<int> ProcessCommandsAsync(CancellationToken ct = default)
+    {
+        await using var provider = BuildWorker();
+        var commands = provider.GetRequiredService<CommandProcessor>();
+        await commands.RecoverAsync(ct);
+        return await commands.ProcessPendingAsync(ct);
     }
 
     /// <summary>Requests de escrita (POST/PUT/DELETE) recebidos pelo fake desde a última limpeza.</summary>

@@ -18,6 +18,12 @@ public interface IStateStore
 
     Task FinishRunAsync(Guid runId, string status, string summaryJson, string? errorMessage, CancellationToken ct);
 
+    /// <summary>
+    /// Execuções "running" da instância que ficaram para trás numa parada abrupta viram "failed".
+    /// Só pode ser chamado com o lock da instância (nenhuma execução viva). Devolve quantas.
+    /// </summary>
+    Task<int> FailInterruptedRunsAsync(string instanceName, CancellationToken ct);
+
     Task AddItemsAsync(Guid runId, IReadOnlyCollection<RunItem> items, CancellationToken ct);
 
     Task<Dictionary<string, EntityState>> LoadEntityStatesAsync(string entityType, CancellationToken ct);
@@ -177,6 +183,19 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
             WHERE run_id = @RunId
             """,
             new { RunId = runId, Status = status, Now = clock.GetUtcNow(), Summary = summaryJson, Error = errorMessage },
+            cancellationToken: ct));
+    }
+
+    public async Task<int> FailInterruptedRunsAsync(string instanceName, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        return await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE solidesdp.runs
+            SET status = @Failed, finished_at = @Now,
+                error_message = N'interrupted: a execução parou sem terminar (serviço parado ou servidor reiniciado)'
+            WHERE instance_name = @InstanceName AND status = @Running
+            """,
+            new { InstanceName = instanceName, Failed = RunStatuses.Failed, Running = RunStatuses.Running, Now = clock.GetUtcNow() },
             cancellationToken: ct));
     }
 

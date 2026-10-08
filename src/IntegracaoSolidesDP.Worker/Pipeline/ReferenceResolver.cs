@@ -1,11 +1,11 @@
 using System.Globalization;
 using System.Text;
 using IntegracaoSolidesDP.Worker.Api;
+using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
-using Microsoft.Extensions.Options;
 
 namespace IntegracaoSolidesDP.Worker.Pipeline;
 
@@ -16,10 +16,10 @@ namespace IntegracaoSolidesDP.Worker.Pipeline;
 public sealed class ReferenceResolver(
     ISolidesDpClient api,
     ISourceReader source,
-    IOptions<SyncOptions> syncOptions,
+    SyncOptionsAccessor syncOptions,
     ILogger<ReferenceResolver> logger)
 {
-    private SyncOptions Options => syncOptions.Value;
+    private SyncOptions Options => syncOptions.Current;
 
     public async Task ResolveAsync(SyncContext context, EmployeePlan plan, CancellationToken ct)
     {

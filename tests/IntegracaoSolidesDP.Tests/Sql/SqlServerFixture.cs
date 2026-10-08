@@ -41,6 +41,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
         await using var connection = new SqlConnection(ConnectionString);
         await connection.ExecuteAsync("""
             DELETE FROM dbo.feria2; DELETE FROM dbo.func1; DELETE FROM dbo.test1; DELETE FROM dbo.cargo1; DELETE FROM dbo.tcus1;
+            IF OBJECT_ID('solidesdp.comando') IS NOT NULL DROP TABLE solidesdp.comando;
+            IF OBJECT_ID('solidesdp.configuracao') IS NOT NULL DROP TABLE solidesdp.configuracao;
+            IF OBJECT_ID('solidesdp.auditoria') IS NOT NULL DROP TABLE solidesdp.auditoria;
             IF OBJECT_ID('solidesdp.run_items') IS NOT NULL DROP TABLE solidesdp.run_items;
             IF OBJECT_ID('solidesdp.runs') IS NOT NULL DROP TABLE solidesdp.runs;
             IF OBJECT_ID('solidesdp.entity_state') IS NOT NULL DROP TABLE solidesdp.entity_state;

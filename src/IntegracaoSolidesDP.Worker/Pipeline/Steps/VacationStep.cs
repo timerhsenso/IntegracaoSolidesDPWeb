@@ -1,9 +1,9 @@
 using IntegracaoSolidesDP.Worker.Api;
+using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
-using Microsoft.Extensions.Options;
 
 namespace IntegracaoSolidesDP.Worker.Pipeline.Steps;
 
@@ -17,10 +17,10 @@ public sealed class VacationStep(
     ISolidesDpClient api,
     ISourceReader source,
     IStateStore state,
-    VacationMapper mapper,
-    IOptions<SyncOptions> syncOptions)
+    EpochDates dates,
+    SyncOptionsAccessor syncOptions)
 {
-    private SyncOptions Options => syncOptions.Value;
+    private SyncOptions Options => syncOptions.Current;
 
     public async Task ExecuteAsync(SyncContext context, EmployeePlan plan, CancellationToken ct)
     {
@@ -30,6 +30,8 @@ public sealed class VacationStep(
             return;
         }
 
+        // Criado a cada execução: as regras de férias podem mudar entre execuções (configuração da Web).
+        var mapper = new VacationMapper(dates, Options);
         var reasonId = context.FeriasReasonId ?? 0;
         var desde = context.Today.AddDays(-Options.FeriasJanelaDias);
         var rows = await source.ReadVacationsEndingFromAsync(desde, ct);

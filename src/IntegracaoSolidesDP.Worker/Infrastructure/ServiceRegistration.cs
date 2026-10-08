@@ -1,5 +1,6 @@
 using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Commands;
+using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Pipeline;
@@ -17,6 +18,7 @@ public static class ServiceRegistration
     {
         services.AddOptions<SolidesDpOptions>().Bind(configuration.GetSection(SolidesDpOptions.SectionName)).ValidateOnStart();
         services.AddOptions<ExecutionOptions>().Bind(configuration.GetSection(ExecutionOptions.SectionName)).ValidateOnStart();
+        services.AddOptions<ManagementOptions>().Bind(configuration.GetSection(ManagementOptions.SectionName)).ValidateOnStart();
         services.AddOptions<SyncOptions>()
             .Bind(configuration.GetSection(SyncOptions.SectionName))
             .PostConfigure(options => ReplaceConfiguredLists(options, configuration.GetSection(SyncOptions.SectionName)))
@@ -24,6 +26,7 @@ public static class ServiceRegistration
         services.AddSingleton<IValidateOptions<SolidesDpOptions>, SolidesDpOptionsValidator>();
         services.AddSingleton<IValidateOptions<ExecutionOptions>, ExecutionOptionsValidator>();
         services.AddSingleton<IValidateOptions<SyncOptions>, SyncOptionsValidator>();
+        services.AddSingleton<IValidateOptions<ManagementOptions>, ManagementOptionsValidator>();
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(_ =>
@@ -46,10 +49,13 @@ public static class ServiceRegistration
 
         services.AddSingleton<ISourceReader, SqlSourceReader>();
         services.AddSingleton<IStateStore, SqlStateStore>();
+        services.AddSingleton<IManagementStore, SqlManagementStore>();
         services.AddSingleton<EmployeeMapper>();
-        services.AddSingleton(sp => new VacationMapper(
-            sp.GetRequiredService<EpochDates>(), sp.GetRequiredService<IOptions<SyncOptions>>().Value));
         services.AddSolidesDpClient();
+
+        services.AddScoped<SyncOptionsAccessor>();
+        services.AddScoped<SyncSettingsLoader>();
+        services.AddSingleton<CommandProcessor>();
 
         services.AddScoped<ReferenceResolver>();
         services.AddScoped<JobRoleStep>();

@@ -74,4 +74,10 @@ public static class RunStatuses
     public const string Completed = "completed";
     public const string CompletedWithErrors = "completed_with_errors";
     public const string Failed = "failed";
+
+    /// <summary>Não executou: outra execução da instância estava em andamento (não grava em runs).</summary>
+    public const string SkippedLocked = "skipped_locked";
+
+    /// <summary>Não executou: integração desativada na Web (não grava em runs).</summary>
+    public const string SkippedDisabled = "skipped_disabled";
 }

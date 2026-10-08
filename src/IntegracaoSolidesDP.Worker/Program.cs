@@ -49,6 +49,7 @@ try
     _ = host.Services.GetRequiredService<IOptions<IntegracaoSolidesDP.Worker.Options.SolidesDpOptions>>().Value;
     _ = host.Services.GetRequiredService<IOptions<IntegracaoSolidesDP.Worker.Options.ExecutionOptions>>().Value;
     _ = host.Services.GetRequiredService<IOptions<IntegracaoSolidesDP.Worker.Options.SyncOptions>>().Value;
+    _ = host.Services.GetRequiredService<IOptions<IntegracaoSolidesDP.Worker.Options.ManagementOptions>>().Value;
 }
 catch (OptionsValidationException ex)
 {
