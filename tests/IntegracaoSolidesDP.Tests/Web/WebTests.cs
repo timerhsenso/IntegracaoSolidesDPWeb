@@ -58,7 +58,8 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
             new() { ["Usuario"] = login, ["Senha"] = "errada" });
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await response.Content.ReadAsStringAsync(Ct)).Should().Contain("Usuário ou senha inválidos");
+        // O Razor codifica os acentos no HTML (&#xE1;): compara o texto como o navegador mostra.
+        WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync(Ct)).Should().Contain("Usuário ou senha inválidos");
         (await Auditoria(login)).Should().Contain("LOGIN_FALHOU");
     }
 
