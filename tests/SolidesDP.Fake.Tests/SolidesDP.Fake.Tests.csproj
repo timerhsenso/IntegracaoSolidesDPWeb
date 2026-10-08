@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- Projetos de teste xunit v3 sao auto-executaveis. -->
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="AwesomeAssertions" />
+    <Using Include="System.Net" />
+    <Using Include="System.Text.Json.Nodes" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="SolidesDP.Fake.Configuration" />
+    <Using Include="SolidesDP.Fake.Tests.Support" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <!-- O Swagger do fornecedor e a fonte da verdade dos testes de contrato. -->
+  <ItemGroup>
+    <Content Include="..\..\spec\tangerino-employer.json" Link="Contracts\tangerino-employer.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SolidesDP.Fake\SolidesDP.Fake.csproj" />
+  </ItemGroup>
+
+</Project>

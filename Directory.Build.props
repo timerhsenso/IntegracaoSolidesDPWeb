@@ -1,0 +1,45 @@
+<Project>
+
+  <!--
+    Configuração de build compartilhada por todos os projetos da solution.
+    As versões de pacotes ficam em Directory.Packages.props (central package management).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!--
+    Versão: o CI publica MAJOR.MINOR.<número da execução> a cada push na main (tag v1.0.N).
+    Para subir major/minor, altere VersionPrefix aqui.
+  -->
+  <PropertyGroup>
+    <VersionPrefix>1.0</VersionPrefix>
+    <Company>RHSenso</Company>
+    <Product>IntegracaoSolidesDP</Product>
+  </PropertyGroup>
+
+  <!-- O build tem que ficar limpo: qualquer warning vira erro. -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Necessario para o IDE0005 (usings nao usados) rodar no build; CS1591 e o
+         ruido de "comentario XML ausente" que vem junto e nao e desejado aqui. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- Lock files tornam o restore reprodutivel; o CI restaura em locked mode.
+       NuGetAudit falha o build em qualquer vulnerabilidade conhecida. -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+
+</Project>

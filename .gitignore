@@ -1,0 +1,14 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+TestResults/
+coverage/
+logs/
+publish/
+artifacts/
+# Senha local do SQL Server de desenvolvimento (gerada por scripts/dev-sql.sh)
+.env.local
+appsettings.*.local.json

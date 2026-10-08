@@ -1,0 +1,329 @@
+{
+  "companies": [
+    {
+      "id": 3001,
+      "cnpj": "00594807000108",
+      "cnpjMask": "00.594.807/0001-08",
+      "descriptionName": "ALFA ALIMENTOS - MATRIZ",
+      "fantasyName": "ALFA ALIMENTOS - MATRIZ",
+      "socialReason": "ALFA DISTRIBUIDORA DE ALIMENTOS LTDA"
+    },
+    {
+      "id": 3002,
+      "cnpj": "00594807000361",
+      "cnpjMask": "00.594.807/0003-61",
+      "descriptionName": "ALFA ALIMENTOS - FILIAL 03",
+      "fantasyName": "ALFA ALIMENTOS - FILIAL 03",
+      "socialReason": "ALFA DISTRIBUIDORA DE ALIMENTOS LTDA"
+    },
+    {
+      "id": 3003,
+      "cnpj": "04222142000235",
+      "cnpjMask": "04.222.142/0002-35",
+      "descriptionName": "BETA SERVICOS - FILIAL 02",
+      "fantasyName": "BETA SERVICOS - FILIAL 02",
+      "socialReason": "BETA COMERCIO E SERVICOS LTDA"
+    },
+    {
+      "id": 3004,
+      "cnpj": "04222142000316",
+      "cnpjMask": "04.222.142/0003-16",
+      "descriptionName": "BETA SERVICOS - FILIAL 03",
+      "fantasyName": "BETA SERVICOS - FILIAL 03",
+      "socialReason": "BETA COMERCIO E SERVICOS LTDA"
+    },
+    {
+      "id": 3005,
+      "cnpj": "05896710000165",
+      "cnpjMask": "05.896.710/0001-65",
+      "descriptionName": "GAMA LOGISTICA",
+      "fantasyName": "GAMA LOGISTICA",
+      "socialReason": "GAMA LOGISTICA E TRANSPORTES LTDA"
+    },
+    {
+      "id": 3006,
+      "cnpj": "06916109000150",
+      "cnpjMask": "06.916.109/0001-50",
+      "descriptionName": "DELTA EMBALAGENS",
+      "fantasyName": "DELTA EMBALAGENS",
+      "socialReason": "DELTA INDUSTRIA DE EMBALAGENS LTDA"
+    },
+    {
+      "id": 3007,
+      "cnpj": "07052354000129",
+      "cnpjMask": "07.052.354/0001-29",
+      "descriptionName": "EPSILON TECNOLOGIA",
+      "fantasyName": "EPSILON TECNOLOGIA",
+      "socialReason": "EPSILON TECNOLOGIA DA INFORMACAO LTDA"
+    },
+    {
+      "id": 3008,
+      "cnpj": "63356000000149",
+      "cnpjMask": "63.356.000/0001-49",
+      "descriptionName": "ZETA AGRO",
+      "fantasyName": "ZETA AGRO",
+      "socialReason": "ZETA AGROPECUARIA S.A."
+    },
+    {
+      "id": 3009,
+      "cnpj": "07245648000177",
+      "cnpjMask": "07.245.648/0001-77",
+      "descriptionName": "ETA CONSTRUCOES",
+      "fantasyName": "ETA CONSTRUCOES",
+      "socialReason": "ETA CONSTRUCOES E INCORPORACOES LTDA"
+    },
+    {
+      "id": 3010,
+      "cnpj": "10902623000103",
+      "cnpjMask": "10.902.623/0001-03",
+      "descriptionName": "TETA SAUDE - MATRIZ",
+      "fantasyName": "TETA SAUDE - MATRIZ",
+      "socialReason": "TETA SAUDE E BEM ESTAR LTDA"
+    },
+    {
+      "id": 3011,
+      "cnpj": "22091954000190",
+      "cnpjMask": "22.091.954/0001-90",
+      "descriptionName": "IOTA ADMINISTRATIVO",
+      "fantasyName": "IOTA ADMINISTRATIVO",
+      "socialReason": "IOTA SERVICOS ADMINISTRATIVOS LTDA"
+    },
+    {
+      "id": 3012,
+      "cnpj": "26728866000107",
+      "cnpjMask": "26.728.866/0001-07",
+      "descriptionName": "KAPPA VAREJO",
+      "fantasyName": "KAPPA VAREJO",
+      "socialReason": "KAPPA COMERCIO VAREJISTA LTDA"
+    },
+    {
+      "id": 3013,
+      "cnpj": "10902623000294",
+      "cnpjMask": "10.902.623/0002-94",
+      "descriptionName": "TETA SAUDE - FILIAL 02",
+      "fantasyName": "TETA SAUDE - FILIAL 02",
+      "socialReason": "TETA SAUDE E BEM ESTAR LTDA"
+    },
+    {
+      "id": 3014,
+      "cnpj": "21488699000150",
+      "cnpjMask": "21.488.699/0001-50",
+      "descriptionName": "LAMBDA EDUCACAO",
+      "fantasyName": "LAMBDA EDUCACAO",
+      "socialReason": "LAMBDA EDUCACAO E TREINAMENTO LTDA"
+    }
+  ],
+  "jobRoles": [],
+  "workplaces": [],
+  "workSchedules": [
+    {
+      "id": 1001,
+      "name": "ESCALA PADRAO 44H SEG-SEX",
+      "externalId": "ESC-PADRAO",
+      "standard": true,
+      "inactive": false,
+      "ignoreHoliday": false,
+      "preAssignedInterval": true,
+      "showIntradayInTimeSheet": false,
+      "alterationDate": 1704067200000,
+      "workScheduleTimetableList": [
+        {
+          "id": 100101,
+          "day": 1
+        },
+        {
+          "id": 100102,
+          "day": 2,
+          "startShift1": 28800000,
+          "endShift1": 43200000,
+          "startShift2": 46800000,
+          "endShift2": 64080000,
+          "startMainInterval": 43200000,
+          "endMainInterval": 46800000,
+          "mainInterval": "BETWEEN_PERIOD_1_AND_2"
+        },
+        {
+          "id": 100103,
+          "day": 3,
+          "startShift1": 28800000,
+          "endShift1": 43200000,
+          "startShift2": 46800000,
+          "endShift2": 64080000,
+          "startMainInterval": 43200000,
+          "endMainInterval": 46800000,
+          "mainInterval": "BETWEEN_PERIOD_1_AND_2"
+        },
+        {
+          "id": 100104,
+          "day": 4,
+          "startShift1": 28800000,
+          "endShift1": 43200000,
+          "startShift2": 46800000,
+          "endShift2": 64080000,
+          "startMainInterval": 43200000,
+          "endMainInterval": 46800000,
+          "mainInterval": "BETWEEN_PERIOD_1_AND_2"
+        },
+        {
+          "id": 100105,
+          "day": 5,
+          "startShift1": 28800000,
+          "endShift1": 43200000,
+          "startShift2": 46800000,
+          "endShift2": 64080000,
+          "startMainInterval": 43200000,
+          "endMainInterval": 46800000,
+          "mainInterval": "BETWEEN_PERIOD_1_AND_2"
+        },
+        {
+          "id": 100106,
+          "day": 6,
+          "startShift1": 28800000,
+          "endShift1": 43200000,
+          "startShift2": 46800000,
+          "endShift2": 64080000,
+          "startMainInterval": 43200000,
+          "endMainInterval": 46800000,
+          "mainInterval": "BETWEEN_PERIOD_1_AND_2"
+        },
+        {
+          "id": 100107,
+          "day": 7
+        }
+      ]
+    },
+    {
+      "id": 1002,
+      "name": "ESCALA 12X36",
+      "externalId": "ESC-12X36",
+      "standard": false,
+      "inactive": false,
+      "ignoreHoliday": false,
+      "preAssignedInterval": false,
+      "showIntradayInTimeSheet": false,
+      "alterationDate": 1704067200000,
+      "workScheduleTimetableList": [
+        {
+          "id": 100201,
+          "day": 1,
+          "startShift1": 25200000,
+          "endShift1": 68400000
+        },
+        {
+          "id": 100202,
+          "day": 2
+        },
+        {
+          "id": 100203,
+          "day": 3,
+          "startShift1": 25200000,
+          "endShift1": 68400000
+        },
+        {
+          "id": 100204,
+          "day": 4
+        },
+        {
+          "id": 100205,
+          "day": 5,
+          "startShift1": 25200000,
+          "endShift1": 68400000
+        },
+        {
+          "id": 100206,
+          "day": 6
+        },
+        {
+          "id": 100207,
+          "day": 7,
+          "startShift1": 25200000,
+          "endShift1": 68400000
+        }
+      ]
+    }
+  ],
+  "punchRules": [
+    {
+      "id": 2001,
+      "description": "REGRA PADRAO",
+      "externalId": "REGRA-PADRAO",
+      "standard": true,
+      "registrationDate": 1704067200000,
+      "closingDayTimeSheet": 31,
+      "toleranceMinutes": 10,
+      "toleranceType": "AMBOS",
+      "scheduleControlType": "RIGIDO",
+      "hoursBalanceControlType": "BANCO_HORA",
+      "overtimeScope": "DIARIO",
+      "extendedNightTime": false,
+      "faultsNegativeTimeBank": false
+    },
+    {
+      "id": 2002,
+      "description": "REGRA ESTAGIO",
+      "externalId": "REGRA-ESTAGIO",
+      "standard": false,
+      "registrationDate": 1704067200000,
+      "closingDayTimeSheet": 31,
+      "toleranceMinutes": 5,
+      "toleranceType": "MARCACAO",
+      "scheduleControlType": "FLEXIVEL",
+      "hoursBalanceControlType": "HORA_EXTRA",
+      "overtimeScope": "SEMANAL",
+      "extendedNightTime": false,
+      "faultsNegativeTimeBank": false
+    }
+  ],
+  "adjustmentReasons": [
+    {
+      "id": 1,
+      "description": "FÉRIAS",
+      "allowance": true,
+      "fullDay": true,
+      "countAsMissing": false,
+      "active": true,
+      "accountAsAbsenteeism": false,
+      "enabledForEmployees": false,
+      "enabledForManagers": true,
+      "limitRecord": false
+    },
+    {
+      "id": 4,
+      "description": "ABONO",
+      "allowance": true,
+      "fullDay": false,
+      "countAsMissing": false,
+      "active": true,
+      "accountAsAbsenteeism": false,
+      "enabledForEmployees": true,
+      "enabledForManagers": true,
+      "limitRecord": false
+    },
+    {
+      "id": 5,
+      "description": "ATESTADO MÉDICO",
+      "allowance": true,
+      "fullDay": true,
+      "countAsMissing": false,
+      "active": true,
+      "accountAsAbsenteeism": false,
+      "enabledForEmployees": true,
+      "enabledForManagers": true,
+      "limitRecord": false
+    },
+    {
+      "id": 6,
+      "description": "FOLGA",
+      "allowance": true,
+      "fullDay": true,
+      "countAsMissing": false,
+      "active": true,
+      "accountAsAbsenteeism": false,
+      "enabledForEmployees": false,
+      "enabledForManagers": true,
+      "limitRecord": false
+    }
+  ],
+  "employees": [],
+  "adjustments": []
+}

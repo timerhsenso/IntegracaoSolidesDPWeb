@@ -1,0 +1,12 @@
+# Ambiente de desenvolvimento: fake da API do Sólides DP em http://localhost:5080
+# (o worker em Development já aponta para ele). O SQL Server local é criado por scripts/dev-sql.sh.
+services:
+  solidesdp-fake:
+    build:
+      context: .
+      dockerfile: src/SolidesDP.Fake/Dockerfile
+    ports:
+      - "127.0.0.1:5080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Fake__Tokens__0: fake-token

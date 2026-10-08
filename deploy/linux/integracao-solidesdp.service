@@ -1,0 +1,26 @@
+[Unit]
+Description=Integração RHSenso -> Sólides DP
+Documentation=https://github.com/rhsenso/IntegracaoSolidesDP
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# O host .NET avisa o systemd quando terminou de iniciar (UseSystemd).
+Type=notify
+User=integracao-solidesdp
+Group=integracao-solidesdp
+WorkingDirectory=/opt/integracao-solidesdp
+ExecStart=/opt/integracao-solidesdp/IntegracaoSolidesDP
+Environment=DOTNET_ENVIRONMENT=Production
+# Segredos opcionais fora do appsettings.json (ConnectionStrings__Rhu, SolidesDP__Token).
+EnvironmentFile=-/etc/integracao-solidesdp.env
+Restart=on-failure
+RestartSec=60
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/integracao-solidesdp/logs /opt/integracao-solidesdp/reports
+
+[Install]
+WantedBy=multi-user.target

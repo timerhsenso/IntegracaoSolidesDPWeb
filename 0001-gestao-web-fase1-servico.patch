@@ -1,0 +1,1548 @@
+From a15519df742e6c12d2f9aa7a65025b84df220628 Mon Sep 17 00:00:00 2001
+From: "Carlos (RHSenso)" <webmaster@rhsenso.com.br>
+Date: Thu, 8 Oct 2026 15:04:36 -0300
+Subject: [PATCH] =?UTF-8?q?feat:=20gest=C3=A3o=20pela=20Web=20no=20servi?=
+ =?UTF-8?q?=C3=A7o=20(configura=C3=A7=C3=A3o=20versionada,=20fila=20de=20c?=
+ =?UTF-8?q?omandos,=20ativar/desativar)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Gestao:Habilitada liga a configuração da seção Sync em solidesdp.configuracao (versionada, só INSERT)
+- fila solidesdp.comando atendida pelo serviço: EXECUTAR, EXECUTAR_DRYRUN, CHECK_CONFIG, DISCOVER, RECONCILE
+- integração desativada não faz execuções reais; dry-run continua permitido
+- runs.solicitado_por e runs.config_versao; tabela solidesdp.auditoria para a Web
+- itens unchanged só na contagem; execuções running órfãs viram failed
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01WfLGS1yhUeWDbcijzAR4jp
+---
+ README.md                                     |  19 ++
+ .../Commands/OperatorCommands.cs              |  13 ++
+ .../Infrastructure/ServiceRegistration.cs     |  10 +-
+ .../Management/CommandProcessor.cs            | 106 +++++++++
+ .../Management/ManagementModels.cs            |  47 ++++
+ .../Management/SqlManagementStore.cs          | 219 ++++++++++++++++++
+ .../Management/SyncOptionsJson.cs             |  25 ++
+ .../Management/SyncSettings.cs                |  93 ++++++++
+ .../Options/ManagementOptions.cs              |  20 ++
+ .../Options/OptionsValidators.cs              |   8 +
+ .../Pipeline/ReferenceResolver.cs             |   6 +-
+ .../Pipeline/Steps/EmployeeStep.cs            |   6 +-
+ .../Pipeline/Steps/VacationStep.cs            |  10 +-
+ .../Pipeline/SyncPipeline.cs                  |  83 +++++--
+ src/IntegracaoSolidesDP.Worker/Program.cs     |   1 +
+ .../Scheduling/SyncWorker.cs                  |  80 ++++++-
+ .../State/SqlStateStore.cs                    |  19 ++
+ .../State/StateModels.cs                      |   6 +
+ .../appsettings.json                          |   4 +
+ .../EndToEnd/E2EHarness.cs                    |  10 +
+ .../EndToEnd/ManagementEndToEndTests.cs       | 143 ++++++++++++
+ .../Management/SyncOptionsJsonTests.cs        |  51 ++++
+ .../Sql/SqlManagementStoreTests.cs            | 113 +++++++++
+ .../Sql/SqlServerFixture.cs                   |   3 +
+ 24 files changed, 1060 insertions(+), 35 deletions(-)
+ create mode 100644 src/IntegracaoSolidesDP.Worker/Management/CommandProcessor.cs
+ create mode 100644 src/IntegracaoSolidesDP.Worker/Management/ManagementModels.cs
+ create mode 100644 src/IntegracaoSolidesDP.Worker/Management/SqlManagementStore.cs
+ create mode 100644 src/IntegracaoSolidesDP.Worker/Management/SyncOptionsJson.cs
+ create mode 100644 src/IntegracaoSolidesDP.Worker/Management/SyncSettings.cs
+ create mode 100644 src/IntegracaoSolidesDP.Worker/Options/ManagementOptions.cs
+ create mode 100644 tests/IntegracaoSolidesDP.Tests/EndToEnd/ManagementEndToEndTests.cs
+ create mode 100644 tests/IntegracaoSolidesDP.Tests/Management/SyncOptionsJsonTests.cs
+ create mode 100644 tests/IntegracaoSolidesDP.Tests/Sql/SqlManagementStoreTests.cs
+
+diff --git a/README.md b/README.md
+index 0096703..0638037 100644
+--- a/README.md
++++ b/README.md
+@@ -62,6 +62,8 @@ Toda chave pode vir do `appsettings.json`, de uma variável de ambiente (`Sync__
+ | `SolidesDP:TimeoutSeconds` | `30` | Por tentativa; o total é 4x. |
+ | `SolidesDP:SkipUnifiedSync` | `true` | Não propaga para a base unificada (CUC) da Sólides. Confirmar com a Sólides. |
+ | `SolidesDP:AllowProductionApiOutsideProduction` | `false` | Opt-in para usar a API real fora de Production. |
++| `Gestao:Habilitada` | `false` | Liga a gestão pela Web (veja [Gestão pela Web](#gestão-pela-web)). |
++| `Gestao:IntervaloComandos` | `00:00:15` | Com a gestão ligada, frequência com que o serviço procura comandos pedidos na Web. |
+ | `Execution:Interval` | `00:30:00` | Frequência. Use esta **ou** `TimesOfDay`. |
+ | `Execution:TimesOfDay` | — | Ex.: `["07:00", "13:00"]`, no fuso abaixo. |
+ | `Execution:TimeZone` | `America/Bahia` | Fuso dos horários e das datas do RHSenso. |
+@@ -81,6 +83,23 @@ Toda chave pode vir do `appsettings.json`, de uma variável de ambiente (`Sync__
+ | `Sync:FeriasEndDateMode` | `InicioDoDiaSeguinte` | Como calcular o `endDate` (calibrar com o DP real). |
+ | `Sync:MaxCreatesPerRun` / `Sync:MaxCancellationsPerRun` | `300` / `20` | Travas de segurança. |
+ 
++## Gestão pela Web
++
++Com `Gestao:Habilitada=true`, o serviço passa a ser operado pela aplicação Web (em construção), sem mudar a forma de instalar:
++
++- **Configuração no banco.** As regras da seção `Sync` vêm da versão vigente de `solidesdp.configuracao`.
++  - Na primeira execução, a versão 1 é criada a partir do `appsettings.json`.
++  - Cada alteração grava uma versão nova; nenhuma versão é alterada nem apagada.
++  - Continuam vindo do `appsettings.json`: `ConnectionStrings`, `SolidesDP` (token), `Execution`, `Sync:InstanceName` e `Sync:ReportDirectory`.
++  - Uma versão inválida não chega à API: a execução é registrada como `failed` com `config_invalid` e o motivo.
++- **Ativar/desativar** também é uma versão da configuração. Desativada, a integração não faz execuções reais (agendadas ou pedidas); o dry-run continua permitido.
++- **Fila de comandos.** A Web grava o pedido em `solidesdp.comando` e o serviço o atende, um por vez, entre as execuções: `EXECUTAR`, `EXECUTAR_DRYRUN`, `CHECK_CONFIG`, `DISCOVER` e `RECONCILE` (só conferência; o `--repair` continua sendo pela linha de comando). Só o serviço fala com a API do Sólides DP.
++- **Rastreio.** `solidesdp.runs` grava quem pediu (`solicitado_por`) e a versão da configuração usada (`config_versao`).
++
++Independentemente da gestão:
++- os itens `unchanged` entram só na contagem da execução (`summary_json`), não em `solidesdp.run_items`;
++- execuções que ficaram `running` por uma parada abrupta são marcadas como `failed` na execução seguinte.
++
+ ## Comandos
+ 
+ ```bash
+diff --git a/src/IntegracaoSolidesDP.Worker/Commands/OperatorCommands.cs b/src/IntegracaoSolidesDP.Worker/Commands/OperatorCommands.cs
+index 93aa3db..ad741b1 100644
+--- a/src/IntegracaoSolidesDP.Worker/Commands/OperatorCommands.cs
++++ b/src/IntegracaoSolidesDP.Worker/Commands/OperatorCommands.cs
+@@ -1,5 +1,6 @@
+ using Dapper;
+ using IntegracaoSolidesDP.Worker.Api;
++using IntegracaoSolidesDP.Worker.Management;
+ using IntegracaoSolidesDP.Worker.Options;
+ using IntegracaoSolidesDP.Worker.Source;
+ using IntegracaoSolidesDP.Worker.State;
+@@ -15,6 +16,8 @@ public sealed class OperatorCommands(
+     IOptions<SolidesDpOptions> solidesOptions,
+     IOptions<SyncOptions> syncOptions,
+     IOptions<ExecutionOptions> executionOptions,
++    IOptions<ManagementOptions> managementOptions,
++    IManagementStore management,
+     TextWriter output)
+ {
+     private static readonly string[] RequiredTables = ["func1", "cargo1", "test1", "tcus1", "tsitu1", "feria2"];
+@@ -52,6 +55,16 @@ public sealed class OperatorCommands(
+ 
+             await state.EnsureSchemaAsync(ct);
+             await output.WriteLineAsync("[OK] Schema solidesdp criado/atualizado");
++
++            if (managementOptions.Value.Habilitada)
++            {
++                await management.EnsureSchemaAsync(ct);
++                var current = await management.GetCurrentConfigurationAsync(sync.InstanceName, ct);
++                await output.WriteLineAsync(current is null
++                    ? "[--] Gestão pela Web ligada: a configuração será criada a partir do appsettings.json na primeira execução"
++                    : $"[OK] Gestão pela Web ligada: valem as regras da versão {current.Version} ({(current.Active ? "ativa" : "DESATIVADA")}), " +
++                      $"gravada por {current.CreatedBy} em {current.CreatedAt:yyyy-MM-dd HH:mm}; o modo e os filtros acima são os do appsettings.json");
++            }
+         }
+         catch (Exception ex) when (ex is Microsoft.Data.SqlClient.SqlException or InvalidOperationException)
+         {
+diff --git a/src/IntegracaoSolidesDP.Worker/Infrastructure/ServiceRegistration.cs b/src/IntegracaoSolidesDP.Worker/Infrastructure/ServiceRegistration.cs
+index 0031067..7abc010 100644
+--- a/src/IntegracaoSolidesDP.Worker/Infrastructure/ServiceRegistration.cs
++++ b/src/IntegracaoSolidesDP.Worker/Infrastructure/ServiceRegistration.cs
+@@ -1,5 +1,6 @@
+ using IntegracaoSolidesDP.Worker.Api;
+ using IntegracaoSolidesDP.Worker.Commands;
++using IntegracaoSolidesDP.Worker.Management;
+ using IntegracaoSolidesDP.Worker.Mapping;
+ using IntegracaoSolidesDP.Worker.Options;
+ using IntegracaoSolidesDP.Worker.Pipeline;
+@@ -17,6 +18,7 @@ public static class ServiceRegistration
+     {
+         services.AddOptions<SolidesDpOptions>().Bind(configuration.GetSection(SolidesDpOptions.SectionName)).ValidateOnStart();
+         services.AddOptions<ExecutionOptions>().Bind(configuration.GetSection(ExecutionOptions.SectionName)).ValidateOnStart();
++        services.AddOptions<ManagementOptions>().Bind(configuration.GetSection(ManagementOptions.SectionName)).ValidateOnStart();
+         services.AddOptions<SyncOptions>()
+             .Bind(configuration.GetSection(SyncOptions.SectionName))
+             .PostConfigure(options => ReplaceConfiguredLists(options, configuration.GetSection(SyncOptions.SectionName)))
+@@ -24,6 +26,7 @@ public static class ServiceRegistration
+         services.AddSingleton<IValidateOptions<SolidesDpOptions>, SolidesDpOptionsValidator>();
+         services.AddSingleton<IValidateOptions<ExecutionOptions>, ExecutionOptionsValidator>();
+         services.AddSingleton<IValidateOptions<SyncOptions>, SyncOptionsValidator>();
++        services.AddSingleton<IValidateOptions<ManagementOptions>, ManagementOptionsValidator>();
+ 
+         services.AddSingleton(TimeProvider.System);
+         services.AddSingleton(_ =>
+@@ -46,11 +49,14 @@ public static class ServiceRegistration
+ 
+         services.AddSingleton<ISourceReader, SqlSourceReader>();
+         services.AddSingleton<IStateStore, SqlStateStore>();
++        services.AddSingleton<IManagementStore, SqlManagementStore>();
+         services.AddSingleton<EmployeeMapper>();
+-        services.AddSingleton(sp => new VacationMapper(
+-            sp.GetRequiredService<EpochDates>(), sp.GetRequiredService<IOptions<SyncOptions>>().Value));
+         services.AddSolidesDpClient();
+ 
++        services.AddScoped<SyncOptionsAccessor>();
++        services.AddScoped<SyncSettingsLoader>();
++        services.AddSingleton<CommandProcessor>();
++
+         services.AddScoped<ReferenceResolver>();
+         services.AddScoped<JobRoleStep>();
+         services.AddScoped<WorkplaceStep>();
+diff --git a/src/IntegracaoSolidesDP.Worker/Management/CommandProcessor.cs b/src/IntegracaoSolidesDP.Worker/Management/CommandProcessor.cs
+new file mode 100644
+index 0000000..5fa3258
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Worker/Management/CommandProcessor.cs
+@@ -0,0 +1,106 @@
++using System.Globalization;
++using System.Text.Json;
++using IntegracaoSolidesDP.Worker.Commands;
++using IntegracaoSolidesDP.Worker.Options;
++using IntegracaoSolidesDP.Worker.Pipeline;
++using IntegracaoSolidesDP.Worker.State;
++using Microsoft.Extensions.Options;
++
++namespace IntegracaoSolidesDP.Worker.Management;
++
++/// <summary>
++/// Atende a fila solidesdp.comando (pedidos feitos na Web). Só o serviço fala com a API do
++/// Sólides DP: a Web grava o pedido e lê o resultado. Um comando por vez, em ordem de chegada.
++/// </summary>
++public sealed class CommandProcessor(
++    IServiceScopeFactory scopes,
++    IStateStore state,
++    IManagementStore store,
++    IOptions<SyncOptions> syncOptions,
++    ILogger<CommandProcessor> logger)
++{
++    private string InstanceName => syncOptions.Value.InstanceName;
++
++    /// <summary>Na partida do serviço: cria as tabelas e encerra comandos que ficaram "executando".</summary>
++    public async Task RecoverAsync(CancellationToken ct)
++    {
++        await state.EnsureSchemaAsync(ct);
++        await store.EnsureSchemaAsync(ct);
++        var interrupted = await store.FailInterruptedCommandsAsync(InstanceName, ct);
++        if (interrupted > 0)
++        {
++            logger.LogWarning("{Count} comando(s) interrompido(s) por uma parada do serviço foram marcados como falhou", interrupted);
++        }
++    }
++
++    /// <summary>Executa todos os comandos pendentes da instância. Devolve quantos foram atendidos.</summary>
++    public async Task<int> ProcessPendingAsync(CancellationToken ct)
++    {
++        var processed = 0;
++        while (!ct.IsCancellationRequested && await store.ClaimNextCommandAsync(InstanceName, ct) is { } command)
++        {
++            processed++;
++            logger.LogInformation("Comando {Id} {Type} pedido por {User}", command.Id, command.Type, command.RequestedBy);
++            var (status, runId, result) = await ExecuteAsync(command, ct);
++            // Mesmo com o serviço parando, o desfecho do comando fica registrado.
++            await store.CompleteCommandAsync(command.Id, status, runId, result, CancellationToken.None);
++            logger.LogInformation("Comando {Id} {Type}: {Status}", command.Id, command.Type, status);
++        }
++
++        return processed;
++    }
++
++    private async Task<(string Status, Guid? RunId, string? Result)> ExecuteAsync(ClaimedCommand command, CancellationToken ct)
++    {
++        try
++        {
++            await using var scope = scopes.CreateAsyncScope();
++            var services = scope.ServiceProvider;
++
++            switch (command.Type)
++            {
++                case CommandTypes.Run or CommandTypes.DryRun:
++                {
++                    var summary = await services.GetRequiredService<SyncPipeline>().RunAsync(
++                        new RunRequest("web", command.Type == CommandTypes.DryRun ? true : null, command.RequestedBy), ct);
++                    var ok = summary.Status is RunStatuses.Completed or RunStatuses.CompletedWithErrors;
++                    return (ok ? CommandStatuses.Done : CommandStatuses.Failed,
++                        summary.RunId == Guid.Empty ? (Guid?)null : summary.RunId,
++                        Describe(summary));
++                }
++
++                case CommandTypes.CheckConfig or CommandTypes.Discover or CommandTypes.Reconcile:
++                {
++                    await using var output = new StringWriter(CultureInfo.InvariantCulture);
++                    var operations = ActivatorUtilities.CreateInstance<OperatorCommands>(services, (TextWriter)output);
++                    var exitCode = command.Type switch
++                    {
++                        CommandTypes.CheckConfig => await operations.CheckConfigAsync(ct),
++                        CommandTypes.Discover => await operations.DiscoverAsync(ct),
++                        // Pela Web só a conferência; o --repair continua sendo decisão de quem opera o servidor.
++                        _ => await operations.ReconcileAsync(repair: false, ct),
++                    };
++                    return (exitCode == 0 ? CommandStatuses.Done : CommandStatuses.Failed, null, output.ToString());
++                }
++
++                default:
++                    return (CommandStatuses.Failed, null, $"Tipo de comando desconhecido: {command.Type}");
++            }
++        }
++        catch (OperationCanceledException) when (ct.IsCancellationRequested)
++        {
++            return (CommandStatuses.Failed, null, "interrompido: o serviço foi parado durante a execução");
++        }
++        catch (Exception ex)
++        {
++            logger.LogError(ex, "Comando {Id} {Type} falhou", command.Id, command.Type);
++            return (CommandStatuses.Failed, null, ex.Message);
++        }
++    }
++
++    private static string Describe(RunSummary summary)
++    {
++        var counts = JsonSerializer.Serialize(summary.Counts);
++        return summary.Error is null ? $"{summary.Status} {counts}" : $"{summary.Status}: {summary.Error} {counts}";
++    }
++}
+diff --git a/src/IntegracaoSolidesDP.Worker/Management/ManagementModels.cs b/src/IntegracaoSolidesDP.Worker/Management/ManagementModels.cs
+new file mode 100644
+index 0000000..ff206b0
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Worker/Management/ManagementModels.cs
+@@ -0,0 +1,47 @@
++namespace IntegracaoSolidesDP.Worker.Management;
++
++/// <summary>Uma versão de solidesdp.configuracao. A vigente é a de maior versão da instância.</summary>
++public sealed record ConfigurationVersion
++{
++    public int Version { get; init; }
++    public bool Active { get; init; }
++    public string SyncJson { get; init; } = string.Empty;
++    public string? Note { get; init; }
++    public string CreatedBy { get; init; } = string.Empty;
++    public DateTimeOffset CreatedAt { get; init; }
++}
++
++/// <summary>Comando retirado da fila (solidesdp.comando) para execução.</summary>
++public sealed record ClaimedCommand
++{
++    public long Id { get; init; }
++    public string Type { get; init; } = string.Empty;
++    public string RequestedBy { get; init; } = string.Empty;
++}
++
++/// <summary>Tipos aceitos em solidesdp.comando.tipo.</summary>
++public static class CommandTypes
++{
++    public const string Run = "EXECUTAR";
++    public const string DryRun = "EXECUTAR_DRYRUN";
++    public const string CheckConfig = "CHECK_CONFIG";
++    public const string Discover = "DISCOVER";
++    public const string Reconcile = "RECONCILE";
++
++    public static readonly IReadOnlyList<string> All = [Run, DryRun, CheckConfig, Discover, Reconcile];
++}
++
++/// <summary>Valores de solidesdp.comando.status.</summary>
++public static class CommandStatuses
++{
++    public const string Pending = "pendente";
++    public const string Running = "executando";
++    public const string Done = "concluido";
++    public const string Failed = "falhou";
++}
++
++/// <summary>Usuário gravado quando a ação é do próprio serviço (ex.: versão 1 da configuração).</summary>
++public static class ManagementUsers
++{
++    public const string System = "sistema";
++}
+diff --git a/src/IntegracaoSolidesDP.Worker/Management/SqlManagementStore.cs b/src/IntegracaoSolidesDP.Worker/Management/SqlManagementStore.cs
+new file mode 100644
+index 0000000..df09a75
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Worker/Management/SqlManagementStore.cs
+@@ -0,0 +1,219 @@
++using Dapper;
++using IntegracaoSolidesDP.Worker.Source;
++using Microsoft.Data.SqlClient;
++
++namespace IntegracaoSolidesDP.Worker.Management;
++
++public interface IManagementStore
++{
++    /// <summary>Cria as tabelas da gestão. Depende de solidesdp.runs (IStateStore.EnsureSchemaAsync antes).</summary>
++    Task EnsureSchemaAsync(CancellationToken ct);
++
++    Task<ConfigurationVersion?> GetCurrentConfigurationAsync(string instanceName, CancellationToken ct);
++
++    /// <summary>Grava a versão 1 se a instância ainda não tiver configuração. Concorrência segura.</summary>
++    Task SeedConfigurationAsync(string instanceName, string syncJson, CancellationToken ct);
++
++    /// <summary>Acrescenta uma versão (nunca altera as anteriores). Devolve o número da nova versão.</summary>
++    Task<int> AddConfigurationVersionAsync(
++        string instanceName, bool active, string syncJson, string? note, string createdBy, CancellationToken ct);
++
++    Task<long> EnqueueCommandAsync(string instanceName, string type, string requestedBy, CancellationToken ct);
++
++    /// <summary>Retira o comando pendente mais antigo da instância (pendente → executando). Null se não houver.</summary>
++    Task<ClaimedCommand?> ClaimNextCommandAsync(string instanceName, CancellationToken ct);
++
++    Task CompleteCommandAsync(long commandId, string status, Guid? runId, string? result, CancellationToken ct);
++
++    /// <summary>Comandos "executando" de um serviço que parou no meio: viram "falhou". Devolve quantos.</summary>
++    Task<int> FailInterruptedCommandsAsync(string instanceName, CancellationToken ct);
++
++    /// <summary>Grava em solidesdp.runs quem pediu a execução e a versão da configuração usada.</summary>
++    Task TagRunAsync(Guid runId, string? requestedBy, int? configVersion, CancellationToken ct);
++}
++
++/// <summary>
++/// Tabelas da gestão pela Web, no mesmo schema <c>solidesdp</c>. Nada aqui é apagado:
++/// configuração é versionada (só INSERT) e comandos/auditoria são histórico.
++/// </summary>
++public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvider clock) : IManagementStore
++{
++    private const string SchemaSql = """
++        IF OBJECT_ID(N'solidesdp.configuracao', N'U') IS NULL
++        CREATE TABLE solidesdp.configuracao (
++            id             int IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_configuracao PRIMARY KEY,
++            instance_name  nvarchar(64)      NOT NULL,
++            versao         int               NOT NULL,
++            ativo          bit               NOT NULL,
++            sync_json      nvarchar(max)     NOT NULL,
++            observacao     nvarchar(500)     NULL,
++            criado_por     nvarchar(64)      NOT NULL,
++            criado_em      datetimeoffset(7) NOT NULL,
++            CONSTRAINT uq_solidesdp_configuracao UNIQUE (instance_name, versao)
++        );
++
++        IF OBJECT_ID(N'solidesdp.comando', N'U') IS NULL
++        BEGIN
++            CREATE TABLE solidesdp.comando (
++                id             bigint IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_comando PRIMARY KEY,
++                instance_name  nvarchar(64)      NOT NULL,
++                tipo           nvarchar(32)      NOT NULL,
++                status         nvarchar(16)      NOT NULL,
++                solicitado_por nvarchar(64)      NOT NULL,
++                solicitado_em  datetimeoffset(7) NOT NULL,
++                iniciado_em    datetimeoffset(7) NULL,
++                concluido_em   datetimeoffset(7) NULL,
++                run_id         uniqueidentifier  NULL CONSTRAINT fk_solidesdp_comando_run REFERENCES solidesdp.runs(run_id),
++                resultado      nvarchar(max)     NULL
++            );
++            CREATE INDEX ix_solidesdp_comando_fila ON solidesdp.comando(instance_name, status, id);
++        END;
++
++        IF OBJECT_ID(N'solidesdp.auditoria', N'U') IS NULL
++        BEGIN
++            CREATE TABLE solidesdp.auditoria (
++                id           bigint IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_auditoria PRIMARY KEY,
++                usuario      nvarchar(64)      NOT NULL,
++                acao         nvarchar(64)      NOT NULL,
++                detalhe      nvarchar(max)     NULL,
++                ip           varchar(45)       NULL,
++                ocorrido_em  datetimeoffset(7) NOT NULL
++            );
++            CREATE INDEX ix_solidesdp_auditoria_data ON solidesdp.auditoria(ocorrido_em);
++        END;
++
++        IF OBJECT_ID(N'solidesdp.runs', N'U') IS NOT NULL AND COL_LENGTH(N'solidesdp.runs', N'solicitado_por') IS NULL
++            ALTER TABLE solidesdp.runs ADD solicitado_por nvarchar(64) NULL;
++
++        IF OBJECT_ID(N'solidesdp.runs', N'U') IS NOT NULL AND COL_LENGTH(N'solidesdp.runs', N'config_versao') IS NULL
++            ALTER TABLE solidesdp.runs ADD config_versao int NULL;
++        """;
++
++    private const int UniqueKeyViolation = 2627;
++    private const int DuplicateKeyRow = 2601;
++
++    public async Task EnsureSchemaAsync(CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        await connection.ExecuteAsync(new CommandDefinition(SchemaSql, cancellationToken: ct));
++    }
++
++    public async Task<ConfigurationVersion?> GetCurrentConfigurationAsync(string instanceName, CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        return await connection.QuerySingleOrDefaultAsync<ConfigurationVersion>(new CommandDefinition("""
++            SELECT TOP (1) versao AS Version, ativo AS Active, sync_json AS SyncJson, observacao AS Note,
++                   criado_por AS CreatedBy, criado_em AS CreatedAt
++            FROM solidesdp.configuracao
++            WHERE instance_name = @InstanceName
++            ORDER BY versao DESC
++            """, new { InstanceName = instanceName }, cancellationToken: ct));
++    }
++
++    public async Task SeedConfigurationAsync(string instanceName, string syncJson, CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        try
++        {
++            await connection.ExecuteAsync(new CommandDefinition("""
++                INSERT INTO solidesdp.configuracao (instance_name, versao, ativo, sync_json, observacao, criado_por, criado_em)
++                SELECT @InstanceName, 1, 1, @SyncJson, N'Versão inicial criada a partir do appsettings.json', @CreatedBy, @Now
++                WHERE NOT EXISTS (
++                    SELECT 1 FROM solidesdp.configuracao WITH (UPDLOCK, HOLDLOCK) WHERE instance_name = @InstanceName);
++                """,
++                new { InstanceName = instanceName, SyncJson = syncJson, CreatedBy = ManagementUsers.System, Now = clock.GetUtcNow() },
++                cancellationToken: ct));
++        }
++        catch (SqlException ex) when (ex.Number is UniqueKeyViolation or DuplicateKeyRow)
++        {
++            // Outro processo gravou a versão 1 ao mesmo tempo: o resultado é o mesmo.
++        }
++    }
++
++    public async Task<int> AddConfigurationVersionAsync(
++        string instanceName, bool active, string syncJson, string? note, string createdBy, CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        await using var transaction = await connection.BeginTransactionAsync(ct);
++        var version = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
++            INSERT INTO solidesdp.configuracao (instance_name, versao, ativo, sync_json, observacao, criado_por, criado_em)
++            OUTPUT inserted.versao
++            SELECT @InstanceName, ISNULL(MAX(versao), 0) + 1, @Active, @SyncJson, @Note, @CreatedBy, @Now
++            FROM solidesdp.configuracao WITH (UPDLOCK, HOLDLOCK)
++            WHERE instance_name = @InstanceName;
++            """,
++            new { InstanceName = instanceName, Active = active, SyncJson = syncJson, Note = note, CreatedBy = createdBy, Now = clock.GetUtcNow() },
++            transaction,
++            cancellationToken: ct));
++        await transaction.CommitAsync(ct);
++        return version;
++    }
++
++    public async Task<long> EnqueueCommandAsync(string instanceName, string type, string requestedBy, CancellationToken ct)
++    {
++        if (!CommandTypes.All.Contains(type, StringComparer.Ordinal))
++        {
++            throw new ArgumentOutOfRangeException(nameof(type), type, "Tipo de comando desconhecido.");
++        }
++
++        await using var connection = await connections.OpenAsync(ct);
++        return await connection.ExecuteScalarAsync<long>(new CommandDefinition("""
++            INSERT INTO solidesdp.comando (instance_name, tipo, status, solicitado_por, solicitado_em)
++            OUTPUT inserted.id
++            VALUES (@InstanceName, @Type, @Status, @RequestedBy, @Now);
++            """,
++            new { InstanceName = instanceName, Type = type, Status = CommandStatuses.Pending, RequestedBy = requestedBy, Now = clock.GetUtcNow() },
++            cancellationToken: ct));
++    }
++
++    public async Task<ClaimedCommand?> ClaimNextCommandAsync(string instanceName, CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        return await connection.QuerySingleOrDefaultAsync<ClaimedCommand>(new CommandDefinition("""
++            WITH proximo AS (
++                SELECT TOP (1) status, iniciado_em, id, tipo, solicitado_por
++                FROM solidesdp.comando WITH (ROWLOCK, UPDLOCK, READPAST)
++                WHERE instance_name = @InstanceName AND status = @Pending
++                ORDER BY id
++            )
++            UPDATE proximo SET status = @Running, iniciado_em = @Now
++            OUTPUT inserted.id AS Id, inserted.tipo AS Type, inserted.solicitado_por AS RequestedBy;
++            """,
++            new { InstanceName = instanceName, Pending = CommandStatuses.Pending, Running = CommandStatuses.Running, Now = clock.GetUtcNow() },
++            cancellationToken: ct));
++    }
++
++    public async Task CompleteCommandAsync(long commandId, string status, Guid? runId, string? result, CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        await connection.ExecuteAsync(new CommandDefinition("""
++            UPDATE solidesdp.comando
++            SET status = @Status, concluido_em = @Now, run_id = @RunId, resultado = @Result
++            WHERE id = @Id
++            """,
++            new { Id = commandId, Status = status, RunId = runId, Result = result, Now = clock.GetUtcNow() },
++            cancellationToken: ct));
++    }
++
++    public async Task<int> FailInterruptedCommandsAsync(string instanceName, CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        return await connection.ExecuteAsync(new CommandDefinition("""
++            UPDATE solidesdp.comando
++            SET status = @Failed, concluido_em = @Now, resultado = N'interrompido: o serviço foi reiniciado durante a execução'
++            WHERE instance_name = @InstanceName AND status = @Running
++            """,
++            new { InstanceName = instanceName, Failed = CommandStatuses.Failed, Running = CommandStatuses.Running, Now = clock.GetUtcNow() },
++            cancellationToken: ct));
++    }
++
++    public async Task TagRunAsync(Guid runId, string? requestedBy, int? configVersion, CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        await connection.ExecuteAsync(new CommandDefinition("""
++            UPDATE solidesdp.runs SET solicitado_por = @RequestedBy, config_versao = @ConfigVersion WHERE run_id = @RunId
++            """,
++            new { RunId = runId, RequestedBy = requestedBy, ConfigVersion = configVersion },
++            cancellationToken: ct));
++    }
++}
+diff --git a/src/IntegracaoSolidesDP.Worker/Management/SyncOptionsJson.cs b/src/IntegracaoSolidesDP.Worker/Management/SyncOptionsJson.cs
+new file mode 100644
+index 0000000..154c211
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Worker/Management/SyncOptionsJson.cs
+@@ -0,0 +1,25 @@
++using System.Text.Json;
++using System.Text.Json.Serialization;
++using IntegracaoSolidesDP.Worker.Options;
++
++namespace IntegracaoSolidesDP.Worker.Management;
++
++/// <summary>
++/// Formato da seção Sync em solidesdp.configuracao.sync_json: os mesmos nomes de chave do
++/// appsettings.json (PascalCase) e enums por nome, para o JSON ser legível e editável na Web.
++/// </summary>
++public static class SyncOptionsJson
++{
++    public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.General)
++    {
++        WriteIndented = true,
++        Converters = { new JsonStringEnumConverter() },
++    };
++
++    public static string Serialize(SyncOptions options) => JsonSerializer.Serialize(options, Options);
++
++    /// <exception cref="JsonException">JSON inválido ou incompatível com <see cref="SyncOptions"/>.</exception>
++    public static SyncOptions Deserialize(string json) =>
++        JsonSerializer.Deserialize<SyncOptions>(json, Options)
++        ?? throw new JsonException("sync_json vazio.");
++}
+diff --git a/src/IntegracaoSolidesDP.Worker/Management/SyncSettings.cs b/src/IntegracaoSolidesDP.Worker/Management/SyncSettings.cs
+new file mode 100644
+index 0000000..30a3d12
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Worker/Management/SyncSettings.cs
+@@ -0,0 +1,93 @@
++using System.Text.Json;
++using IntegracaoSolidesDP.Worker.Options;
++using IntegracaoSolidesDP.Worker.Pipeline;
++using Microsoft.Extensions.Options;
++
++namespace IntegracaoSolidesDP.Worker.Management;
++
++/// <summary>Regras em vigor numa execução.</summary>
++/// <param name="Options">Seção Sync efetiva.</param>
++/// <param name="Active">Integração ativa (com a gestão desligada, sempre true).</param>
++/// <param name="Version">Versão de solidesdp.configuracao usada; null com a gestão desligada.</param>
++public sealed record SyncSettings(SyncOptions Options, bool Active, int? Version);
++
++/// <summary>
++/// Seção Sync da execução corrente (escopo da execução). Começa com o appsettings.json; o
++/// <see cref="SyncPipeline"/> troca pela configuração do banco antes de chamar as etapas.
++/// </summary>
++public sealed class SyncOptionsAccessor(IOptions<SyncOptions> configured)
++{
++    private SyncOptions? _current;
++
++    public SyncOptions Configured => configured.Value;
++
++    public SyncOptions Current => _current ?? configured.Value;
++
++    public void Use(SyncOptions options) => _current = options;
++}
++
++/// <summary>
++/// Decide a configuração de cada execução. Gestão desligada: appsettings.json, como sempre.
++/// Gestão ligada: versão vigente de solidesdp.configuracao (criando a versão 1 a partir do
++/// appsettings.json na primeira vez), validada pelas mesmas regras do start.
++/// </summary>
++public sealed class SyncSettingsLoader(
++    IOptions<SyncOptions> configured,
++    IOptions<ManagementOptions> management,
++    IOptions<SolidesDpOptions> solides,
++    IManagementStore store,
++    ILogger<SyncSettingsLoader> logger)
++{
++    public bool ManagementEnabled => management.Value.Habilitada;
++
++    /// <exception cref="SyncAbortedException">Configuração do banco ilegível ou inválida.</exception>
++    public async Task<SyncSettings> LoadAsync(CancellationToken ct)
++    {
++        var baseline = configured.Value;
++        if (!ManagementEnabled)
++        {
++            return new SyncSettings(baseline, Active: true, Version: null);
++        }
++
++        await store.EnsureSchemaAsync(ct);
++        var current = await store.GetCurrentConfigurationAsync(baseline.InstanceName, ct);
++        if (current is null)
++        {
++            await store.SeedConfigurationAsync(baseline.InstanceName, SyncOptionsJson.Serialize(baseline), ct);
++            current = await store.GetCurrentConfigurationAsync(baseline.InstanceName, ct)
++                      ?? throw new SyncAbortedException("config_missing: não foi possível criar a versão 1 de solidesdp.configuracao.");
++            logger.LogInformation("Configuração da instância {Instance} criada no banco a partir do appsettings.json (versão 1)", baseline.InstanceName);
++        }
++
++        SyncOptions options;
++        try
++        {
++            options = SyncOptionsJson.Deserialize(current.SyncJson);
++        }
++        catch (JsonException ex)
++        {
++            throw new SyncAbortedException($"config_invalid: versão {current.Version} de solidesdp.configuracao não é um JSON válido da seção Sync: {ex.Message}");
++        }
++
++        // Identidade da instalação: continua sendo do appsettings.json, nunca do banco.
++        options.InstanceName = baseline.InstanceName;
++        options.ReportDirectory = baseline.ReportDirectory;
++
++        var validation = new SyncOptionsValidator().Validate(null, options);
++        if (validation.Failed)
++        {
++            throw new SyncAbortedException($"config_invalid: versão {current.Version} de solidesdp.configuracao: {validation.FailureMessage}");
++        }
++
++        if (!options.DryRun && string.IsNullOrWhiteSpace(solides.Value.Token))
++        {
++            throw new SyncAbortedException($"config_invalid: a versão {current.Version} desliga o dry-run, mas SolidesDP:Token não está configurado.");
++        }
++
++        return new SyncSettings(options, current.Active, current.Version);
++    }
++
++    /// <summary>Com a gestão ligada, grava na execução quem pediu e a versão da configuração.</summary>
++    public Task TagRunAsync(Guid runId, string? requestedBy, SyncSettings settings, CancellationToken ct) =>
++        ManagementEnabled ? store.TagRunAsync(runId, requestedBy, settings.Version, ct) : Task.CompletedTask;
++}
+diff --git a/src/IntegracaoSolidesDP.Worker/Options/ManagementOptions.cs b/src/IntegracaoSolidesDP.Worker/Options/ManagementOptions.cs
+new file mode 100644
+index 0000000..a223b19
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Worker/Options/ManagementOptions.cs
+@@ -0,0 +1,20 @@
++namespace IntegracaoSolidesDP.Worker.Options;
++
++/// <summary>
++/// Gestão pela aplicação Web (IntegracaoSolidesDP.Web). Desligada, o serviço funciona como antes:
++/// a configuração vem só do appsettings.json e não há fila de comandos.
++/// </summary>
++public sealed class ManagementOptions
++{
++    public const string SectionName = "Gestao";
++
++    /// <summary>
++    /// Ligada: as regras da seção Sync passam a vir da versão vigente de <c>solidesdp.configuracao</c>
++    /// (a primeira versão é criada a partir do appsettings.json), a integração pode ser
++    /// ativada/desativada e o serviço atende os comandos de <c>solidesdp.comando</c>.
++    /// </summary>
++    public bool Habilitada { get; set; }
++
++    /// <summary>De quanto em quanto tempo o serviço procura comandos pendentes (ex.: "Executar agora").</summary>
++    public TimeSpan IntervaloComandos { get; set; } = TimeSpan.FromSeconds(15);
++}
+diff --git a/src/IntegracaoSolidesDP.Worker/Options/OptionsValidators.cs b/src/IntegracaoSolidesDP.Worker/Options/OptionsValidators.cs
+index c4f08c8..fee48aa 100644
+--- a/src/IntegracaoSolidesDP.Worker/Options/OptionsValidators.cs
++++ b/src/IntegracaoSolidesDP.Worker/Options/OptionsValidators.cs
+@@ -85,6 +85,14 @@ internal sealed class SolidesDpOptionsValidator(IHostEnvironment environment, IO
+     }
+ }
+ 
++internal sealed class ManagementOptionsValidator : IValidateOptions<ManagementOptions>
++{
++    public ValidateOptionsResult Validate(string? name, ManagementOptions options) =>
++        options.IntervaloComandos < TimeSpan.FromSeconds(1) || options.IntervaloComandos > TimeSpan.FromMinutes(10)
++            ? ValidateOptionsResult.Fail("Gestao:IntervaloComandos deve estar entre 00:00:01 e 00:10:00.")
++            : ValidateOptionsResult.Success;
++}
++
+ internal sealed class SyncOptionsValidator : IValidateOptions<SyncOptions>
+ {
+     public ValidateOptionsResult Validate(string? name, SyncOptions options)
+diff --git a/src/IntegracaoSolidesDP.Worker/Pipeline/ReferenceResolver.cs b/src/IntegracaoSolidesDP.Worker/Pipeline/ReferenceResolver.cs
+index 0335f2f..eb789cd 100644
+--- a/src/IntegracaoSolidesDP.Worker/Pipeline/ReferenceResolver.cs
++++ b/src/IntegracaoSolidesDP.Worker/Pipeline/ReferenceResolver.cs
+@@ -1,11 +1,11 @@
+ using System.Globalization;
+ using System.Text;
+ using IntegracaoSolidesDP.Worker.Api;
++using IntegracaoSolidesDP.Worker.Management;
+ using IntegracaoSolidesDP.Worker.Mapping;
+ using IntegracaoSolidesDP.Worker.Options;
+ using IntegracaoSolidesDP.Worker.Source;
+ using IntegracaoSolidesDP.Worker.State;
+-using Microsoft.Extensions.Options;
+ 
+ namespace IntegracaoSolidesDP.Worker.Pipeline;
+ 
+@@ -16,10 +16,10 @@ namespace IntegracaoSolidesDP.Worker.Pipeline;
+ public sealed class ReferenceResolver(
+     ISolidesDpClient api,
+     ISourceReader source,
+-    IOptions<SyncOptions> syncOptions,
++    SyncOptionsAccessor syncOptions,
+     ILogger<ReferenceResolver> logger)
+ {
+-    private SyncOptions Options => syncOptions.Value;
++    private SyncOptions Options => syncOptions.Current;
+ 
+     public async Task ResolveAsync(SyncContext context, EmployeePlan plan, CancellationToken ct)
+     {
+diff --git a/src/IntegracaoSolidesDP.Worker/Pipeline/Steps/EmployeeStep.cs b/src/IntegracaoSolidesDP.Worker/Pipeline/Steps/EmployeeStep.cs
+index 8a42668..87cb412 100644
+--- a/src/IntegracaoSolidesDP.Worker/Pipeline/Steps/EmployeeStep.cs
++++ b/src/IntegracaoSolidesDP.Worker/Pipeline/Steps/EmployeeStep.cs
+@@ -1,10 +1,10 @@
+ using System.Text.Json;
+ using IntegracaoSolidesDP.Worker.Api;
++using IntegracaoSolidesDP.Worker.Management;
+ using IntegracaoSolidesDP.Worker.Mapping;
+ using IntegracaoSolidesDP.Worker.Options;
+ using IntegracaoSolidesDP.Worker.Source;
+ using IntegracaoSolidesDP.Worker.State;
+-using Microsoft.Extensions.Options;
+ 
+ namespace IntegracaoSolidesDP.Worker.Pipeline.Steps;
+ 
+@@ -18,9 +18,9 @@ public sealed class EmployeeStep(
+     IStateStore state,
+     EmployeeMapper mapper,
+     EpochDates dates,
+-    IOptions<SyncOptions> syncOptions)
++    SyncOptionsAccessor syncOptions)
+ {
+-    private SyncOptions Options => syncOptions.Value;
++    private SyncOptions Options => syncOptions.Current;
+ 
+     public async Task ExecuteAsync(SyncContext context, EmployeePlan plan, CancellationToken ct)
+     {
+diff --git a/src/IntegracaoSolidesDP.Worker/Pipeline/Steps/VacationStep.cs b/src/IntegracaoSolidesDP.Worker/Pipeline/Steps/VacationStep.cs
+index 745be15..04b8ae3 100644
+--- a/src/IntegracaoSolidesDP.Worker/Pipeline/Steps/VacationStep.cs
++++ b/src/IntegracaoSolidesDP.Worker/Pipeline/Steps/VacationStep.cs
+@@ -1,9 +1,9 @@
+ using IntegracaoSolidesDP.Worker.Api;
++using IntegracaoSolidesDP.Worker.Management;
+ using IntegracaoSolidesDP.Worker.Mapping;
+ using IntegracaoSolidesDP.Worker.Options;
+ using IntegracaoSolidesDP.Worker.Source;
+ using IntegracaoSolidesDP.Worker.State;
+-using Microsoft.Extensions.Options;
+ 
+ namespace IntegracaoSolidesDP.Worker.Pipeline.Steps;
+ 
+@@ -17,10 +17,10 @@ public sealed class VacationStep(
+     ISolidesDpClient api,
+     ISourceReader source,
+     IStateStore state,
+-    VacationMapper mapper,
+-    IOptions<SyncOptions> syncOptions)
++    EpochDates dates,
++    SyncOptionsAccessor syncOptions)
+ {
+-    private SyncOptions Options => syncOptions.Value;
++    private SyncOptions Options => syncOptions.Current;
+ 
+     public async Task ExecuteAsync(SyncContext context, EmployeePlan plan, CancellationToken ct)
+     {
+@@ -30,6 +30,8 @@ public sealed class VacationStep(
+             return;
+         }
+ 
++        // Criado a cada execução: as regras de férias podem mudar entre execuções (configuração da Web).
++        var mapper = new VacationMapper(dates, Options);
+         var reasonId = context.FeriasReasonId ?? 0;
+         var desde = context.Today.AddDays(-Options.FeriasJanelaDias);
+         var rows = await source.ReadVacationsEndingFromAsync(desde, ct);
+diff --git a/src/IntegracaoSolidesDP.Worker/Pipeline/SyncPipeline.cs b/src/IntegracaoSolidesDP.Worker/Pipeline/SyncPipeline.cs
+index 2b6871f..ef3a57d 100644
+--- a/src/IntegracaoSolidesDP.Worker/Pipeline/SyncPipeline.cs
++++ b/src/IntegracaoSolidesDP.Worker/Pipeline/SyncPipeline.cs
+@@ -1,13 +1,18 @@
+ using System.Text.Json;
++using IntegracaoSolidesDP.Worker.Management;
+ using IntegracaoSolidesDP.Worker.Mapping;
+-using IntegracaoSolidesDP.Worker.Options;
+ using IntegracaoSolidesDP.Worker.Pipeline.Steps;
+ using IntegracaoSolidesDP.Worker.Source;
+ using IntegracaoSolidesDP.Worker.State;
+-using Microsoft.Extensions.Options;
+ 
+ namespace IntegracaoSolidesDP.Worker.Pipeline;
+ 
++/// <summary>Pedido de execução.</summary>
++/// <param name="Trigger">Origem: startup, schedule, cli, cli-dry-run, web...</param>
++/// <param name="DryRunOverride">true força o dry-run; null segue a configuração.</param>
++/// <param name="RequestedBy">Usuário da Web que pediu (null nas execuções do próprio serviço).</param>
++public sealed record RunRequest(string Trigger, bool? DryRunOverride, string? RequestedBy = null);
++
+ /// <summary>
+ /// Uma execução completa, na ordem de dependência:
+ /// referências → cargos → locais → desligamentos/transferências → colaboradores → férias.
+@@ -15,6 +20,8 @@ namespace IntegracaoSolidesDP.Worker.Pipeline;
+ public sealed class SyncPipeline(
+     ISourceReader source,
+     IStateStore state,
++    SyncSettingsLoader settingsLoader,
++    SyncOptionsAccessor syncOptions,
+     ReferenceResolver references,
+     JobRoleStep jobRoles,
+     WorkplaceStep workplaces,
+@@ -24,41 +31,70 @@ public sealed class SyncPipeline(
+     RunReportWriter reports,
+     EpochDates dates,
+     TimeProvider clock,
+-    IOptions<SyncOptions> syncOptions,
+     ILogger<SyncPipeline> logger)
+ {
+-    private SyncOptions Options => syncOptions.Value;
++    public Task<RunSummary> RunAsync(string trigger, bool? dryRunOverride, CancellationToken ct) =>
++        RunAsync(new RunRequest(trigger, dryRunOverride), ct);
+ 
+-    public async Task<RunSummary> RunAsync(string trigger, bool? dryRunOverride, CancellationToken ct)
++    public async Task<RunSummary> RunAsync(RunRequest request, CancellationToken ct)
+     {
+-        var dryRun = dryRunOverride ?? Options.DryRun;
+         var started = clock.GetUtcNow();
++        var instanceName = syncOptions.Configured.InstanceName;
+ 
+         await state.EnsureSchemaAsync(ct);
+-        await using var runLock = await state.TryAcquireRunLockAsync(Options.InstanceName, ct);
++        await using var runLock = await state.TryAcquireRunLockAsync(instanceName, ct);
+         if (runLock is null)
+         {
+-            logger.LogWarning("Outra execução da instância {Instance} está em andamento; esta foi ignorada.", Options.InstanceName);
+-            return new RunSummary(Guid.Empty, "skipped_locked", dryRun, started, clock.GetUtcNow(),
+-                new Dictionary<string, IReadOnlyDictionary<string, int>>(), "Outra execução em andamento", null);
++            logger.LogWarning("Outra execução da instância {Instance} está em andamento; esta foi ignorada.", instanceName);
++            return NotRun(RunStatuses.SkippedLocked, request.DryRunOverride ?? syncOptions.Configured.DryRun, started, "Outra execução em andamento");
+         }
+ 
+         await state.VerifyKeySchemeAsync(EmployeeKey.Scheme, ct);
+-        var runId = await state.StartRunAsync(Options.InstanceName, dryRun, trigger, ct);
++
++        // Com o lock na mão, nenhuma execução desta instância está viva: "running" é sobra de uma parada abrupta.
++        var interrupted = await state.FailInterruptedRunsAsync(instanceName, ct);
++        if (interrupted > 0)
++        {
++            logger.LogWarning("{Count} execução(ões) interrompida(s) anteriormente foram marcadas como failed", interrupted);
++        }
++
++        SyncSettings settings;
++        try
++        {
++            settings = await settingsLoader.LoadAsync(ct);
++        }
++        catch (SyncAbortedException ex)
++        {
++            return await RecordInvalidConfigurationAsync(request, started, ex.Message, ct);
++        }
++
++        var dryRun = request.DryRunOverride ?? settings.Options.DryRun;
++        if (!settings.Active && !dryRun)
++        {
++            logger.LogInformation("Integração desativada (configuração versão {Version}); execução {Trigger} não realizada.", settings.Version, request.Trigger);
++            return NotRun(RunStatuses.SkippedDisabled, dryRun, started, "Integração desativada");
++        }
++
++        syncOptions.Use(settings.Options);
++        var options = settings.Options;
++
++        var runId = await state.StartRunAsync(instanceName, dryRun, request.Trigger, ct);
++        await settingsLoader.TagRunAsync(runId, request.RequestedBy, settings, ct);
+         var context = new SyncContext(runId, dryRun, dates.Today(clock));
+-        logger.LogInformation("Execução {RunId} iniciada ({Mode}, gatilho {Trigger})", runId, dryRun ? "DRY-RUN" : "real", trigger);
++        logger.LogInformation("Execução {RunId} iniciada ({Mode}, gatilho {Trigger}{User})",
++            runId, dryRun ? "DRY-RUN" : "real", request.Trigger, request.RequestedBy is null ? string.Empty : $", pedida por {request.RequestedBy}");
+ 
+         string status;
+         string? error = null;
+         try
+         {
+-            var rows = await source.ReadEmployeesAsync(Options.TiposColaborador.ToList(), Options.EmpresasIncluidas.ToList(), ct);
++            var rows = await source.ReadEmployeesAsync(options.TiposColaborador.ToList(), options.EmpresasIncluidas.ToList(), ct);
+             if (rows.Count == 0)
+             {
+                 throw new SyncAbortedException("source_empty: nenhum colaborador lido do RHSenso; nada foi enviado (verifique a conexão e os filtros).");
+             }
+ 
+-            var plan = EmployeeClassifier.Classify(rows, Options, context.Today);
++            var plan = EmployeeClassifier.Classify(rows, options, context.Today);
+             context.AddRange(plan.Skipped);
+             logger.LogInformation("RHSenso: {Active} colaboradores ativos em escopo, {Departures} saídas", plan.Active.Count, plan.Departures.Count);
+ 
+@@ -97,8 +133,9 @@ public sealed class SyncPipeline(
+         var finished = clock.GetUtcNow();
+         var summary = new RunSummary(runId, status, dryRun, started, finished, RunSummary.CountItems(context.Items), error, null);
+ 
+-        // Mesmo cancelado (parada do serviço), o que foi feito fica registrado.
+-        await state.AddItemsAsync(runId, context.Items.ToList(), CancellationToken.None);
++        // Mesmo cancelado (parada do serviço), o que foi feito fica registrado. Os itens "unchanged"
++        // entram só na contagem (summary_json): gravá-los repetiria todo o cadastro a cada execução.
++        await state.AddItemsAsync(runId, context.Items.Where(i => i.Status != ItemStatuses.Unchanged).ToList(), CancellationToken.None);
+         var reportPath = await reports.WriteAsync(summary, context.Items, CancellationToken.None);
+         summary = summary with { ReportPath = reportPath };
+         await state.FinishRunAsync(runId, status, JsonSerializer.Serialize(summary.Counts), error, CancellationToken.None);
+@@ -108,4 +145,18 @@ public sealed class SyncPipeline(
+         ct.ThrowIfCancellationRequested();
+         return summary;
+     }
++
++    /// <summary>Configuração do banco inválida: a execução fica registrada como failed, com o motivo, sem tocar no DP.</summary>
++    private async Task<RunSummary> RecordInvalidConfigurationAsync(RunRequest request, DateTimeOffset started, string error, CancellationToken ct)
++    {
++        var dryRun = request.DryRunOverride ?? syncOptions.Configured.DryRun;
++        var runId = await state.StartRunAsync(syncOptions.Configured.InstanceName, dryRun, request.Trigger, ct);
++        await state.FinishRunAsync(runId, RunStatuses.Failed, "{}", error, CancellationToken.None);
++        logger.LogError("Execução {RunId} abortada: {Error}", runId, error);
++        return new RunSummary(runId, RunStatuses.Failed, dryRun, started, clock.GetUtcNow(),
++            new Dictionary<string, IReadOnlyDictionary<string, int>>(), error, null);
++    }
++
++    private RunSummary NotRun(string status, bool dryRun, DateTimeOffset started, string reason) =>
++        new(Guid.Empty, status, dryRun, started, clock.GetUtcNow(), new Dictionary<string, IReadOnlyDictionary<string, int>>(), reason, null);
+ }
+diff --git a/src/IntegracaoSolidesDP.Worker/Program.cs b/src/IntegracaoSolidesDP.Worker/Program.cs
+index beb5a03..3f08704 100644
+--- a/src/IntegracaoSolidesDP.Worker/Program.cs
++++ b/src/IntegracaoSolidesDP.Worker/Program.cs
+@@ -49,6 +49,7 @@ try
+     _ = host.Services.GetRequiredService<IOptions<IntegracaoSolidesDP.Worker.Options.SolidesDpOptions>>().Value;
+     _ = host.Services.GetRequiredService<IOptions<IntegracaoSolidesDP.Worker.Options.ExecutionOptions>>().Value;
+     _ = host.Services.GetRequiredService<IOptions<IntegracaoSolidesDP.Worker.Options.SyncOptions>>().Value;
++    _ = host.Services.GetRequiredService<IOptions<IntegracaoSolidesDP.Worker.Options.ManagementOptions>>().Value;
+ }
+ catch (OptionsValidationException ex)
+ {
+diff --git a/src/IntegracaoSolidesDP.Worker/Scheduling/SyncWorker.cs b/src/IntegracaoSolidesDP.Worker/Scheduling/SyncWorker.cs
+index 3e7c0d1..d3eaf09 100644
+--- a/src/IntegracaoSolidesDP.Worker/Scheduling/SyncWorker.cs
++++ b/src/IntegracaoSolidesDP.Worker/Scheduling/SyncWorker.cs
+@@ -1,35 +1,68 @@
++using IntegracaoSolidesDP.Worker.Management;
++using IntegracaoSolidesDP.Worker.Options;
+ using IntegracaoSolidesDP.Worker.Pipeline;
++using Microsoft.Extensions.Options;
+ 
+ namespace IntegracaoSolidesDP.Worker.Scheduling;
+ 
+-/// <summary>Serviço (Windows Service / systemd): executa a sincronização na frequência configurada.</summary>
++/// <summary>
++/// Serviço (Windows Service / systemd): executa a sincronização na frequência configurada.
++/// Com Gestao:Habilitada, entre uma execução e outra atende os comandos pedidos na Web.
++/// </summary>
+ public sealed class SyncWorker(
+     IServiceScopeFactory scopes,
+     ExecutionSchedule schedule,
++    CommandProcessor commands,
++    IOptions<ManagementOptions> management,
+     TimeProvider clock,
+     ILogger<SyncWorker> logger) : BackgroundService
+ {
+     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+     {
++        var managed = management.Value.Habilitada;
++        if (managed)
++        {
++            await RecoverCommandsAsync(stoppingToken);
++        }
++
+         if (schedule.RunOnStartup)
+         {
+             await RunOnceAsync("startup", stoppingToken);
+         }
+ 
++        var next = NextRun();
+         while (!stoppingToken.IsCancellationRequested)
+         {
+-            var next = schedule.Next(clock.GetUtcNow());
+-            logger.LogInformation("Próxima execução em {Next:yyyy-MM-dd HH:mm:ss} UTC", next);
+-            var delay = next - clock.GetUtcNow();
+-            if (delay > TimeSpan.Zero)
++            if (managed)
++            {
++                await ProcessCommandsAsync(stoppingToken);
++            }
++
++            var now = clock.GetUtcNow();
++            if (now >= next)
+             {
+-                await Task.Delay(delay, clock, stoppingToken);
++                await RunOnceAsync("schedule", stoppingToken);
++                next = NextRun();
++                continue;
+             }
+ 
+-            await RunOnceAsync("schedule", stoppingToken);
++            var wait = next - now;
++            if (managed && wait > management.Value.IntervaloComandos)
++            {
++                wait = management.Value.IntervaloComandos;
++            }
++
++            await Task.Delay(wait, clock, stoppingToken);
+         }
+     }
+ 
++    private DateTimeOffset NextRun()
++    {
++        var next = schedule.Next(clock.GetUtcNow());
++        logger.LogInformation("Próxima execução em {Next:yyyy-MM-dd HH:mm:ss} UTC", next);
++        return next;
++    }
++
+     private async Task RunOnceAsync(string trigger, CancellationToken ct)
+     {
+         try
+@@ -47,4 +80,37 @@ public sealed class SyncWorker(
+             logger.LogError(ex, "Falha na execução agendada");
+         }
+     }
++
++    private async Task RecoverCommandsAsync(CancellationToken ct)
++    {
++        try
++        {
++            await commands.RecoverAsync(ct);
++        }
++        catch (OperationCanceledException) when (ct.IsCancellationRequested)
++        {
++            // Parada do serviço.
++        }
++        catch (Exception ex)
++        {
++            // Banco fora do ar na partida: a fila é tentada de novo no próximo ciclo.
++            logger.LogError(ex, "Falha ao preparar a fila de comandos");
++        }
++    }
++
++    private async Task ProcessCommandsAsync(CancellationToken ct)
++    {
++        try
++        {
++            await commands.ProcessPendingAsync(ct);
++        }
++        catch (OperationCanceledException) when (ct.IsCancellationRequested)
++        {
++            // Parada do serviço.
++        }
++        catch (Exception ex)
++        {
++            logger.LogError(ex, "Falha ao ler a fila de comandos");
++        }
++    }
+ }
+diff --git a/src/IntegracaoSolidesDP.Worker/State/SqlStateStore.cs b/src/IntegracaoSolidesDP.Worker/State/SqlStateStore.cs
+index 5bf3859..7de5d27 100644
+--- a/src/IntegracaoSolidesDP.Worker/State/SqlStateStore.cs
++++ b/src/IntegracaoSolidesDP.Worker/State/SqlStateStore.cs
+@@ -18,6 +18,12 @@ public interface IStateStore
+ 
+     Task FinishRunAsync(Guid runId, string status, string summaryJson, string? errorMessage, CancellationToken ct);
+ 
++    /// <summary>
++    /// Execuções "running" da instância que ficaram para trás numa parada abrupta viram "failed".
++    /// Só pode ser chamado com o lock da instância (nenhuma execução viva). Devolve quantas.
++    /// </summary>
++    Task<int> FailInterruptedRunsAsync(string instanceName, CancellationToken ct);
++
+     Task AddItemsAsync(Guid runId, IReadOnlyCollection<RunItem> items, CancellationToken ct);
+ 
+     Task<Dictionary<string, EntityState>> LoadEntityStatesAsync(string entityType, CancellationToken ct);
+@@ -180,6 +186,19 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
+             cancellationToken: ct));
+     }
+ 
++    public async Task<int> FailInterruptedRunsAsync(string instanceName, CancellationToken ct)
++    {
++        await using var connection = await connections.OpenAsync(ct);
++        return await connection.ExecuteAsync(new CommandDefinition("""
++            UPDATE solidesdp.runs
++            SET status = @Failed, finished_at = @Now,
++                error_message = N'interrupted: a execução parou sem terminar (serviço parado ou servidor reiniciado)'
++            WHERE instance_name = @InstanceName AND status = @Running
++            """,
++            new { InstanceName = instanceName, Failed = RunStatuses.Failed, Running = RunStatuses.Running, Now = clock.GetUtcNow() },
++            cancellationToken: ct));
++    }
++
+     public async Task AddItemsAsync(Guid runId, IReadOnlyCollection<RunItem> items, CancellationToken ct)
+     {
+         if (items.Count == 0)
+diff --git a/src/IntegracaoSolidesDP.Worker/State/StateModels.cs b/src/IntegracaoSolidesDP.Worker/State/StateModels.cs
+index bff2d27..3d695cd 100644
+--- a/src/IntegracaoSolidesDP.Worker/State/StateModels.cs
++++ b/src/IntegracaoSolidesDP.Worker/State/StateModels.cs
+@@ -74,4 +74,10 @@ public static class RunStatuses
+     public const string Completed = "completed";
+     public const string CompletedWithErrors = "completed_with_errors";
+     public const string Failed = "failed";
++
++    /// <summary>Não executou: outra execução da instância estava em andamento (não grava em runs).</summary>
++    public const string SkippedLocked = "skipped_locked";
++
++    /// <summary>Não executou: integração desativada na Web (não grava em runs).</summary>
++    public const string SkippedDisabled = "skipped_disabled";
+ }
+diff --git a/src/IntegracaoSolidesDP.Worker/appsettings.json b/src/IntegracaoSolidesDP.Worker/appsettings.json
+index cc8bcb4..eb036e6 100644
+--- a/src/IntegracaoSolidesDP.Worker/appsettings.json
++++ b/src/IntegracaoSolidesDP.Worker/appsettings.json
+@@ -9,6 +9,10 @@
+     "SkipUnifiedSync": true,
+     "AllowProductionApiOutsideProduction": false
+   },
++  "Gestao": {
++    "Habilitada": false,
++    "IntervaloComandos": "00:00:15"
++  },
+   "Execution": {
+     "Interval": "00:30:00",
+     "TimeZone": "America/Bahia",
+diff --git a/tests/IntegracaoSolidesDP.Tests/EndToEnd/E2EHarness.cs b/tests/IntegracaoSolidesDP.Tests/EndToEnd/E2EHarness.cs
+index 99e89f4..1358494 100644
+--- a/tests/IntegracaoSolidesDP.Tests/EndToEnd/E2EHarness.cs
++++ b/tests/IntegracaoSolidesDP.Tests/EndToEnd/E2EHarness.cs
+@@ -1,6 +1,7 @@
+ using IntegracaoSolidesDP.Tests.Sql;
+ using IntegracaoSolidesDP.Worker.Api;
+ using IntegracaoSolidesDP.Worker.Infrastructure;
++using IntegracaoSolidesDP.Worker.Management;
+ using IntegracaoSolidesDP.Worker.Pipeline;
+ using Microsoft.AspNetCore.Mvc.Testing;
+ using Microsoft.Extensions.Configuration;
+@@ -63,6 +64,15 @@ public sealed class E2EHarness : IAsyncDisposable
+         return await scope.ServiceProvider.GetRequiredService<SyncPipeline>().RunAsync("e2e", dryRunOverride: null, ct);
+     }
+ 
++    /// <summary>Atende a fila solidesdp.comando como o serviço faria entre duas execuções.</summary>
++    public async Task<int> ProcessCommandsAsync(CancellationToken ct = default)
++    {
++        await using var provider = BuildWorker();
++        var commands = provider.GetRequiredService<CommandProcessor>();
++        await commands.RecoverAsync(ct);
++        return await commands.ProcessPendingAsync(ct);
++    }
++
+     /// <summary>Requests de escrita (POST/PUT/DELETE) recebidos pelo fake desde a última limpeza.</summary>
+     public async Task<IReadOnlyList<SolidesDP.Fake.Domain.RecordedRequest>> WritesAsync(CancellationToken ct = default) =>
+         (await Fake.GetRequestsAsync(ct)).Where(r => r.Method is "POST" or "PUT" or "DELETE").ToList();
+diff --git a/tests/IntegracaoSolidesDP.Tests/EndToEnd/ManagementEndToEndTests.cs b/tests/IntegracaoSolidesDP.Tests/EndToEnd/ManagementEndToEndTests.cs
+new file mode 100644
+index 0000000..d5c7bfd
+--- /dev/null
++++ b/tests/IntegracaoSolidesDP.Tests/EndToEnd/ManagementEndToEndTests.cs
+@@ -0,0 +1,143 @@
++using IntegracaoSolidesDP.Tests.Sql;
++using IntegracaoSolidesDP.Worker.Management;
++using IntegracaoSolidesDP.Worker.State;
++
++namespace IntegracaoSolidesDP.Tests.EndToEnd;
++
++/// <summary>Gestão pela Web (Gestao:Habilitada): configuração no banco, ativar/desativar e fila de comandos.</summary>
++[Collection(SqlServerCollection.Name)]
++public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetime
++{
++    private readonly RhuSeed _seed = new(db);
++    private readonly SqlManagementStore _store = new(db.Connections, TimeProvider.System);
++    private E2EHarness _harness = null!;
++    private CancellationToken Ct => TestContext.Current.CancellationToken;
++
++    public async ValueTask InitializeAsync()
++    {
++        await db.ResetAsync();
++        await _seed.BasicsAsync();
++        await _seed.FuncionarioAsync(matric: "00000001", cpf: TestData.Cpf1);
++        _harness = new E2EHarness(db);
++        _harness.Settings["Gestao:Habilitada"] = "true";
++        await _harness.Fake.ResetAsync(Ct);
++    }
++
++    public async ValueTask DisposeAsync() => await _harness.DisposeAsync();
++
++    [Fact]
++    public async Task First_run_creates_version_1_from_appsettings_and_records_it()
++    {
++        var summary = await _harness.RunAsync(Ct);
++
++        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
++        var current = await _store.GetCurrentConfigurationAsync("default", Ct);
++        current!.Version.Should().Be(1);
++        SyncOptionsJson.Deserialize(current.SyncJson).GoLiveDate.Should().Be(new DateOnly(2026, 1, 1));
++        var version = await db.QueryAsync<int>("SELECT config_versao FROM solidesdp.runs WHERE run_id = @RunId", new { summary.RunId });
++        version.Should().Equal(1);
++    }
++
++    [Fact]
++    public async Task Disabled_integration_does_not_run_but_still_allows_a_dry_run()
++    {
++        await _harness.RunAsync(Ct);
++        var current = await _store.GetCurrentConfigurationAsync("default", Ct);
++        await _store.AddConfigurationVersionAsync("default", active: false, current!.SyncJson, "pausa", "carlos", Ct);
++        await _seed.FuncionarioAsync(matric: "00000002", cpf: TestData.Cpf2, nome: "JOAO SANTOS");
++        await _harness.Fake.ClearRequestsAsync(Ct);
++
++        var real = await _harness.RunAsync(Ct);
++        var dryRun = await RunCommandAsync(CommandTypes.DryRun);
++
++        real.Status.Should().Be(RunStatuses.SkippedDisabled);
++        dryRun.Status.Should().Be(CommandStatuses.Done, dryRun.Result);
++        (await _harness.WritesAsync(Ct)).Should().BeEmpty("a integração está desativada e o dry-run não chama a API");
++    }
++
++    [Fact]
++    public async Task Rules_come_from_the_database_not_from_appsettings()
++    {
++        await _harness.RunAsync(Ct);
++        var current = await _store.GetCurrentConfigurationAsync("default", Ct);
++        var rules = SyncOptionsJson.Deserialize(current!.SyncJson);
++        rules.DryRun = true;
++        await _store.AddConfigurationVersionAsync("default", active: true, SyncOptionsJson.Serialize(rules), "volta ao dry-run", "carlos", Ct);
++
++        var summary = await _harness.RunAsync(Ct);
++
++        summary.DryRun.Should().BeTrue("a versão 2 do banco liga o dry-run, embora o appsettings diga false");
++    }
++
++    [Fact]
++    public async Task Invalid_configuration_is_recorded_as_a_failed_run_without_calling_the_api()
++    {
++        await EnsureSchemasAsync();
++        await _store.AddConfigurationVersionAsync("default", active: true, """{ "DryRun": false, "GoLiveDate": null }""", null, "carlos", Ct);
++        await _harness.Fake.ClearRequestsAsync(Ct);
++
++        var summary = await _harness.RunAsync(Ct);
++
++        summary.Status.Should().Be(RunStatuses.Failed);
++        summary.Error.Should().Contain("config_invalid").And.Contain("GoLiveDate");
++        (await _harness.WritesAsync(Ct)).Should().BeEmpty();
++    }
++
++    [Fact]
++    public async Task Run_command_executes_the_sync_on_behalf_of_the_user()
++    {
++        var command = await RunCommandAsync(CommandTypes.Run);
++
++        command.Status.Should().Be(CommandStatuses.Done, command.Result);
++        command.RunId.Should().NotBeNull();
++        var run = await db.QueryAsync<(string, string)>(
++            "SELECT triggered_by, solicitado_por FROM solidesdp.runs WHERE run_id = @RunId", new { command.RunId });
++        run.Should().Equal(("web", "carlos"));
++        (await _harness.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle(e => e.ExternalId == "1-00000001");
++    }
++
++    [Fact]
++    public async Task Check_config_command_stores_the_console_output()
++    {
++        var command = await RunCommandAsync(CommandTypes.CheckConfig);
++
++        command.Status.Should().Be(CommandStatuses.Done, command.Result);
++        command.Result.Should().Contain("[OK] Banco").And.Contain("Gestão pela Web ligada");
++    }
++
++    [Fact]
++    public async Task Unchanged_items_are_counted_but_not_stored()
++    {
++        await _harness.RunAsync(Ct);
++
++        var second = await _harness.RunAsync(Ct);
++
++        second.Counts["employee"].Should().ContainKey("unchanged");
++        var stored = await db.QueryAsync<int>(
++            "SELECT COUNT(*) FROM solidesdp.run_items WHERE run_id = @RunId AND status = 'unchanged'", new { second.RunId });
++        stored.Should().Equal(0);
++    }
++
++    private async Task EnsureSchemasAsync()
++    {
++        await new SqlStateStore(db.Connections, TimeProvider.System).EnsureSchemaAsync(Ct);
++        await _store.EnsureSchemaAsync(Ct);
++    }
++
++    private async Task<CommandOutcome> RunCommandAsync(string type)
++    {
++        await EnsureSchemasAsync();
++        var id = await _store.EnqueueCommandAsync("default", type, "carlos", Ct);
++        await _harness.ProcessCommandsAsync(Ct);
++        var rows = await db.QueryAsync<CommandOutcome>(
++            "SELECT status AS Status, run_id AS RunId, resultado AS Result FROM solidesdp.comando WHERE id = @id", new { id });
++        return rows.Single();
++    }
++
++    private sealed record CommandOutcome
++    {
++        public string Status { get; init; } = string.Empty;
++        public Guid? RunId { get; init; }
++        public string? Result { get; init; }
++    }
++}
+diff --git a/tests/IntegracaoSolidesDP.Tests/Management/SyncOptionsJsonTests.cs b/tests/IntegracaoSolidesDP.Tests/Management/SyncOptionsJsonTests.cs
+new file mode 100644
+index 0000000..4aa4c9e
+--- /dev/null
++++ b/tests/IntegracaoSolidesDP.Tests/Management/SyncOptionsJsonTests.cs
+@@ -0,0 +1,51 @@
++using IntegracaoSolidesDP.Worker.Management;
++using IntegracaoSolidesDP.Worker.Options;
++
++namespace IntegracaoSolidesDP.Tests.Management;
++
++public sealed class SyncOptionsJsonTests
++{
++    [Fact]
++    public void Round_trip_keeps_every_rule()
++    {
++        var original = new SyncOptions
++        {
++            InstanceName = "adn",
++            DryRun = false,
++            TiposColaborador = [1],
++            EmpresasIncluidas = [7, 14],
++            ExternalIdAllowList = ["14-00901482"],
++            SituacoesIgnoradas = ["99", "98"],
++            GoLiveDate = new DateOnly(2026, 11, 1),
++            WorkScheduleExternalId = "ESC-01",
++            CompanyMode = CompanyMode.None,
++            AllowDoubleBind = true,
++            MotivoDemissaoMap = new Dictionary<string, string> { ["21"] = "DEMISSAO" },
++            FeriasEnviarProgramadas = true,
++            FeriasMotivoId = 42,
++            FeriasEndDateMode = FeriasEndDateMode.FimDoUltimoDia,
++            MaxCreatesPerRun = 50,
++        };
++
++        var copy = SyncOptionsJson.Deserialize(SyncOptionsJson.Serialize(original));
++
++        copy.Should().BeEquivalentTo(original);
++    }
++
++    [Fact]
++    public void Json_uses_the_appsettings_key_names_and_enum_names()
++    {
++        var json = SyncOptionsJson.Serialize(new SyncOptions { FeriasEndDateMode = FeriasEndDateMode.InicioDoUltimoDia });
++
++        json.Should().Contain("\"FeriasJanelaDias\"").And.Contain("\"InicioDoUltimoDia\"").And.Contain("\"ResolveByCnpj\"");
++    }
++
++    [Fact]
++    public void Lists_in_the_json_replace_the_defaults_instead_of_appending()
++    {
++        var options = SyncOptionsJson.Deserialize("""{ "TiposColaborador": [2] }""");
++
++        options.TiposColaborador.Should().Equal(2);
++        options.DryRun.Should().BeTrue("chaves ausentes ficam com o padrão seguro");
++    }
++}
+diff --git a/tests/IntegracaoSolidesDP.Tests/Sql/SqlManagementStoreTests.cs b/tests/IntegracaoSolidesDP.Tests/Sql/SqlManagementStoreTests.cs
+new file mode 100644
+index 0000000..6b56215
+--- /dev/null
++++ b/tests/IntegracaoSolidesDP.Tests/Sql/SqlManagementStoreTests.cs
+@@ -0,0 +1,113 @@
++using IntegracaoSolidesDP.Worker.Management;
++using IntegracaoSolidesDP.Worker.State;
++
++namespace IntegracaoSolidesDP.Tests.Sql;
++
++[Collection(SqlServerCollection.Name)]
++public sealed class SqlManagementStoreTests(SqlServerFixture db) : IAsyncLifetime
++{
++    private readonly SqlStateStore _state = new(db.Connections, TimeProvider.System);
++    private readonly SqlManagementStore _store = new(db.Connections, TimeProvider.System);
++    private CancellationToken Ct => TestContext.Current.CancellationToken;
++
++    public async ValueTask InitializeAsync()
++    {
++        await db.ResetAsync();
++        await _state.EnsureSchemaAsync(Ct);
++        await _store.EnsureSchemaAsync(Ct);
++    }
++
++    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
++
++    [Fact]
++    public async Task Schema_creation_is_idempotent_and_extends_runs()
++    {
++        await _store.EnsureSchemaAsync(Ct);
++
++        var tables = await db.QueryAsync<string>("SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID('solidesdp')");
++        tables.Should().Contain(new[] { "configuracao", "comando", "auditoria" });
++        var columns = await db.QueryAsync<string>(
++            "SELECT name FROM sys.columns WHERE object_id = OBJECT_ID('solidesdp.runs') AND name IN ('solicitado_por', 'config_versao')");
++        columns.Should().HaveCount(2);
++    }
++
++    [Fact]
++    public async Task Seed_writes_version_1_only_once()
++    {
++        await _store.SeedConfigurationAsync("adn", "{}", Ct);
++        await _store.SeedConfigurationAsync("adn", """{ "DryRun": false }""", Ct);
++
++        var current = await _store.GetCurrentConfigurationAsync("adn", Ct);
++        current!.Version.Should().Be(1);
++        current.Active.Should().BeTrue();
++        current.SyncJson.Should().Be("{}");
++        current.CreatedBy.Should().Be(ManagementUsers.System);
++    }
++
++    [Fact]
++    public async Task Each_change_is_a_new_version_and_old_versions_are_kept()
++    {
++        await _store.SeedConfigurationAsync("adn", "{}", Ct);
++        var second = await _store.AddConfigurationVersionAsync("adn", active: false, "{}", "pausa para conferência", "carlos", Ct);
++        var other = await _store.AddConfigurationVersionAsync("outra", active: true, "{}", null, "carlos", Ct);
++
++        second.Should().Be(2);
++        other.Should().Be(1, "a numeração é por instância");
++        var current = await _store.GetCurrentConfigurationAsync("adn", Ct);
++        current!.Version.Should().Be(2);
++        current.Active.Should().BeFalse();
++        current.Note.Should().Be("pausa para conferência");
++        (await db.QueryAsync<int>("SELECT COUNT(*) FROM solidesdp.configuracao WHERE instance_name = 'adn'")).Should().Equal(2);
++    }
++
++    [Fact]
++    public async Task Commands_are_claimed_in_order_once_and_completed()
++    {
++        var first = await _store.EnqueueCommandAsync("adn", CommandTypes.DryRun, "carlos", Ct);
++        var second = await _store.EnqueueCommandAsync("adn", CommandTypes.Run, "ana", Ct);
++        await _store.EnqueueCommandAsync("outra", CommandTypes.Run, "ana", Ct);
++
++        var claimed = await _store.ClaimNextCommandAsync("adn", Ct);
++        claimed.Should().BeEquivalentTo(new ClaimedCommand { Id = first, Type = CommandTypes.DryRun, RequestedBy = "carlos" });
++        (await _store.ClaimNextCommandAsync("adn", Ct))!.Id.Should().Be(second);
++        (await _store.ClaimNextCommandAsync("adn", Ct)).Should().BeNull("o comando da outra instância não é desta");
++
++        await _store.CompleteCommandAsync(first, CommandStatuses.Done, null, "ok", Ct);
++        var status = await db.QueryAsync<string>("SELECT status FROM solidesdp.comando WHERE id = @first", new { first });
++        status.Should().Equal(CommandStatuses.Done);
++    }
++
++    [Fact]
++    public async Task Unknown_command_type_is_refused()
++    {
++        var enqueue = () => _store.EnqueueCommandAsync("adn", "APAGAR_TUDO", "carlos", Ct);
++
++        await enqueue.Should().ThrowAsync<ArgumentOutOfRangeException>();
++    }
++
++    [Fact]
++    public async Task Interrupted_commands_and_runs_are_marked_as_failed()
++    {
++        await _store.EnqueueCommandAsync("adn", CommandTypes.Run, "carlos", Ct);
++        await _store.ClaimNextCommandAsync("adn", Ct);
++        var runId = await _state.StartRunAsync("adn", dryRun: false, "web", Ct);
++
++        (await _store.FailInterruptedCommandsAsync("adn", Ct)).Should().Be(1);
++        (await _state.FailInterruptedRunsAsync("adn", Ct)).Should().Be(1);
++
++        (await db.QueryAsync<string>("SELECT status FROM solidesdp.comando")).Should().Equal(CommandStatuses.Failed);
++        (await db.QueryAsync<string>("SELECT status FROM solidesdp.runs WHERE run_id = @runId", new { runId })).Should().Equal(RunStatuses.Failed);
++    }
++
++    [Fact]
++    public async Task Run_is_tagged_with_user_and_configuration_version()
++    {
++        var runId = await _state.StartRunAsync("adn", dryRun: true, "web", Ct);
++
++        await _store.TagRunAsync(runId, "carlos", 3, Ct);
++
++        var tag = await db.QueryAsync<(string, int)>(
++            "SELECT solicitado_por, config_versao FROM solidesdp.runs WHERE run_id = @runId", new { runId });
++        tag.Should().Equal(("carlos", 3));
++    }
++}
+diff --git a/tests/IntegracaoSolidesDP.Tests/Sql/SqlServerFixture.cs b/tests/IntegracaoSolidesDP.Tests/Sql/SqlServerFixture.cs
+index c489788..eeee66b 100644
+--- a/tests/IntegracaoSolidesDP.Tests/Sql/SqlServerFixture.cs
++++ b/tests/IntegracaoSolidesDP.Tests/Sql/SqlServerFixture.cs
+@@ -41,6 +41,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
+         await using var connection = new SqlConnection(ConnectionString);
+         await connection.ExecuteAsync("""
+             DELETE FROM dbo.feria2; DELETE FROM dbo.func1; DELETE FROM dbo.test1; DELETE FROM dbo.cargo1; DELETE FROM dbo.tcus1;
++            IF OBJECT_ID('solidesdp.comando') IS NOT NULL DROP TABLE solidesdp.comando;
++            IF OBJECT_ID('solidesdp.configuracao') IS NOT NULL DROP TABLE solidesdp.configuracao;
++            IF OBJECT_ID('solidesdp.auditoria') IS NOT NULL DROP TABLE solidesdp.auditoria;
+             IF OBJECT_ID('solidesdp.run_items') IS NOT NULL DROP TABLE solidesdp.run_items;
+             IF OBJECT_ID('solidesdp.runs') IS NOT NULL DROP TABLE solidesdp.runs;
+             IF OBJECT_ID('solidesdp.entity_state') IS NOT NULL DROP TABLE solidesdp.entity_state;
+-- 
+2.43.0
+

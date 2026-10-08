@@ -1,0 +1,9 @@
+# Usado pelo BuildKit junto com src/SolidesDP.Fake/Dockerfile (contexto = raiz do repositorio).
+**/bin
+**/obj
+**/.vs
+.git
+.github
+.env*
+tests
+src/IntegracaoSolidesDP.Worker

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>SolidesDP.Fake</RootNamespace>
+  </PropertyGroup>
+
+  <!-- A fonte da verdade do contrato (Swagger 2.0 do fornecedor) e o seed padrao vao
+       embutidos no assembly: o fake valida os requests contra as mesmas `definitions`
+       que os testes de contrato usam para validar as respostas. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\spec\tangerino-employer.json" LogicalName="tangerino-employer.json" Link="Spec\tangerino-employer.json" />
+    <EmbeddedResource Include="Seed\fake-seed.json" LogicalName="fake-seed.json" />
+  </ItemGroup>
+
+</Project>

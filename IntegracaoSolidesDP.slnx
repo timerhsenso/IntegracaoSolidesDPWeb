@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj" />
+    <Project Path="src/SolidesDP.Fake/SolidesDP.Fake.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/IntegracaoSolidesDP.Tests/IntegracaoSolidesDP.Tests.csproj" />
+    <Project Path="tests/SolidesDP.Fake.Tests/SolidesDP.Fake.Tests.csproj" />
+  </Folder>
+</Solution>
