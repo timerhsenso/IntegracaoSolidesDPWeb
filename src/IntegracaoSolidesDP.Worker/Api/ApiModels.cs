@@ -42,6 +42,9 @@ public sealed record EmployeeRequest
     public long? AdmissionDate { get; init; }
     public long? EffectiveDate { get; init; }
     public string? JobRoleExternalId { get; init; }
+
+    /// <summary>A partir de quando vale o cargo (epoch ms). Sem ela, o Sólides DP não troca o cargo de quem já existe.</summary>
+    public long? JobRoleStartDate { get; init; }
     public string? WorkplaceExternalId { get; init; }
     public long? Company { get; init; }
     public string? CostCenter { get; init; }
@@ -167,6 +170,62 @@ public sealed record EmployeeDto
     public string? Name { get; init; }
     public bool? Fired { get; init; }
     public WorkScheduleDto? CurrentWorkSchedule { get; init; }
+
+    /// <summary>Início da vigência no Sólides DP (epoch ms). A API devolve como data-hora em texto.</summary>
+    [JsonConverter(typeof(EpochMillisFlexibleConverter))]
+    public long? EffectiveDate { get; init; }
+
+    /// <summary>Cargo atual no Sólides DP.</summary>
+    [JsonPropertyName("jobRoleDTO")]
+    public JobRoleDto? JobRole { get; init; }
+}
+
+/// <summary>
+/// Data que a API devolve ora em epoch ms (número ou texto), ora em data-hora ISO ("2024-08-01T03:00:00.000+0000").
+/// Sempre vira epoch ms; valor que não dá para ler vira null (o chamador usa o que já sabe).
+/// </summary>
+public sealed class EpochMillisFlexibleConverter : JsonConverter<long?>
+{
+    public override long? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        switch (reader.TokenType)
+        {
+            case JsonTokenType.Number when reader.TryGetInt64(out var millis):
+                return millis;
+            case JsonTokenType.String:
+                var text = reader.GetString();
+                if (long.TryParse(text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+                {
+                    return parsed;
+                }
+
+                // "+0000" (sem dois-pontos) é o formato do Spring; o DateTimeOffset só aceita "+00:00".
+                if (text is { Length: > 5 } && (text[^5] is '+' or '-') && text[^4..].All(char.IsAsciiDigit))
+                {
+                    text = string.Concat(text.AsSpan(0, text.Length - 2), ":", text.AsSpan(text.Length - 2));
+                }
+
+                return DateTimeOffset.TryParse(text, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out var date)
+                    ? date.ToUnixTimeMilliseconds()
+                    : null;
+            default:
+                reader.Skip();
+                return null;
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, long? value, JsonSerializerOptions options)
+    {
+        if (value is { } millis)
+        {
+            writer.WriteNumberValue(millis);
+        }
+        else
+        {
+            writer.WriteNullValue();
+        }
+    }
 }
 
 public sealed record AdjustmentRecordDto

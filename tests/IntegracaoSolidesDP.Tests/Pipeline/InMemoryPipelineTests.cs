@@ -66,6 +66,36 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Linking_keeps_the_effective_date_of_the_dp_and_dates_the_job_role_change()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811"));
+        var vigenciaNoDp = TestData.Dates.StartOfDay(new DateOnly(2024, 8, 1));
+        await RegisterByHrAsync("00007811", "MARIA", TestData.Cpf1, effectiveDate: vigenciaNoDp);
+
+        var summary = await _pipeline.RunAsync(ct: Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        var register = (await _pipeline.WritesAsync(Ct)).Single(w => w.Path == "/employee/register" && w.Body!["tangerinoId"] is not null);
+        register.Body!["effectiveDate"]!.GetValue<long>().Should().Be(vigenciaNoDp, "quem já existe no DP mantém o início da vigência de lá");
+        register.Body!["jobRoleExternalId"]!.GetValue<string>().Should().Be("00100");
+        register.Body!["jobRoleStartDate"]!.GetValue<long>().Should().Be(TestData.Dates.StartOfDay(new DateOnly(2026, 10, 5)), "a troca de cargo vale a partir de hoje");
+    }
+
+    [Fact]
+    public async Task Same_job_role_does_not_send_a_start_date_again()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811", nome: "MARIA"));
+        await _pipeline.RunAsync(ct: Ct);
+        _pipeline.Source.Employees[0] = _pipeline.Source.Employees[0] with { Nome = "MARIA SOUZA" };
+        await _pipeline.Fake.ClearRequestsAsync(Ct);
+
+        await _pipeline.RunAsync(ct: Ct);
+
+        var register = (await _pipeline.WritesAsync(Ct)).Single(w => w.Path == "/employee/register");
+        register.Body!["jobRoleStartDate"].Should().BeNull();
+    }
+
+    [Fact]
     public async Task Linked_employee_keeps_being_updated_by_id_even_if_hr_changes_the_external_code()
     {
         _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811", nome: "MARIA"));
@@ -283,10 +313,10 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
     private static string Rules() =>
         SyncOptionsJson.Serialize(new SyncOptions { DryRun = false, GoLiveDate = new DateOnly(2026, 1, 1) });
 
-    private async Task<long> RegisterByHrAsync(string codigoExterno, string nome, string cpf, long? tangerinoId = null)
+    private async Task<long> RegisterByHrAsync(string codigoExterno, string nome, string cpf, long? tangerinoId = null, long? effectiveDate = null)
     {
         using var hr = _pipeline.DpAsHr();
-        var effective = TestData.Dates.StartOfDay(new DateOnly(2026, 1, 1));
+        var effective = effectiveDate ?? TestData.Dates.StartOfDay(new DateOnly(2026, 1, 1));
         var response = await hr.PostAsJsonAsync("/employee/register?allowUpdate=true", new
         {
             tangerinoId,

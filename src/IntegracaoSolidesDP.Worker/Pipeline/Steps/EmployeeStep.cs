@@ -239,6 +239,9 @@ public sealed class EmployeeStep(
         {
             TangerinoId = remote?.Id,
             ExternalId = codigoExterno,
+            // Quem já existe no DP mantém o início da vigência de lá (cadastro manual com data própria).
+            EffectiveDate = remote?.EffectiveDate ?? payload.EffectiveDate,
+            JobRoleStartDate = JobRoleStartDate(context, payload, remote),
             WorkSchedule = schedule.WorkScheduleId,
             WorkScheduleDateInMillis = schedule.WorkScheduleDate,
             PunchRuleExternalId = schedule.PunchRuleExternalId,
@@ -287,10 +290,27 @@ public sealed class EmployeeStep(
         context.Add(new RunItem(EntityTypes.Employee, label, action, status, result.HttpStatus, Join(note, change, warnings)));
     }
 
+    /// <summary>
+    /// Início no cargo: na criação, o início da vigência; para quem já existe, hoje, e só quando o cargo do DP é
+    /// outro (sem essa data o DP ignora a troca de cargo). Cargo igual: não envia, para não criar histórico à toa.
+    /// </summary>
+    private long? JobRoleStartDate(SyncContext context, EmployeeRequest payload, EmployeeDto? remote)
+    {
+        if (remote is null)
+        {
+            return payload.EffectiveDate;
+        }
+
+        var cargoNoDp = remote.JobRole?.ExternalId?.Trim();
+        return string.Equals(cargoNoDp, payload.JobRoleExternalId, StringComparison.Ordinal)
+            ? null
+            : Math.Max(dates.StartOfDay(context.Today), remote.EffectiveDate ?? long.MinValue);
+    }
+
     /// <summary>Escala/regra enviadas: padrões na criação; para quem já existe, a escala atual do DP e as datas já usadas.</summary>
     private ScheduleAssignment ScheduleFor(SyncContext context, EmployeeRow row, EmployeeDto? remote, EntityState? current)
     {
-        var effective = dates.StartOfDay(EmployeeMapper.EffectiveDate(row, Options.GoLiveDate));
+        var effective = remote?.EffectiveDate ?? dates.StartOfDay(EmployeeMapper.EffectiveDate(row, Options.GoLiveDate));
         var stored = current?.ExtraJson is { } json ? JsonSerializer.Deserialize<ScheduleAssignment>(json, SolidesDpJson.Options) : null;
 
         if (remote is null)
@@ -319,8 +339,15 @@ public sealed class EmployeeStep(
         }
     }
 
+    /// <summary>
+    /// Versão da regra de envio do colaborador. Incrementar quando o que vai para o DP mudar sem o RHSenso mudar:
+    /// todos os colaboradores são reenviados uma vez. 2 = vigência do DP preservada e início no cargo.
+    /// </summary>
+    public const int RegraEnvio = 2;
+
     /// <summary>O hash ignora o Código Externo (decidido pela regra a cada envio) e o id do DP.</summary>
-    private static string HashOf(EmployeeRequest payload) => PayloadHasher.Hash(payload with { ExternalId = null, TangerinoId = null });
+    private static string HashOf(EmployeeRequest payload) =>
+        PayloadHasher.Hash(new { RegraEnvio, Payload = payload with { ExternalId = null, TangerinoId = null } });
 
     private static string Describe(Candidate candidate, Decision decision, bool consultedDp)
     {
@@ -338,8 +365,19 @@ public sealed class EmployeeStep(
     private static string LinkChange(Candidate candidate, Decision decision)
     {
         var atual = decision.Remote?.ExternalId;
-        var change = CodigoExterno.DescreverMudanca(atual, CodigoExterno.ParaEnviar(atual, candidate.Row.Nomatric));
-        return change is null ? string.Empty : $" ({change})";
+        var changes = new List<string>();
+        if (CodigoExterno.DescreverMudanca(atual, CodigoExterno.ParaEnviar(atual, candidate.Row.Nomatric)) is { } codigo)
+        {
+            changes.Add(codigo);
+        }
+
+        if (decision.Remote?.JobRole is { } cargo
+            && !string.Equals(cargo.ExternalId?.Trim(), candidate.Payload.JobRoleExternalId, StringComparison.Ordinal))
+        {
+            changes.Add($"cargo '{cargo.Description}' → {candidate.Payload.JobRoleExternalId} a partir de hoje");
+        }
+
+        return changes.Count == 0 ? string.Empty : $" ({string.Join("; ", changes)})";
     }
 
     private static string? Join(params string?[] parts)
