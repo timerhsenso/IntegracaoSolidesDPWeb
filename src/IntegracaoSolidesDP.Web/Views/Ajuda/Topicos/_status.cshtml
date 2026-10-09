@@ -1,0 +1,23 @@
+@* Ajuda › Glossário de status. Textos e cores de Rotulos; explicações de AjudaStatus (há teste que cobre todos). *@
+@foreach (var grupo in AjudaStatus.Grupos)
+{
+    <h4>@grupo.Titulo</h4>
+    <p class="small text-body-secondary">@grupo.Descricao</p>
+    <table class="table table-sm align-middle ajuda-status">
+        <tbody>
+            @foreach (var item in grupo.Itens)
+            {
+                <tr>
+                    <td class="text-nowrap">@Rotulos.Badge(item.Status)</td>
+                    <td>
+                        @item.Significado
+                        @if (item.OQueFazer is not null)
+                        {
+                            <div class="small text-body-secondary"><i class="bi bi-arrow-return-right"></i> @item.OQueFazer</div>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -38,21 +38,24 @@
                         <div class="form-check form-switch mb-3">
                             <input asp-for="Form.DryRun" class="form-check-input" role="switch" />
                             <label asp-for="Form.DryRun" class="form-check-label"></label>
+                            <dica-campo for="Form.DryRun" />
                         </div>
                         <div class="mb-3">
                             <label asp-for="Form.GoLiveDate" class="form-label"></label>
                             <input type="date" name="Form.GoLiveDate" id="Form_GoLiveDate" class="form-control w-auto"
                                    value="@Model.Form.GoLiveDate?.ToString("yyyy-MM-dd")" />
-                            <div class="form-text">Obrigatória para o envio real. Quem foi admitido antes começa no DP nesta data.</div>
+                            <dica-campo for="Form.GoLiveDate" />
                         </div>
                         <div class="row g-2">
                             <div class="col-md-6">
                                 <label asp-for="Form.MaxCreatesPerRun" class="form-label"></label>
                                 <input asp-for="Form.MaxCreatesPerRun" class="form-control" />
+                                <dica-campo for="Form.MaxCreatesPerRun" />
                             </div>
                             <div class="col-md-6">
                                 <label asp-for="Form.MaxCancellationsPerRun" class="form-label"></label>
                                 <input asp-for="Form.MaxCancellationsPerRun" class="form-control" />
+                                <dica-campo for="Form.MaxCancellationsPerRun" />
                             </div>
                         </div>
                     </div>
@@ -67,27 +70,33 @@
                             <div class="col-md-6 mb-2">
                                 <label asp-for="Form.TiposColaborador" class="form-label"></label>
                                 <input asp-for="Form.TiposColaborador" class="form-control" placeholder="1, 2" />
+                                <dica-campo for="Form.TiposColaborador" />
                                 <span asp-validation-for="Form.TiposColaborador" class="text-danger small"></span>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label asp-for="Form.EmpresasIncluidas" class="form-label"></label>
                                 <input asp-for="Form.EmpresasIncluidas" class="form-control" placeholder="7, 14" />
+                                <dica-campo for="Form.EmpresasIncluidas" />
                                 <span asp-validation-for="Form.EmpresasIncluidas" class="text-danger small"></span>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label asp-for="Form.SituacaoTransferido" class="form-label"></label>
                                 <input asp-for="Form.SituacaoTransferido" class="form-control" />
+                                <dica-campo for="Form.SituacaoTransferido" />
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label asp-for="Form.SituacoesIgnoradas" class="form-label"></label>
                                 <input asp-for="Form.SituacoesIgnoradas" class="form-control" />
+                                <dica-campo for="Form.SituacoesIgnoradas" />
                             </div>
                         </div>
                         <label asp-for="Form.ExternalIdAllowList" class="form-label"></label>
                         <textarea asp-for="Form.ExternalIdAllowList" class="form-control font-monospace" rows="3"></textarea>
+                        <dica-campo for="Form.ExternalIdAllowList" />
                         <div class="form-check mt-3">
                             <input asp-for="Form.AllowDoubleBind" class="form-check-input" />
                             <label asp-for="Form.AllowDoubleBind" class="form-check-label"></label>
+                            <dica-campo for="Form.AllowDoubleBind" />
                         </div>
                     </div>
                 </div>
@@ -103,20 +112,23 @@
                                 <option value="@CompanyMode.ResolveByCnpj">Procurar a empresa pelo CNPJ da filial</option>
                                 <option value="@CompanyMode.None">Não enviar empresa (conta com uma só empresa)</option>
                             </select>
+                            <dica-campo for="Form.CompanyMode" />
                         </div>
                         <div class="form-check mb-3">
                             <input asp-for="Form.CreateMissingCompanies" class="form-check-input" />
                             <label asp-for="Form.CreateMissingCompanies" class="form-check-label"></label>
+                            <dica-campo for="Form.CreateMissingCompanies" />
                         </div>
                         <div class="mb-2">
                             <label asp-for="Form.WorkScheduleExternalId" class="form-label"></label>
                             <input asp-for="Form.WorkScheduleExternalId" class="form-control" />
+                            <dica-campo for="Form.WorkScheduleExternalId" />
                         </div>
                         <div class="mb-2">
                             <label asp-for="Form.PunchRuleExternalId" class="form-label"></label>
                             <input asp-for="Form.PunchRuleExternalId" class="form-control" />
+                            <dica-campo for="Form.PunchRuleExternalId" />
                         </div>
-                        <div class="form-text">Os ids aparecem em Pedidos ao serviço › Consultar o Sólides DP.</div>
                     </div>
                 </div>
             </div>
@@ -129,16 +141,19 @@
                             <div class="col-md-6 mb-2">
                                 <label asp-for="Form.FeriasJanelaDias" class="form-label"></label>
                                 <input asp-for="Form.FeriasJanelaDias" class="form-control" />
+                                <dica-campo for="Form.FeriasJanelaDias" />
                                 <span asp-validation-for="Form.FeriasJanelaDias" class="text-danger small"></span>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label asp-for="Form.FeriasMaxTentativas" class="form-label"></label>
                                 <input asp-for="Form.FeriasMaxTentativas" class="form-control" />
+                                <dica-campo for="Form.FeriasMaxTentativas" />
                                 <span asp-validation-for="Form.FeriasMaxTentativas" class="text-danger small"></span>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label asp-for="Form.FeriasMotivoId" class="form-label"></label>
                                 <input asp-for="Form.FeriasMotivoId" class="form-control" />
+                                <dica-campo for="Form.FeriasMotivoId" />
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label asp-for="Form.FeriasEndDateMode" class="form-label"></label>
@@ -147,14 +162,17 @@
                                     <option value="@FeriasEndDateMode.InicioDoUltimoDia">00:00 do último dia</option>
                                     <option value="@FeriasEndDateMode.FimDoUltimoDia">23:59:59 do último dia</option>
                                 </select>
+                                <dica-campo for="Form.FeriasEndDateMode" />
                             </div>
                         </div>
                         <div class="form-check mb-3">
                             <input asp-for="Form.FeriasEnviarProgramadas" class="form-check-input" />
                             <label asp-for="Form.FeriasEnviarProgramadas" class="form-check-label"></label>
+                            <dica-campo for="Form.FeriasEnviarProgramadas" />
                         </div>
                         <label asp-for="Form.MotivoDemissaoMap" class="form-label"></label>
                         <textarea asp-for="Form.MotivoDemissaoMap" class="form-control font-monospace" rows="3" placeholder="21=PEDIDO_DEMISSAO_COLABORADOR"></textarea>
+                        <dica-campo for="Form.MotivoDemissaoMap" />
                         <span asp-validation-for="Form.MotivoDemissaoMap" class="text-danger small"></span>
                     </div>
                 </div>

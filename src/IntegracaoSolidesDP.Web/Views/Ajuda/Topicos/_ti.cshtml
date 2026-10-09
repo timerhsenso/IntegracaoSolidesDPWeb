@@ -1,0 +1,19 @@
+@* Ajuda › Para o TI. O detalhe técnico fica no PDF (só Admin), fora das telas. *@
+<p>Algumas coisas não ficam na Web porque são do servidor. Elas ficam com o TI:</p>
+<ul>
+    <li><strong>Quando o serviço roda</strong> (de quanto em quanto tempo, ou em horários fixos) e o fuso horário.</li>
+    <li>O <strong>token</strong> do Sólides DP e o endereço da API.</li>
+    <li>A conexão com o banco do RHSenso, os <strong>logs</strong> e os relatórios CSV de cada execução.</li>
+    <li>Ligar, parar e atualizar o serviço, e os <strong>comandos de linha de comando</strong> (inclusive o reenvio de colaboradores ausentes).</li>
+</ul>
+@if (User.IsInRole(Perfis.Admin))
+{
+    <a class="btn btn-primary" asp-controller="Ajuda" asp-action="ManualTecnico">
+        <i class="bi bi-file-earmark-pdf"></i> Baixar o manual técnico (PDF)
+    </a>
+    <div class="form-text">Configuração do serviço e da Web, agendamento, comandos, logs e solução de problemas no servidor. Só o perfil Admin baixa.</div>
+}
+else
+{
+    <p class="small text-body-secondary mb-0">O manual técnico em PDF está disponível para o perfil Admin.</p>
+}

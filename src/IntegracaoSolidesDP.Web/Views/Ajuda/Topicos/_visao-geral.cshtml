@@ -1,0 +1,46 @@
+@* Ajuda › Visão geral *@
+<p>
+    A integração leva os cadastros do <strong>RHSenso</strong> para o <strong>Sólides DP</strong> (o antigo Tangerino),
+    onde o ponto é controlado. A direção é uma só: o RHSenso é a fonte, e nada volta do Sólides DP para o RHSenso.
+</p>
+
+<h4>O que é enviado</h4>
+<ul>
+    <li><strong>Cargos</strong> usados pelos colaboradores que entram na integração.</li>
+    <li><strong>Locais de trabalho:</strong> as filiais do RHSenso (na ADN, o posto ou cliente onde a pessoa está alocada).</li>
+    <li><strong>Colaboradores:</strong> admissões e alterações de cadastro.</li>
+    <li><strong>Desligamentos e transferências</strong> para outra empresa.</li>
+    <li><strong>Férias:</strong> cada parcela vira um lançamento de ajuste no Sólides DP.</li>
+</ul>
+<p class="small text-body-secondary">
+    Escala de trabalho, gestor e fuso são configurados no próprio Sólides DP. A integração só indica a escala e a
+    regra de ponto de quem está sendo criado.
+</p>
+
+<h4>Duas peças: o serviço e esta Web</h4>
+<div class="row g-2 mb-3">
+    <div class="col-md-6">
+        <div class="border rounded p-2 h-100">
+            <div class="fw-semibold"><i class="bi bi-gear"></i> Serviço (no servidor)</div>
+            <div class="small">Faz o trabalho: lê o banco do RHSenso, fala com o Sólides DP e grava o histórico. Roda sozinho nos horários definidos pelo TI.</div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="border rounded p-2 h-100">
+            <div class="fw-semibold"><i class="bi bi-window"></i> Web (esta aplicação)</div>
+            <div class="small">Mostra o que o serviço fez, guarda a configuração e registra pedidos ("Executar agora", "Simular"...). Ela nunca fala direto com o Sólides DP.</div>
+        </div>
+    </div>
+</div>
+<p>
+    Por isso um pedido feito aqui leva alguns segundos para ser atendido: a Web registra, o serviço pega o pedido,
+    executa e grava o resultado. Se o serviço estiver parado, o pedido espera.
+</p>
+
+<h4>Proteções que já vêm ligadas</h4>
+<ul>
+    <li><strong>Modo simulação (dry-run)</strong> ligado de fábrica: nada vai para o Sólides DP até alguém desligar.</li>
+    <li><strong>Sem duplicidade:</strong> um registro que não mudou não é reenviado, e férias têm conferência antes de reenviar.</li>
+    <li><strong>Travas por execução:</strong> limite de colaboradores novos e de férias excluídas numa única execução.</li>
+    <li><strong>Nada é apagado:</strong> configuração, pedidos, execuções e auditoria só recebem registros novos. Usuários são desativados, nunca excluídos.</li>
+</ul>

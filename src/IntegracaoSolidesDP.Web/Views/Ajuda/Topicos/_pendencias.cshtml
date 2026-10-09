@@ -1,0 +1,27 @@
+@* Ajuda › Pendências *@
+<p>
+    Os itens da <strong>última execução</strong> que pedem atenção: <strong>falhas</strong>, <strong>bloqueios</strong>,
+    <strong>ignorados</strong>, <strong>avisos</strong> e <strong>adiados</strong>. É a lista de trabalho do RH.
+</p>
+
+<h4>Como trabalhar a lista</h4>
+<ol>
+    <li>Filtre por status: comece por <span class="badge text-bg-danger">Falhou</span> e <span class="badge text-bg-warning">Bloqueado</span>.</li>
+    <li>Leia a <strong>mensagem</strong>: ela diz o motivo (CPF repetido, CNPJ não cadastrado no DP, cargo inexistente...).</li>
+    <li>Corrija a causa, quase sempre no <strong>cadastro do RHSenso</strong>.</li>
+    <li>Espere a próxima execução automática ou peça <strong>Executar agora</strong>: o item corrigido sai da lista sozinho.</li>
+</ol>
+
+<h4>Nem tudo aqui é problema</h4>
+<ul>
+    <li><span class="badge text-bg-secondary">Adiado</span> é normal: desligamento com data futura ou férias de quem ainda não chegou ao DP. Vai sozinho no tempo certo.</li>
+    <li><span class="badge text-bg-secondary">Ignorado</span> pode ser de propósito, como férias ainda <em>Programadas</em> no RHSenso. Leia a mensagem.</li>
+</ul>
+<p>
+    As mensagens mais comuns e o que fazer com cada uma estão em
+    <a asp-controller="Ajuda" asp-action="Index" asp-fragment="problemas">Deu problema, e agora?</a>.
+</p>
+<p class="small text-body-secondary mb-0">
+    O Painel conta só as falhas e bloqueios da última execução <em>real</em>. Esta tela mostra a última execução, seja real ou simulação,
+    e o aviso no topo diz qual é.
+</p>

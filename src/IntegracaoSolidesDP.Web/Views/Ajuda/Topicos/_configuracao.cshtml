@@ -1,0 +1,158 @@
+@* Ajuda › Configuração. Nome, dica e padrão de cada campo vêm de CamposConfiguracao (atributos do formulário). *@
+@{
+    void Campo(string propriedade, Func<dynamic, object>? detalhe = null)
+    {
+        var c = CamposConfiguracao.Obter(propriedade);
+        <div class="ajuda-campo" id="@c.Ancora">
+            <div class="ajuda-campo-nome">@c.Nome</div>
+            <div class="ajuda-campo-padrao">Padrão: @c.Padrao</div>
+            <p class="mb-1">@c.Dica</p>
+            @if (detalhe is not null)
+            {
+                @detalhe(null!)
+            }
+        </div>
+    }
+}
+<p>
+    As regras da integração: quem entra, como é enviado e quais travas valem. Todos os perfis veem.
+    Só o <span class="badge text-bg-dark">Admin</span> altera.
+</p>
+
+<h4>Como funciona o salvamento</h4>
+<ul>
+    <li><strong>Cada gravação vira uma versão nova.</strong> Nada é sobrescrito: a versão anterior continua no histórico.</li>
+    <li>O <strong>motivo da alteração</strong> é obrigatório e aparece no histórico, na auditoria e no Painel.</li>
+    <li>O serviço usa a versão nova <strong>a partir da próxima execução</strong>. Uma execução em andamento termina com as regras antigas.</li>
+    <li>As regras são validadas ao salvar, com as mesmas regras do serviço. Uma configuração inválida não é gravada.</li>
+    <li>
+        <strong>Histórico de versões</strong>: lista todas as versões com autor, data e motivo. Ao abrir uma versão, você vê
+        <strong>o que mudou</strong> em relação à anterior (campo, antes e depois) e a configuração completa gravada.
+    </li>
+    <li>Ativar e desativar no Painel também cria uma versão, com as mesmas regras e só a situação trocada.</li>
+</ul>
+<p class="small text-body-secondary">
+    Enquanto ninguém salvou nada, vale o arquivo de configuração do serviço, e a primeira execução do serviço cria a versão 1 a partir dele.
+    Listas (tipos, empresas, situações, piloto) podem ser digitadas separadas por vírgula, espaço ou uma por linha.
+</p>
+
+<h4>Envio</h4>
+@{
+    Campo(nameof(ConfiguracaoForm.DryRun), @<text>
+        <p class="mb-1">
+            Com a simulação ligada, toda execução, inclusive a agendada, só gera o relatório. Para o envio real é preciso
+            desligar a simulação <strong>e</strong> ter a data de go-live preenchida. O Painel mostra qual modo está valendo.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.GoLiveDate), @<text>
+        <p class="mb-1">
+            Para quem foi admitido antes desta data, o Sólides DP considera esta data como início (de contrato, escala e regra),
+            e assim não calcula ponto de um período em que o Sólides DP ainda não era usado. Quem for admitido depois começa na própria admissão.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.MaxCreatesPerRun), @<text>
+        <p class="mb-1">
+            Protege contra um erro de configuração que mandaria a empresa inteira de uma vez. Na carga inicial de uma empresa grande,
+            aumente o valor temporariamente e volte ao normal depois. O limite não vale para simulação.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.MaxCancellationsPerRun), @<text>
+        <p class="mb-1">Mesmo princípio, para a exclusão de lançamentos de férias no Sólides DP (férias reprogramadas ou apagadas no RHSenso).</p>
+    </text>);
+}
+
+<h4>Quem entra</h4>
+@{
+    Campo(nameof(ConfiguracaoForm.TiposColaborador));
+    Campo(nameof(ConfiguracaoForm.EmpresasIncluidas), @<text>
+        <p class="mb-1">Vazio = todas as empresas. Usado na liberação gradual (roteiro de implantação, passo 7).</p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.SituacaoTransferido), @<text>
+        <p class="mb-1">
+            Com esta situação, a saída da pessoa é tratada como transferência. Para outra filial da mesma empresa, o colaborador continua
+            o mesmo no Sólides DP e só muda de local. Para outra empresa, o vínculo antigo é desligado
+            (motivo TRANSFERENCIA_GRUPO_EMPRESARIAL) e o novo é criado.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.SituacoesIgnoradas));
+    Campo(nameof(ConfiguracaoForm.ExternalIdAllowList), @<text>
+        <p class="mb-1">
+            Vazio = todos. Preenchido, <strong>só</strong> essas pessoas são enviadas e o resto fica de fora. Limpe o campo ao terminar o piloto.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.AllowDoubleBind), @<text>
+        <p class="mb-1">
+            Ligue só se a mesma pessoa tiver de fato dois vínculos ativos ao mesmo tempo. Ligado, os dois cadastros são enviados como duplo vínculo.
+        </p>
+    </text>);
+}
+
+<h4>Sólides DP</h4>
+@{
+    Campo(nameof(ConfiguracaoForm.CompanyMode), @<text>
+        <p class="mb-1">
+            <strong>Procurar pelo CNPJ</strong>: cada colaborador vai para a empresa do Sólides DP com o CNPJ da filial dele. É o normal quando
+            a conta tem mais de uma empresa. <strong>Não enviar empresa</strong>: para contas com uma empresa só.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.CreateMissingCompanies), @<text>
+        <p class="mb-1">
+            Empresa é uma entidade legal (eSocial). O recomendado é cadastrar no Sólides DP e deixar este campo desligado.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.WorkScheduleExternalId), @<text>
+        <p class="mb-1">
+            Vazio = escala padrão da conta. Na atualização de quem já existe, a integração mantém a escala que está no Sólides DP, para não
+            desfazer o que o RH ajustou lá.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.PunchRuleExternalId), @<text>
+        <p class="mb-1">Vazio = regra de ponto padrão da conta.</p>
+    </text>);
+}
+
+<h4>Férias e desligamentos</h4>
+@{
+    Campo(nameof(ConfiguracaoForm.FeriasJanelaDias), @<text>
+        <p class="mb-1">Férias que terminaram antes da janela não são mais olhadas. As futuras são sempre consideradas.</p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.FeriasMaxTentativas), @<text>
+        <p class="mb-1">
+            O Sólides DP não tem proteção contra lançamento duplicado de férias. Por isso a integração não insiste sem limite:
+            depois deste número de falhas, o período fica como <em>Desistiu</em> em O que foi migrado › Férias.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.FeriasMotivoId), @<text>
+        <p class="mb-1">
+            Preencha só se a conta tiver mais de um motivo parecido ou se o nome não for exatamente FÉRIAS.
+            O id aparece em Pedidos ao serviço › Consultar o Sólides DP.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.FeriasEndDateMode), @<text>
+        <p class="mb-1">
+            Exemplo com férias de 01/06 a 30/06: "dia seguinte" envia o fim como 01/07 00:00; "último dia" envia 30/06 00:00;
+            "fim do último dia" envia 30/06 23:59:59. Escolha o que fizer o Sólides DP mostrar exatamente 30 dias.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.FeriasEnviarProgramadas), @<text>
+        <p class="mb-1">
+            No RHSenso, férias <em>Programadas</em> ainda não foram liberadas. Desligado, elas aparecem como Ignorado até serem liberadas.
+            A partir de Liberada, vão como APROVADO. Reprogramadas ou apagadas têm o lançamento excluído no Sólides DP.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.MotivoDemissaoMap), @<text>
+        <p class="mb-1">
+            Formato <code>código=MOTIVO</code>, por exemplo <code>21=PEDIDO_DEMISSAO_COLABORADOR</code>. Cada linha substitui o padrão daquele código;
+            os demais continuam com o padrão abaixo. Um motivo que o Sólides DP não conhece é recusado ao salvar.
+        </p>
+        <table class="table table-sm w-auto small mb-1">
+            <thead><tr><th>Causa no RHSenso</th><th>Motivo enviado (padrão)</th></tr></thead>
+            <tbody>
+                @foreach (var (codigo, motivo) in IntegracaoSolidesDP.Worker.Mapping.CodeMaps.DefaultResignationReason.OrderBy(p => p.Key, StringComparer.Ordinal))
+                {
+                    <tr><td><code>@codigo</code></td><td><code>@motivo</code></td></tr>
+                }
+            </tbody>
+        </table>
+    </text>);
+}

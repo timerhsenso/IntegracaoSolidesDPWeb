@@ -113,6 +113,7 @@ ASP.NET Core MVC (Bootstrap 5 + DataTables) para acompanhar e operar a integraç
 | Pedidos ao serviço | Operador | Executar agora, simular (dry-run), verificar configuração, consultar o DP, conferir enviados |
 | Configuração | Admin altera | Seção `Sync` versionada, com histórico e diferenças entre versões; ativar/desativar |
 | Usuários e Auditoria | Admin | Usuários (nunca excluídos, só desativados) e tudo o que foi feito na Web |
+| Ajuda | todos | Manual de uso: roteiro de implantação, cada tela, regras, glossário de status e solução de problemas. Cada tela tem um botão **Ajuda** com o seu trecho, e cada campo da Configuração tem dica e link para o manual. O Admin baixa também o manual técnico em PDF |
 
 - **Arquitetura.** A Web não fala com o Sólides DP nem guarda o token: ela lê as tabelas do serviço e grava pedidos em `solidesdp.comando`, que o serviço atende (gestão ligada: `Gestao:Habilitada=true`).
 - **Login.** ASP.NET Core Identity no schema `solidesdp_auth`, com perfis Consulta, Operador e Admin.
@@ -120,6 +121,7 @@ ASP.NET Core MVC (Bootstrap 5 + DataTables) para acompanhar e operar a integraç
   - O primeiro administrador é criado na tela de primeiro acesso, que só abre no próprio servidor e só enquanto não existe nenhum usuário.
 - **Nada é excluído.** Configuração, pedidos, execuções e auditoria são só INSERT. Usuário é desativado, nunca apagado.
 - **Front-end.** Bibliotecas em `libman.json`, restauradas no build em `wwwroot/lib` (fora do git): o servidor não precisa de internet.
+- **Manuais.** O manual de uso fica na própria Web (`Views/Ajuda/Topicos`), junto do código que descreve. Testes conferem se todo status, campo da Configuração e ação de auditoria está documentado. O manual técnico (para o TI: configuração, agendamento, comandos, operação) tem a fonte em `docs/manual-tecnico/manual-tecnico.html` e vai embutido na dll da Web. Depois de editar o HTML, gere o PDF com `scripts\gerar-manual-tecnico.ps1` e faça commit dos dois.
 - **Migrations do login:** `dotnet ef migrations add <Nome> --project src/IntegracaoSolidesDP.Web --output-dir Migrations`. São aplicadas ao iniciar a Web (`Web:AplicarMigrationsNoStart`).
 
 Desenvolvimento no Windows:

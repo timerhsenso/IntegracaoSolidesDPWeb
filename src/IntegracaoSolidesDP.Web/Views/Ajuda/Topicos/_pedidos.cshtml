@@ -1,0 +1,38 @@
+@* Ajuda › Pedidos ao serviço *@
+<p>
+    Aqui o <span class="badge text-bg-secondary">Operador</span> e o <span class="badge text-bg-dark">Admin</span> pedem ao serviço que
+    faça algo agora, sem esperar o próximo horário automático. O perfil Consulta vê a lista, mas não faz pedidos.
+</p>
+
+<h4>Os cinco pedidos</h4>
+<dl class="ajuda-def">
+    <dt>Executar agora</dt>
+    <dd>
+        Sincroniza na hora, com a configuração em vigor. Se o modo simulação estiver desligado, <strong>envia de verdade</strong>
+        ao Sólides DP, por isso o sistema pede confirmação. Fica bloqueado com a integração desativada.
+    </dd>
+    <dt>Simular (dry-run)</dt>
+    <dd>Faz toda a análise e mostra o que seria enviado, <strong>sem enviar nada</strong>. Pode ser usado mesmo com a integração desativada. Use antes de qualquer mudança grande.</dd>
+    <dt>Verificar configuração</dt>
+    <dd>Testa o acesso ao banco do RHSenso, as regras em vigor e o token do Sólides DP. Cada linha do resultado vem com <code>[OK]</code> ou <code>[ERRO]</code>.</dd>
+    <dt>Consultar o Sólides DP</dt>
+    <dd>Lista o que está cadastrado na conta do Sólides DP: empresas (com CNPJ), escalas, regras de ponto e motivos de ajuste, cada um com o seu id. É de onde saem os ids da tela Configuração.</dd>
+    <dt>Conferir enviados</dt>
+    <dd>
+        Confere se cada colaborador enviado pela integração ainda existe no Sólides DP. Os que sumiram aparecem como <code>[AUSENTE]</code>.
+        <strong>Não corrige nada</strong>: o reenvio dos ausentes é feito pelo TI. Bom para rodar uma vez por semana.
+    </dd>
+</dl>
+
+<h4>Acompanhando um pedido</h4>
+<ul>
+    <li>Depois de pedir, você vai para o detalhe do pedido. Ele se atualiza sozinho até o serviço terminar.</li>
+    <li>O status vai de <span class="badge text-bg-warning">Aguardando o serviço</span> para <span class="badge text-bg-info">Executando</span> e depois <span class="badge text-bg-success">Concluído</span> ou <span class="badge text-bg-danger">Falhou</span>.</li>
+    <li>O <strong>resultado</strong> fica gravado no pedido. Para Executar e Simular, a execução aparece também em Execuções.</li>
+    <li>Não dá para fazer o mesmo pedido duas vezes enquanto o primeiro ainda espera o serviço.</li>
+</ul>
+<div class="alert alert-light border small mb-0">
+    <i class="bi bi-hourglass-split"></i> O serviço atende um pedido de cada vez e só entre uma sincronização e outra. Se uma execução longa
+    estiver em andamento, o pedido espera ela terminar. Se o pedido ficar parado vários minutos com a integração ociosa, o serviço
+    provavelmente está parado: fale com o TI.
+</div>

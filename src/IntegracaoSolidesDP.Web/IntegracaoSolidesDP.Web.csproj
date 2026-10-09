@@ -16,6 +16,15 @@
     <ProjectReference Include="..\IntegracaoSolidesDP.Core\IntegracaoSolidesDP.Core.csproj" />
   </ItemGroup>
 
+  <!--
+    Manual técnico (para o TI), baixado em Ajuda só pelo perfil Admin. Vai embutido na dll, e não em
+    wwwroot, para não ser servido sem login. Fonte: docs/manual-tecnico/manual-tecnico.html
+    (scripts/gerar-manual-tecnico.ps1 gera o PDF).
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\docs\manual-tecnico\manual-tecnico.pdf" LogicalName="IntegracaoSolidesDP.Web.ManualTecnico.pdf" Link="Ajuda\manual-tecnico.pdf" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Dapper" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />

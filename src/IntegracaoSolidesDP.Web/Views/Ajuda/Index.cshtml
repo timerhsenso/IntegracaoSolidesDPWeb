@@ -1,0 +1,96 @@
+@{
+    ViewData["Title"] = "Ajuda";
+    var ehAdmin = User.IsInRole(Perfis.Admin);
+}
+<div class="row g-4 ajuda">
+    <aside class="col-lg-3 d-none d-lg-block" aria-label="Sumário do manual">
+        <div class="ajuda-sumario">
+            <input type="search" class="form-control form-control-sm mb-2" id="ajuda-busca" placeholder="Buscar no manual..." aria-label="Buscar no manual" />
+            <nav id="ajuda-sumario" class="nav nav-pills flex-column">
+                @foreach (var topico in AjudaTopicos.Todos)
+                {
+                    <a class="nav-link" href="#@topico.Id"><i class="bi @topico.Icone"></i> @topico.Titulo</a>
+                }
+            </nav>
+            <hr />
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-2" onclick="window.print()">
+                <i class="bi bi-printer"></i> Imprimir / salvar em PDF
+            </button>
+            @if (ehAdmin)
+            {
+                <a class="btn btn-sm btn-outline-primary w-100" asp-action="ManualTecnico"><i class="bi bi-file-earmark-pdf"></i> Manual técnico (PDF)</a>
+            }
+        </div>
+    </aside>
+
+    <div class="col-lg-9">
+        <div class="card mb-3 ajuda-capa">
+            <div class="card-body">
+                <h2 class="h4 mb-1">Manual da Integração RHSenso → Sólides DP</h2>
+                <p class="mb-0 text-body-secondary">
+                    Como acompanhar, operar e configurar a integração. Em qualquer tela, o botão
+                    <span class="badge text-bg-light border"><i class="bi bi-question-circle"></i> Ajuda</span> no topo abre o trecho daquela tela.
+                </p>
+            </div>
+        </div>
+        <div id="ajuda-sem-resultado" class="alert alert-light border d-none">Nada encontrado no manual para essa busca.</div>
+
+        @foreach (var topico in AjudaTopicos.Todos)
+        {
+            <section class="card mb-3 ajuda-secao" id="@topico.Id" aria-labelledby="@(topico.Id)-titulo">
+                <div class="card-header d-flex align-items-center">
+                    <h3 class="h5 mb-0 flex-grow-1" id="@(topico.Id)-titulo"><i class="bi @topico.Icone"></i> @topico.Titulo</h3>
+                    <a class="small text-decoration-none ajuda-topo" href="#" title="Voltar ao topo"><i class="bi bi-arrow-up"></i></a>
+                </div>
+                <div class="card-body ajuda-texto">
+                    <partial name="@topico.Partial" />
+                </div>
+            </section>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            'use strict';
+            const secoes = Array.from(document.querySelectorAll('.ajuda-secao'));
+            const links = Array.from(document.querySelectorAll('#ajuda-sumario .nav-link'));
+            const vazio = document.getElementById('ajuda-sem-resultado');
+
+            // Destaca no sumário a seção que está na tela.
+            const observador = new IntersectionObserver(entradas => {
+                entradas.filter(e => e.isIntersecting).forEach(e => {
+                    links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
+                });
+            }, { rootMargin: '-80px 0px -70% 0px' });
+            secoes.forEach(s => observador.observe(s));
+
+            // Busca: mostra só as seções que contêm todas as palavras digitadas.
+            const normalizar = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+            const textos = new Map(secoes.map(s => [s, normalizar(s.textContent)]));
+            document.getElementById('ajuda-busca').addEventListener('input', e => {
+                const termos = normalizar(e.target.value).split(/\s+/).filter(Boolean);
+                let visiveis = 0;
+                secoes.forEach(s => {
+                    const mostra = termos.every(t => textos.get(s).includes(t));
+                    s.classList.toggle('d-none', !mostra);
+                    links.find(l => l.getAttribute('href') === '#' + s.id)?.classList.toggle('d-none', !mostra);
+                    if (mostra) visiveis++;
+                });
+                vazio.classList.toggle('d-none', visiveis > 0);
+            });
+
+            // Link direto para um campo (#cfg-...): destaca o campo por alguns segundos.
+            function destacar() {
+                const alvo = location.hash && document.getElementById(decodeURIComponent(location.hash.substring(1)));
+                if (alvo && alvo.classList.contains('ajuda-campo')) {
+                    alvo.classList.add('ajuda-destaque');
+                    setTimeout(() => alvo.classList.remove('ajuda-destaque'), 2500);
+                }
+            }
+            window.addEventListener('hashchange', destacar);
+            destacar();
+        })();
+    </script>
+}

@@ -1,0 +1,37 @@
+@* Ajuda › Painel *@
+<p>A primeira tela, um resumo de como a integração está agora.</p>
+
+<h4>Os quatro quadros</h4>
+<dl class="ajuda-def">
+    <dt>Integração</dt>
+    <dd>
+        <strong>Ativa</strong> ou <strong>Desativada</strong>, e se o envio é <strong>real</strong> ou em <strong>modo simulação</strong>.
+        Mostra também a versão da configuração em vigor. O Admin usa os botões <strong>Ativar</strong> / <strong>Desativar</strong>,
+        e o sistema pede o motivo, que fica no histórico.
+    </dd>
+    <dt>Última execução</dt>
+    <dd>Status, data, duração, se foi real ou simulação e quem pediu. "Ver detalhes" abre a execução.</dd>
+    <dt>Pendências da última execução real</dt>
+    <dd>Quantos itens falharam ou ficaram bloqueados. Zero é o normal. Acima de zero, veja <a asp-controller="Pendencias" asp-action="Index">Pendências</a>.</dd>
+    <dt>No Sólides DP pela integração</dt>
+    <dd>Colaboradores ativos e desligados, cargos, locais e férias que a integração mantém no Sólides DP.</dd>
+</dl>
+
+<h4>Pedir ao serviço</h4>
+<p>
+    Atalho para os mesmos pedidos da tela <a asp-controller="Comandos" asp-action="Index">Pedidos ao serviço</a>
+    (aparece para Operador e Admin). <strong>Executar agora</strong> fica desabilitado com a integração desativada.
+</p>
+
+<h4>Gráfico e pedidos recentes</h4>
+<p>
+    As barras mostram as execuções de cada dia nos últimos 14 dias: <span class="legenda bg-success"></span> concluídas,
+    <span class="legenda bg-warning"></span> com erros e <span class="legenda bg-danger"></span> falhas. Passe o mouse sobre a barra para ver os números.
+    Ao lado, os últimos pedidos feitos ao serviço.
+</p>
+
+<h4>Avisos que podem aparecer</h4>
+<ul>
+    <li><strong>"O serviço ainda não preparou o banco para a Web"</strong>: o serviço ainda não rodou com a gestão ligada. É com o TI.</li>
+    <li><strong>"Há pedido esperando o serviço desde..."</strong>: o serviço não está atendendo os pedidos. Provavelmente está parado. É com o TI.</li>
+</ul>

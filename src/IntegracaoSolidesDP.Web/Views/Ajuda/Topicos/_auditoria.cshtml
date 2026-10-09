@@ -1,0 +1,22 @@
+@* Ajuda › Auditoria *@
+<p>
+    Exclusiva do <span class="badge text-bg-dark">Admin</span>. O registro de tudo o que foi feito na Web: quando, por quem,
+    o detalhe e o IP de origem. É somente leitura e não pode ser apagado.
+</p>
+<table class="table table-sm align-middle">
+    <thead><tr><th>Ação</th><th>Quando aparece</th></tr></thead>
+    <tbody>
+        <tr><td><code>LOGIN</code> / <code>LOGOUT</code></td><td>Entrada / saída pelo menu.</td></tr>
+        <tr><td><code>LOGIN_FALHOU</code></td><td>Usuário ou senha errados.</td></tr>
+        <tr><td><code>LOGIN_BLOQUEADO</code> / <code>LOGIN_USUARIO_DESATIVADO</code></td><td>Tentativa de entrar com usuário bloqueado por senha errada / desativado.</td></tr>
+        <tr><td><code>SENHA_ALTERADA</code></td><td>O próprio usuário trocou a senha.</td></tr>
+        <tr><td><code>COMANDO_SOLICITADO</code></td><td>Pedido ao serviço (com o tipo e o número do pedido).</td></tr>
+        <tr><td><code>CONFIGURACAO_ALTERADA</code></td><td>Nova versão da configuração (com o motivo).</td></tr>
+        <tr><td><code>INTEGRACAO_ATIVADA</code> / <code>INTEGRACAO_DESATIVADA</code></td><td>Ativar / desativar no Painel (com o motivo).</td></tr>
+        <tr><td><code>USUARIO_CRIADO</code> / <code>USUARIO_ALTERADO</code></td><td>Novo usuário / nome ou perfil alterado.</td></tr>
+        <tr><td><code>USUARIO_SENHA_REDEFINIDA</code></td><td>Senha redefinida pelo administrador.</td></tr>
+        <tr><td><code>USUARIO_DESATIVADO</code> / <code>USUARIO_ATIVADO</code></td><td>Acesso retirado / devolvido.</td></tr>
+        <tr><td><code>PRIMEIRO_ADMIN</code></td><td>Criação do primeiro administrador da instalação.</td></tr>
+    </tbody>
+</table>
+<p class="small text-body-secondary mb-0">Use a caixa <em>Buscar</em> para filtrar por usuário, ação ou texto do detalhe.</p>

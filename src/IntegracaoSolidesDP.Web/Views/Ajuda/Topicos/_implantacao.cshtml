@@ -1,0 +1,63 @@
+@* Ajuda › Roteiro de implantação *@
+<p>
+    O Sólides DP <strong>não tem ambiente de testes</strong>: todo envio real cai na conta de produção. Por isso a implantação
+    avança em degraus, e cada degrau só começa quando o anterior foi conferido.
+</p>
+<div class="alert alert-light border small">
+    <i class="bi bi-person-badge"></i> Quem faz cada passo: <span class="badge text-bg-secondary">Operador</span> faz os pedidos,
+    <span class="badge text-bg-dark">Admin</span> altera a configuração. O RH revisa os resultados.
+</div>
+
+<ol class="ajuda-passos">
+    <li>
+        <strong>Antes de tudo, com o TI.</strong> O serviço instalado e rodando, com a gestão pela Web ligada e o token do Sólides DP configurado.
+        Se o Painel mostrar "O serviço ainda não preparou o banco para a Web", este passo não foi concluído.
+    </li>
+    <li>
+        <strong>Verificar.</strong> Em <a asp-controller="Comandos" asp-action="Index">Pedidos ao serviço</a>, clique em
+        <strong>Verificar configuração</strong>. O resultado precisa mostrar o banco e o token com <code>[OK]</code>.
+    </li>
+    <li>
+        <strong>Consultar o Sólides DP.</strong> Peça <strong>Consultar o Sólides DP</strong> e, no resultado, anote:
+        <ul>
+            <li>o id da <strong>escala</strong> e da <strong>regra de ponto</strong> que os novos colaboradores devem receber;</li>
+            <li>se os <strong>CNPJs</strong> das filiais aparecem na lista de empresas;</li>
+            <li>se existe o motivo de ajuste <strong>FÉRIAS</strong>.</li>
+        </ul>
+    </li>
+    <li>
+        <strong>Configurar</strong> <span class="badge text-bg-dark">Admin</span>. Em <a asp-controller="Configuracao" asp-action="Index">Configuração</a>,
+        preencha a escala, a regra de ponto, a <strong>data de go-live</strong> e, se precisar, os motivos de demissão.
+        <strong>Deixe o modo simulação ligado.</strong> Salve informando o motivo.
+    </li>
+    <li>
+        <strong>Simular.</strong> Peça <strong>Simular (dry-run)</strong>. Abra a execução e veja a contagem por entidade e as
+        <a asp-controller="Pendencias" asp-action="Index">Pendências</a>. Corrija no RHSenso o que estiver errado (CPF, cargo, filial...)
+        e simule de novo até o RH concordar com o resultado.
+    </li>
+    <li>
+        <strong>Piloto com 2 ou 3 pessoas</strong> <span class="badge text-bg-dark">Admin</span>. Na Configuração, coloque as matrículas em
+        <em>Piloto: só estes colaboradores</em>, <strong>desligue o modo simulação</strong> e salve. Depois peça <strong>Executar agora</strong>.
+        No Sólides DP, confira:
+        <ul class="ajuda-checklist">
+            <li>colaborador criado com cargo, local, empresa, escala e regra de ponto corretos;</li>
+            <li>uma segunda execução não muda nada (tudo "Sem alteração");</li>
+            <li>uma alteração no RHSenso chega ao DP sem apagar o que o RH preencheu lá;</li>
+            <li>o período das férias está certo, com o último dia incluído e sem um dia a mais;</li>
+            <li>o desligamento aparece com a data e o motivo corretos.</li>
+        </ul>
+    </li>
+    <li>
+        <strong>Liberar por empresa</strong> <span class="badge text-bg-dark">Admin</span>. Limpe o piloto e informe uma empresa em
+        <em>Empresas incluídas</em>. Acompanhe uma ou duas execuções e acrescente as próximas empresas.
+    </li>
+    <li>
+        <strong>Liberar tudo</strong> <span class="badge text-bg-dark">Admin</span>. Deixe <em>Empresas incluídas</em> vazio.
+        A partir daqui o serviço sincroniza sozinho, e o dia a dia é acompanhar o Painel e as Pendências.
+    </li>
+</ol>
+
+<div class="alert alert-warning small mb-0">
+    <i class="bi bi-sign-stop"></i> <strong>Precisa parar?</strong> No Painel, o Admin clica em <strong>Desativar</strong>. O serviço deixa de
+    enviar (agendado ou pedido) até alguém ativar de novo. A simulação continua permitida.
+</div>

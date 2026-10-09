@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Manual técnico · Integração RHSenso → Sólides DP</title>
+<!--
+  Fonte do manual técnico em PDF que a Web oferece ao perfil Admin (Ajuda › Para o TI).
+  Depois de editar, gere o PDF com scripts/gerar-manual-tecnico.ps1 e faça commit dos dois arquivos.
+  O manual de uso (telas) fica na própria Web, em Views/Ajuda.
+-->
+<style>
+    @page {
+        size: A4;
+        margin: 18mm 16mm 18mm 16mm;
+        @bottom-left { content: "Integração RHSenso → Sólides DP · Manual técnico"; font: 8pt "Segoe UI", Inter, Arial, sans-serif; color: #6c757d; }
+        @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Segoe UI", Inter, Arial, sans-serif; color: #6c757d; }
+    }
+    @page :first {
+        @bottom-left { content: none; }
+        @bottom-right { content: none; }
+    }
+
+    :root {
+        --tinta: #1f2d3d;
+        --suave: #5c6773;
+        --linha: #d9dee3;
+        --fundo: #f4f6f9;
+        --destaque: #0d6efd;
+        --alerta: #fff3cd;
+        --alerta-borda: #e0a800;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        font-family: "Segoe UI", Inter, Carlito, Arial, sans-serif;
+        font-size: 10pt;
+        line-height: 1.45;
+        color: var(--tinta);
+        margin: 0;
+        background: #fff;
+    }
+
+    code, pre, kbd {
+        font-family: Consolas, "Cascadia Mono", "DejaVu Sans Mono", monospace;
+        font-size: 8.8pt;
+    }
+
+    code {
+        background: var(--fundo);
+        border: 1px solid #e3e7eb;
+        border-radius: 3px;
+        padding: 0 3px;
+        overflow-wrap: anywhere;
+    }
+
+    pre {
+        background: #1e1e1e;
+        color: #e6e6e6;
+        border-radius: 5px;
+        padding: 8px 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        break-inside: avoid;
+        margin: 6px 0 10px;
+    }
+
+    pre code { background: none; border: 0; padding: 0; color: inherit; }
+    pre .c { color: #8fbf7f; }
+
+    h1, h2, h3 { line-height: 1.2; color: var(--tinta); }
+
+    h2 {
+        font-size: 15pt;
+        border-bottom: 2px solid var(--tinta);
+        padding-bottom: 4px;
+        margin: 0 0 10px;
+        break-after: avoid;
+    }
+
+    h2 .num { color: var(--destaque); margin-right: 6px; }
+
+    h3 {
+        font-size: 11.5pt;
+        margin: 16px 0 6px;
+        break-after: avoid;
+    }
+
+    p { margin: 0 0 8px; }
+    ul, ol { margin: 0 0 8px; padding-left: 20px; }
+    li { margin-bottom: 3px; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 6px 0 12px;
+        font-size: 9pt;
+    }
+
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+
+    th {
+        text-align: left;
+        background: var(--fundo);
+        border-bottom: 2px solid var(--linha);
+        padding: 5px 6px;
+        font-weight: 600;
+    }
+
+    td {
+        border-bottom: 1px solid var(--linha);
+        padding: 5px 6px;
+        vertical-align: top;
+    }
+
+    td:first-child { white-space: nowrap; }
+    td.quebra { white-space: normal; }
+
+    .nota, .atencao {
+        border-left: 4px solid var(--destaque);
+        background: #eef4ff;
+        padding: 7px 10px;
+        margin: 8px 0 12px;
+        break-inside: avoid;
+    }
+
+    .atencao { border-left-color: var(--alerta-borda); background: var(--alerta); }
+    .nota p:last-child, .atencao p:last-child { margin-bottom: 0; }
+
+    section.capitulo { break-before: page; }
+
+    /* Capa */
+    .capa {
+        height: 255mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .capa .faixa {
+        background: var(--tinta);
+        color: #fff;
+        border-radius: 8px;
+        padding: 28px 26px;
+        margin-top: 40mm;
+    }
+
+    .capa .faixa .produto { font-size: 11pt; color: #c2c7d0; letter-spacing: .04em; text-transform: uppercase; }
+    .capa .faixa h1 { color: #fff; font-size: 26pt; margin: 8px 0 6px; }
+    .capa .faixa .sub { font-size: 12pt; color: #dfe4ea; }
+
+    .capa .publico { font-size: 10.5pt; color: var(--suave); max-width: 150mm; }
+    .capa .rodape { font-size: 9pt; color: var(--suave); border-top: 1px solid var(--linha); padding-top: 8px; }
+
+    /* Sumário */
+    .sumario ol { list-style: none; padding: 0; counter-reset: cap; }
+    .sumario > ol > li { counter-increment: cap; margin: 0 0 6px; font-weight: 600; }
+    .sumario > ol > li::before { content: counter(cap) "."; color: var(--destaque); display: inline-block; width: 22px; }
+    .sumario ol ol { font-weight: 400; padding-left: 22px; margin-top: 2px; color: var(--suave); }
+    .sumario a { color: inherit; text-decoration: none; }
+
+    .fluxo {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+        margin: 8px 0 12px;
+        break-inside: avoid;
+    }
+
+    .fluxo .caixa {
+        flex: 1;
+        border: 1px solid var(--linha);
+        border-radius: 6px;
+        padding: 7px 8px;
+        background: #fff;
+        font-size: 9pt;
+    }
+
+    .fluxo .caixa strong { display: block; margin-bottom: 2px; }
+    .fluxo .seta { align-self: center; color: var(--destaque); font-weight: 700; }
+
+    @media screen {
+        body { background: #e9ecef; }
+        main { background: #fff; max-width: 210mm; margin: 16px auto; padding: 18mm 16mm; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+        section.capitulo { margin-top: 28px; }
+    }
+</style>
+</head>
+<body>
+<main>
+
+<!-- ============================== CAPA ============================== -->
+<div class="capa">
+    <div class="faixa">
+        <div class="produto">RHSenso → Sólides DP</div>
+        <h1>Manual técnico</h1>
+        <div class="sub">Configuração, agendamento, comandos de linha de comando, operação e solução de problemas</div>
+    </div>
+    <div class="publico">
+        <p><strong>Para quem:</strong> a equipe de TI que mantém o servidor do serviço <code>IntegracaoSolidesDP</code> e da aplicação Web de gestão.</p>
+        <p><strong>O que não está aqui:</strong> a instalação (veja o <code>INSTALL.md</code> que acompanha o pacote) e o uso das telas, que está na própria Web, em <strong>Ajuda</strong>.</p>
+    </div>
+    <div class="rodape">
+        Manual técnico · versão 1.0 · outubro de 2026 · aplica-se à versão 1.0 do serviço e da Web<br />
+        Contém nomes de chaves, comandos e caminhos do servidor: distribuição restrita ao TI e aos administradores.
+    </div>
+</div>
+
+<!-- ============================== SUMÁRIO ============================== -->
+<section class="capitulo sumario">
+    <h2>Sumário</h2>
+    <ol>
+        <li><a href="#arquitetura">Como as peças se ligam</a>
+            <ol><li>Componentes</li><li>Quem fala com quem</li><li>Tabelas no banco</li></ol></li>
+        <li><a href="#config-servico">Configuração do serviço</a>
+            <ol><li>Onde fica e precedência</li><li>Chaves do servidor</li><li>Regras de negócio com a gestão ligada</li><li>Segredos</li></ol></li>
+        <li><a href="#agendamento">Agendamento das execuções</a></li>
+        <li><a href="#config-web">Configuração da Web</a></li>
+        <li><a href="#comandos">Comandos em prompt (linha de comando)</a>
+            <ol><li>Como chamar</li><li>Lista de comandos</li><li>Códigos de saída</li><li>Passar configuração na linha de comando</li><li>Exemplos</li></ol></li>
+        <li><a href="#operacao">Operação do dia a dia</a>
+            <ol><li>Serviço: status, reinício, atualização</li><li>Logs</li><li>Relatórios de execução</li><li>Consultas úteis no banco</li><li>Rotina recomendada</li></ol></li>
+        <li><a href="#problemas">Solução de problemas no servidor</a></li>
+        <li><a href="#manutencao">Manutenção deste manual</a></li>
+    </ol>
+</section>
+
+<!-- ============================== 1 ============================== -->
+<section class="capitulo" id="arquitetura">
+    <h2><span class="num">1</span>Como as peças se ligam</h2>
+
+    <h3>1.1 Componentes</h3>
+    <table>
+        <thead><tr><th>Peça</th><th>O que é</th><th>Onde roda</th></tr></thead>
+        <tbody>
+            <tr><td><strong>Serviço</strong><br /><code>IntegracaoSolidesDP</code></td>
+                <td class="quebra">Executável .NET (self-contained) que lê o banco do RHSenso e envia para a API do Sólides DP. Roda como serviço Windows, systemd ou container. É o <strong>único</strong> componente que fala com o Sólides DP e o único que conhece o token.</td>
+                <td class="quebra">Servidor com acesso ao SQL Server e saída HTTPS para <code>employer.tangerino.com.br:443</code>.</td></tr>
+            <tr><td><strong>Web</strong><br /><code>IntegracaoSolidesDP.Web</code></td>
+                <td class="quebra">Aplicação ASP.NET Core (IIS) para acompanhar e operar: lê o histórico gravado pelo serviço, versiona a configuração e grava pedidos numa fila. Login próprio com perfis Consulta, Operador e Admin.</td>
+                <td class="quebra">IIS com o Hosting Bundle do .NET. Só precisa de acesso ao SQL Server.</td></tr>
+            <tr><td><strong>Banco</strong><br /><code>bd_rhu_adn</code></td>
+                <td class="quebra">O mesmo banco do RHSenso. O serviço lê o <code>dbo</code> e escreve só no schema <code>solidesdp</code>. A Web escreve em <code>solidesdp</code> (configuração, fila, auditoria) e em <code>solidesdp_auth</code> (usuários).</td>
+                <td class="quebra">SQL Server 2019 ou superior.</td></tr>
+        </tbody>
+    </table>
+
+    <h3>1.2 Quem fala com quem</h3>
+    <div class="fluxo">
+        <div class="caixa"><strong>Navegador</strong>Usuário da Web (HTTPS)</div>
+        <div class="seta">→</div>
+        <div class="caixa"><strong>Web</strong>grava pedido em <code>solidesdp.comando</code> e versões em <code>solidesdp.configuracao</code></div>
+        <div class="seta">→</div>
+        <div class="caixa"><strong>SQL Server</strong>fila, configuração, histórico</div>
+        <div class="seta">←</div>
+        <div class="caixa"><strong>Serviço</strong>lê a fila a cada <code>Gestao:IntervaloComandos</code>, executa e grava o resultado</div>
+        <div class="seta">→</div>
+        <div class="caixa"><strong>Sólides DP</strong>API REST (token)</div>
+    </div>
+    <ul>
+        <li>A Web <strong>nunca</strong> chama a API do Sólides DP. Se o serviço estiver parado, os pedidos ficam esperando, e a Web avisa no Painel depois de 2 minutos.</li>
+        <li>O serviço atende <strong>um pedido por vez</strong> e só entre execuções. Durante uma sincronização longa, os pedidos aguardam.</li>
+        <li>Duas execuções da mesma instância nunca rodam juntas (lock <code>sp_getapplock</code>). Uma execução pedida enquanto outra roda é descartada, com o aviso "Outra execução em andamento".</li>
+        <li>Para a Web funcionar, o serviço precisa estar com <code>Gestao:Habilitada = true</code>. Sem isso, a Web mostra apenas o aviso de que o banco não foi preparado.</li>
+    </ul>
+
+    <h3>1.3 Tabelas no banco</h3>
+    <table>
+        <thead><tr><th>Tabela</th><th>Conteúdo</th><th>Quem grava</th></tr></thead>
+        <tbody>
+            <tr><td><code>solidesdp.runs</code></td><td class="quebra">Uma linha por execução: início, fim, status, real/simulação, origem, quem pediu, versão da configuração, contagens.</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.run_items</code></td><td class="quebra">Itens de cada execução (exceto os sem alteração, que ficam só na contagem).</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.entity_state</code></td><td class="quebra">Estado de cada colaborador, cargo, local e empresa no Sólides DP: id remoto, hash do último envio, status.</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.vacation_state</code></td><td class="quebra">Estado de cada período de férias: id do lançamento, tentativas, último erro.</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.meta</code></td><td class="quebra">Metadados, como o esquema da chave do colaborador (<code>empresa-matricula-v1</code>).</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.configuracao</code></td><td class="quebra">Versões da seção Sync e a situação ativa/desativada. A vigente é a de maior versão da instância.</td><td>Web (e o serviço cria a versão 1)</td></tr>
+            <tr><td><code>solidesdp.comando</code></td><td class="quebra">Fila de pedidos da Web e o resultado de cada um.</td><td>Web e serviço</td></tr>
+            <tr><td><code>solidesdp.auditoria</code></td><td class="quebra">Tudo o que foi feito na Web.</td><td>Web</td></tr>
+            <tr><td><code>solidesdp_auth.*</code></td><td class="quebra">Usuários, perfis e chaves de proteção do cookie (ASP.NET Core Identity).</td><td>Web</td></tr>
+        </tbody>
+    </table>
+    <div class="nota"><p>As tabelas <code>solidesdp.*</code> são criadas pelo próprio serviço na primeira execução (ou no <code>--check-config</code>). As de <code>solidesdp_auth</code> são criadas pela Web ao iniciar (migrations). Configuração, fila, execuções e auditoria só recebem <code>INSERT</code>: nada é apagado pela aplicação.</p></div>
+</section>
+
+<!-- ============================== 2 ============================== -->
+<section class="capitulo" id="config-servico">
+    <h2><span class="num">2</span>Configuração do serviço</h2>
+
+    <h3>2.1 Onde fica e precedência</h3>
+    <p>O arquivo <code>appsettings.json</code> fica na pasta de instalação, junto do executável (no Windows, por padrão, <code>C:\Services\IntegracaoSolidesDP</code>; no Linux, <code>/opt/integracao-solidesdp</code>). Atualizações do pacote <strong>nunca</strong> sobrescrevem esse arquivo.</p>
+    <p>Cada chave pode vir de três lugares. O de baixo vence o de cima:</p>
+    <ol>
+        <li><code>appsettings.json</code></li>
+        <li>variável de ambiente, com <code>__</code> no lugar de <code>:</code> (ex.: <code>SolidesDP__Token</code>)</li>
+        <li>argumento de linha de comando (ex.: <code>--Execution:Interval=00:15:00</code>)</li>
+    </ol>
+    <div class="atencao"><p>O serviço lê a configuração do servidor <strong>só ao iniciar</strong>. Depois de alterar o <code>appsettings.json</code> ou uma variável de ambiente, reinicie o serviço. As regras de negócio alteradas na Web não precisam de reinício (veja 2.3).</p></div>
+
+    <h3>2.2 Chaves do servidor</h3>
+    <table>
+        <thead><tr><th>Chave</th><th>Padrão</th><th>Para que serve</th></tr></thead>
+        <tbody>
+            <tr><td><code>ConnectionStrings:Rhu</code></td><td>—</td><td class="quebra">Obrigatória. Conexão com o <code>bd_rhu_adn</code>. Login com leitura no <code>dbo</code> e DDL/DML no schema <code>solidesdp</code>.</td></tr>
+            <tr><td><code>SolidesDP:Token</code></td><td>—</td><td class="quebra">Token de integração, gerado no Sólides DP em Empregador › Integrações. Obrigatório fora do modo simulação.</td></tr>
+            <tr><td><code>SolidesDP:BaseUrl</code></td><td><code>https://employer.tangerino.com.br</code></td><td class="quebra">Endereço da API. Só muda em desenvolvimento (fake local).</td></tr>
+            <tr><td><code>SolidesDP:TimeoutSeconds</code></td><td><code>30</code></td><td class="quebra">Tempo limite de cada tentativa (1 a 300). Com as novas tentativas automáticas, o total pode chegar a 4 vezes este valor.</td></tr>
+            <tr><td><code>SolidesDP:SkipUnifiedSync</code></td><td><code>true</code></td><td class="quebra">Não propaga os cadastros para a base unificada (CUC) da Sólides. Confirmar com a Sólides antes de mudar.</td></tr>
+            <tr><td><code>SolidesDP:AllowProductionApiOutsideProduction</code></td><td><code>false</code></td><td class="quebra">Trava: fora do ambiente Production, a API real só é usada com esta chave ligada.</td></tr>
+            <tr><td><code>Gestao:Habilitada</code></td><td><code>false</code></td><td class="quebra">Liga a gestão pela Web: regras vindas do banco, ativar/desativar e fila de pedidos. <strong>Precisa estar <code>true</code> para usar a Web.</strong></td></tr>
+            <tr><td><code>Gestao:IntervaloComandos</code></td><td><code>00:00:15</code></td><td class="quebra">De quanto em quanto tempo o serviço procura pedidos da Web (de 1 segundo a 10 minutos).</td></tr>
+            <tr><td><code>Execution:Interval</code></td><td><code>00:30:00</code></td><td class="quebra">Frequência das execuções automáticas (mínimo 1 minuto). Use esta <strong>ou</strong> <code>TimesOfDay</code>.</td></tr>
+            <tr><td><code>Execution:TimesOfDay</code></td><td>—</td><td class="quebra">Horários fixos, ex.: <code>["07:00", "13:00"]</code>.</td></tr>
+            <tr><td><code>Execution:TimeZone</code></td><td><code>America/Bahia</code></td><td class="quebra">Fuso (IANA) dos horários e das datas do RHSenso. Define o "hoje" de desligamentos e férias.</td></tr>
+            <tr><td><code>Execution:RunOnStartup</code></td><td><code>true</code></td><td class="quebra">Com <code>Interval</code>, executa assim que o serviço inicia.</td></tr>
+            <tr><td><code>Sync:InstanceName</code></td><td><code>default</code></td><td class="quebra">Nome da instância. Separa lock, configuração e histórico quando há mais de uma conta/token. Deve ser igual a <code>Web:InstanceName</code>.</td></tr>
+            <tr><td><code>Sync:ReportDirectory</code></td><td><code>reports</code></td><td class="quebra">Pasta dos relatórios CSV/JSON de cada execução, relativa ao executável.</td></tr>
+            <tr><td><code>Serilog</code></td><td>console + arquivo</td><td class="quebra">Logs em <code>logs/integracao-solidesdp-AAAAMMDD.log</code>, um por dia, mantidos por 30 dias.</td></tr>
+        </tbody>
+    </table>
+
+    <h3>2.3 Regras de negócio com a gestão ligada</h3>
+    <p>As demais chaves da seção <code>Sync</code> (modo simulação, go-live, filtros, escala, férias, travas...) são as <strong>regras de negócio</strong>. Com <code>Gestao:Habilitada = true</code>:</p>
+    <ul>
+        <li>Na primeira execução, o serviço copia a seção <code>Sync</code> do <code>appsettings.json</code> para o banco como <strong>versão 1</strong>.</li>
+        <li>Daí em diante, <strong>vale o que está no banco</strong>, alterado pelo Admin na tela Configuração da Web. Mudar essas chaves no <code>appsettings.json</code> (ou na linha de comando) não tem efeito.</li>
+        <li>Continuam vindo do servidor: <code>ConnectionStrings</code>, <code>SolidesDP</code>, <code>Gestao</code>, <code>Execution</code>, <code>Sync:InstanceName</code> e <code>Sync:ReportDirectory</code>.</li>
+        <li>Cada execução usa a versão vigente no momento em que começa e registra o número dela em <code>solidesdp.runs.config_versao</code>.</li>
+        <li>Uma versão inválida não chega à API: a execução é registrada como falha com <code>config_invalid</code> e o motivo.</li>
+        <li>Com a integração <strong>desativada</strong> na Web, o serviço não faz execuções reais (agendadas, pedidas ou de linha de comando). A simulação continua permitida.</li>
+    </ul>
+    <p>A explicação de cada regra está na Web, em Ajuda › Configuração. Com a gestão desligada, as mesmas chaves valem direto do <code>appsettings.json</code> (veja o <code>README.md</code>).</p>
+
+    <h3>2.4 Segredos</h3>
+    <ul>
+        <li>Prefira variáveis de ambiente para a senha do banco e o token: <code>ConnectionStrings__Rhu</code> e <code>SolidesDP__Token</code>.</li>
+        <li>Windows: variáveis de ambiente do <strong>sistema</strong> (o serviço roda como LocalSystem) ou, com autenticação integrada, <code>Integrated Security=True</code> na connection string e a conta do serviço trocada em <code>services.msc</code>.</li>
+        <li>Linux: arquivo <code>/etc/integracao-solidesdp.env</code> com permissão 600. Docker: <code>-e</code> ou secrets do orquestrador.</li>
+        <li>O token só é necessário no servidor do serviço. A Web não o conhece.</li>
+    </ul>
+</section>
+
+<!-- ============================== 3 ============================== -->
+<section class="capitulo" id="agendamento">
+    <h2><span class="num">3</span>Agendamento das execuções</h2>
+    <p>O próprio serviço agenda as execuções. Não use o Agendador de Tarefas do Windows nem o cron. Informe <strong>exatamente uma</strong> das opções:</p>
+    <table>
+        <thead><tr><th>Modo</th><th>Exemplo</th><th>Comportamento</th></tr></thead>
+        <tbody>
+            <tr><td>Intervalo</td><td><code>"Interval": "00:30:00"</code></td><td class="quebra">Uma execução a cada 30 minutos, contados do fim da anterior. Com <code>RunOnStartup</code>, a primeira roda logo que o serviço inicia.</td></tr>
+            <tr><td>Horários fixos</td><td><code>"TimesOfDay": ["07:00", "13:00", "18:30"]</code></td><td class="quebra">Executa nesses horários, no fuso de <code>Execution:TimeZone</code>. Apague a linha <code>Interval</code> do arquivo.</td></tr>
+        </tbody>
+    </table>
+<pre><code><span class="c">// appsettings.json — horários fixos (sem a linha "Interval")</span>
+"Execution": {
+  "TimesOfDay": [ "07:00", "13:00", "18:30" ],
+  "TimeZone": "America/Bahia"
+}</code></pre>
+    <ul>
+        <li>Depois de mudar o agendamento, <strong>reinicie o serviço</strong>. O log mostra a próxima execução calculada: "Próxima execução em AAAA-MM-DD HH:MM:SS UTC" (atenção: em UTC, 3 horas à frente de Brasília/Bahia).</li>
+        <li>Fora do agendamento, o usuário com perfil Operador pode pedir uma execução na Web (Pedidos ao serviço › Executar agora).</li>
+        <li>Na carga inicial, prefira intervalo curto (15 a 30 min) para acompanhar o progresso. No dia a dia, 30 a 60 minutos atendem bem.</li>
+        <li>Uma execução sem mudanças no RHSenso não faz nenhuma chamada de escrita ao Sólides DP. O custo de uma frequência maior é basicamente a leitura do banco.</li>
+    </ul>
+</section>
+
+<!-- ============================== 4 ============================== -->
+<section class="capitulo" id="config-web">
+    <h2><span class="num">4</span>Configuração da Web</h2>
+    <p>O <code>appsettings.json</code> da Web fica na pasta do site no IIS. Vale a mesma precedência do serviço (arquivo &lt; variável de ambiente).</p>
+    <table>
+        <thead><tr><th>Chave</th><th>Padrão</th><th>Para que serve</th></tr></thead>
+        <tbody>
+            <tr><td><code>ConnectionStrings:Rhu</code></td><td>—</td><td class="quebra">Obrigatória. O mesmo banco do serviço. O login precisa ler e gravar em <code>solidesdp</code> e criar e usar o schema <code>solidesdp_auth</code>.</td></tr>
+            <tr><td><code>Web:InstanceName</code></td><td><code>default</code></td><td class="quebra">Instância do serviço que esta Web gerencia. <strong>Igual a <code>Sync:InstanceName</code> do serviço.</strong></td></tr>
+            <tr><td><code>Web:TimeZone</code></td><td><code>America/Bahia</code></td><td class="quebra">Fuso para exibir datas e agrupar as execuções por dia no Painel.</td></tr>
+            <tr><td><code>Web:AplicarMigrationsNoStart</code></td><td><code>true</code></td><td class="quebra">Cria e atualiza as tabelas de login (<code>solidesdp_auth</code>) ao iniciar. Desligue se a política do banco exigir que o DBA aplique os scripts.</td></tr>
+            <tr><td><code>Serilog</code></td><td>console + arquivo</td><td class="quebra">Logs em <code>logs/integracao-solidesdp-web-AAAAMMDD.log</code>, mantidos por 30 dias. A identidade do app pool precisa poder escrever na pasta <code>logs</code>.</td></tr>
+        </tbody>
+    </table>
+    <h3>Primeiro acesso</h3>
+    <p>Numa instalação nova, sem usuários, abra <code>https://localhost/&lt;site&gt;/PrimeiroAcesso</code> num navegador <strong>no próprio servidor</strong> e crie o primeiro administrador. A tela recusa acessos remotos e deixa de existir assim que há um usuário. Os demais usuários são criados pelo Admin em Usuários.</p>
+    <h3>Segurança</h3>
+    <ul>
+        <li>Somente HTTPS (HSTS fora de Development). Cookie de login <code>HttpOnly</code>, <code>Secure</code> e <code>SameSite=Strict</code>, válido por 8 horas com renovação por uso.</li>
+        <li>As chaves que protegem o cookie ficam no banco: a reciclagem do app pool não derruba ninguém.</li>
+        <li>Senha com no mínimo 8 caracteres, maiúscula, minúscula e número. Bloqueio de 15 minutos após 5 erros.</li>
+        <li>Desativar um usuário ou trocar o perfil vale em até 1 minuto, mesmo com a sessão aberta.</li>
+    </ul>
+</section>
+
+<!-- ============================== 5 ============================== -->
+<section class="capitulo" id="comandos">
+    <h2><span class="num">5</span>Comandos em prompt (linha de comando)</h2>
+    <p>O mesmo executável do serviço aceita comandos avulsos. Eles usam o <code>appsettings.json</code> da pasta de instalação, gravam no mesmo banco e aparecem na Web (origem "Linha de comando").</p>
+
+    <h3>5.1 Como chamar</h3>
+    <table>
+        <thead><tr><th>Instalação</th><th>Como rodar</th></tr></thead>
+        <tbody>
+            <tr><td>Windows</td><td class="quebra">PowerShell <strong>como Administrador</strong>, na pasta de instalação: <code>cd C:\Services\IntegracaoSolidesDP</code> e depois <code>.\IntegracaoSolidesDP.exe &lt;comando&gt;</code></td></tr>
+            <tr><td>Linux</td><td class="quebra"><code>sudo -u integracao-solidesdp /opt/integracao-solidesdp/IntegracaoSolidesDP &lt;comando&gt;</code></td></tr>
+            <tr><td>Docker</td><td class="quebra"><code>docker run --rm -e ... ghcr.io/rhsenso/integracaosolidesdp:&lt;versão&gt; &lt;comando&gt;</code> (as mesmas variáveis do container do serviço)</td></tr>
+        </tbody>
+    </table>
+    <div class="nota"><p>Pode rodar com o serviço ligado. Se uma execução do serviço estiver em andamento, um <code>--run-once</code> ou <code>--dry-run</code> é descartado pelo lock ("Outra execução em andamento"). Tente de novo em seguida.</p></div>
+
+    <h3>5.2 Lista de comandos</h3>
+    <table>
+        <thead><tr><th>Comando</th><th>O que faz</th><th>Equivalente na Web</th></tr></thead>
+        <tbody>
+            <tr><td><em>(sem argumento)</em></td><td class="quebra">Roda como serviço, no agendamento de <code>Execution</code>. É o que o serviço Windows/systemd chama.</td><td>—</td></tr>
+            <tr><td><code>--check-config</code></td><td class="quebra">Valida a configuração, conecta no banco, cria/atualiza o schema <code>solidesdp</code>, mostra a versão da configuração em vigor e testa o token no Sólides DP. Cada linha sai com <code>[OK]</code> ou <code>[ERRO]</code>. Os scripts de instalação rodam este comando antes de iniciar o serviço.</td><td>Verificar configuração</td></tr>
+            <tr><td><code>--discover</code></td><td class="quebra">Lista empresas (com CNPJ), escalas, regras de ponto e motivos de ajuste cadastrados no Sólides DP, com os ids usados na Configuração.</td><td>Consultar o Sólides DP</td></tr>
+            <tr><td><code>--dry-run</code></td><td class="quebra">Uma execução simulada, sem chamar a API, e grava o relatório. Força a simulação mesmo que a configuração esteja em envio real.</td><td>Simular (dry-run)</td></tr>
+            <tr><td><code>--run-once</code></td><td class="quebra">Uma execução com a configuração em vigor. Se o modo simulação estiver desligado, <strong>envia de verdade</strong>. Respeita a integração desativada.</td><td>Executar agora</td></tr>
+            <tr><td><code>--reconcile</code></td><td class="quebra">Confere no Sólides DP cada colaborador já enviado. Lista os que não existem mais (<code>[AUSENTE]</code>) e os que não puderam ser conferidos (<code>[?]</code>). Não altera nada.</td><td>Conferir enviados</td></tr>
+            <tr><td><code>--reconcile --repair</code></td><td class="quebra"><strong>Só pela linha de comando.</strong> Além de conferir, marca os ausentes para reenvio: a próxima execução real os recria no Sólides DP.</td><td>—</td></tr>
+            <tr><td><code>--version</code></td><td class="quebra">Mostra a versão instalada.</td><td>—</td></tr>
+            <tr><td><code>--help</code></td><td class="quebra">Mostra a ajuda resumida dos comandos (também <code>-h</code> ou <code>/?</code>).</td><td>—</td></tr>
+        </tbody>
+    </table>
+    <div class="atencao"><p><strong>Cuidado com <code>--repair</code>.</strong> Antes de usar, confirme com o RH que os colaboradores ausentes não foram excluídos no Sólides DP de propósito. Rode primeiro o <code>--reconcile</code> sem <code>--repair</code> e guarde a lista.</p></div>
+
+    <h3>5.3 Códigos de saída</h3>
+    <p>Úteis em scripts e no monitoramento (<code>$LASTEXITCODE</code> no PowerShell, <code>$?</code> no Linux):</p>
+    <table>
+        <thead><tr><th>Código</th><th>Significado</th></tr></thead>
+        <tbody>
+            <tr><td><code>0</code></td><td class="quebra">Sucesso. Em <code>--run-once</code>/<code>--dry-run</code>: execução <em>Concluída</em> sem erros.</td></tr>
+            <tr><td><code>1</code></td><td class="quebra">Falha. <code>--check-config</code>/<code>--discover</code>: algum <code>[ERRO]</code>. <code>--run-once</code>/<code>--dry-run</code>: execução concluída com erros, falhou ou não foi realizada (lock ou integração desativada). A última linha mostra o status e o caminho do relatório.</td></tr>
+            <tr><td><code>2</code></td><td class="quebra">Configuração do servidor inválida (a lista de problemas sai no console), ou <code>--reconcile</code> encontrou ausentes ou não verificáveis.</td></tr>
+        </tbody>
+    </table>
+
+    <h3>5.4 Passar configuração na linha de comando</h3>
+    <p>Qualquer chave pode ir como argumento <code>--Secao:Chave=valor</code>, só para aquele comando, sem mexer no arquivo:</p>
+<pre><code>.\IntegracaoSolidesDP.exe --check-config --ConnectionStrings:Rhu="Server=sql02;Database=bd_rhu_adn;Integrated Security=True;TrustServerCertificate=True"</code></pre>
+    <div class="nota"><p>Com a gestão ligada, as regras da seção <code>Sync</code> vêm do banco, e argumentos como <code>--Sync:DryRun=false</code> são ignorados. Para mudar regra, use a tela Configuração da Web. A exceção é o próprio <code>--dry-run</code>, que sempre força a simulação.</p></div>
+
+    <h3>5.5 Exemplos</h3>
+<pre><code><span class="c"># Conferir tudo depois de trocar o token ou a senha do banco</span>
+.\IntegracaoSolidesDP.exe --check-config
+
+<span class="c"># Ids de escala e regra de ponto para preencher na Configuração</span>
+.\IntegracaoSolidesDP.exe --discover
+
+<span class="c"># Simular e abrir o relatório no Excel</span>
+.\IntegracaoSolidesDP.exe --dry-run
+Invoke-Item (Get-ChildItem .\reports\run-*.csv | Sort-Object LastWriteTime | Select-Object -Last 1).FullName
+
+<span class="c"># Conferência semanal e, se confirmado com o RH, reenvio dos ausentes</span>
+.\IntegracaoSolidesDP.exe --reconcile
+.\IntegracaoSolidesDP.exe --reconcile --repair
+.\IntegracaoSolidesDP.exe --run-once</code></pre>
+</section>
+
+<!-- ============================== 6 ============================== -->
+<section class="capitulo" id="operacao">
+    <h2><span class="num">6</span>Operação do dia a dia</h2>
+
+    <h3>6.1 Serviço: status, reinício, atualização</h3>
+    <table>
+        <thead><tr><th>Ação</th><th>Windows (PowerShell como Administrador)</th><th>Linux</th></tr></thead>
+        <tbody>
+            <tr><td>Status</td><td><code>Get-Service IntegracaoSolidesDP</code></td><td><code>systemctl status integracao-solidesdp</code></td></tr>
+            <tr><td>Reiniciar</td><td><code>Restart-Service IntegracaoSolidesDP</code></td><td><code>sudo systemctl restart integracao-solidesdp</code></td></tr>
+            <tr><td>Parar / iniciar</td><td><code>Stop-Service</code> / <code>Start-Service</code></td><td><code>sudo systemctl stop</code> / <code>start</code></td></tr>
+            <tr><td>Atualizar versão</td><td class="quebra">Extrair o zip novo e rodar <code>install-service.ps1</code> de novo (preserva o <code>appsettings.json</code>).</td><td class="quebra">Extrair o tar.gz novo e rodar <code>sudo ./install.sh</code>.</td></tr>
+        </tbody>
+    </table>
+    <p>Parar o serviço no meio de uma execução é seguro: a execução interrompida é marcada como <em>Falhou</em> na próxima vez que o serviço rodar, e nada é enviado em duplicidade. Para suspender os envios sem parar o serviço (que continua atendendo simulações e verificações), prefira <strong>Desativar</strong> no Painel da Web.</p>
+
+    <h3>6.2 Logs</h3>
+    <table>
+        <thead><tr><th>De quem</th><th>Onde</th></tr></thead>
+        <tbody>
+            <tr><td>Serviço (Windows/Linux)</td><td class="quebra"><code>&lt;instalação&gt;\logs\integracao-solidesdp-AAAAMMDD.log</code> (Linux: também <code>journalctl -u integracao-solidesdp</code>)</td></tr>
+            <tr><td>Serviço (Docker)</td><td><code>docker logs integracao-solidesdp</code></td></tr>
+            <tr><td>Web</td><td><code>&lt;pasta do site&gt;\logs\integracao-solidesdp-web-AAAAMMDD.log</code></td></tr>
+        </tbody>
+    </table>
+<pre><code><span class="c"># últimas 50 linhas do log de hoje do serviço</span>
+Get-Content C:\Services\IntegracaoSolidesDP\logs\*.log -Tail 50</code></pre>
+
+    <h3>6.3 Relatórios de execução</h3>
+    <ul>
+        <li>Cada execução grava <code>reports/run-*.csv</code> (abre no Excel) e <code>reports/run-*.json</code>, com os itens com falha, bloqueados e ignorados e o motivo de cada um.</li>
+        <li>A pasta <strong>não é limpa automaticamente</strong>. Com execução a cada 30 minutos, são cerca de 100 arquivos por dia. Recomenda-se uma tarefa de limpeza mensal, mantendo 90 dias, por exemplo:</li>
+    </ul>
+<pre><code>Get-ChildItem C:\Services\IntegracaoSolidesDP\reports -File |
+  Where-Object LastWriteTime -lt (Get-Date).AddDays(-90) | Remove-Item</code></pre>
+    <p>O histórico completo continua no banco (<code>solidesdp.runs</code> e <code>solidesdp.run_items</code>) e na Web.</p>
+
+    <h3>6.4 Consultas úteis no banco</h3>
+<pre><code><span class="c">-- Últimas execuções</span>
+SELECT TOP 20 started_at, finished_at, status, dry_run, triggered_by,
+       solicitado_por, config_versao, error_message
+FROM solidesdp.runs ORDER BY started_at DESC;
+
+<span class="c">-- Pedidos da Web que ainda esperam o serviço</span>
+SELECT id, tipo, solicitado_por, solicitado_em
+FROM solidesdp.comando WHERE status = 'pendente';
+
+<span class="c">-- Configuração em vigor (instância default)</span>
+SELECT TOP 1 * FROM solidesdp.configuracao
+WHERE instance_name = 'default' ORDER BY versao DESC;</code></pre>
+    <div class="nota"><p>Consultas só de leitura. Não altere as tabelas <code>solidesdp.*</code> à mão: o estado guarda o vínculo com os registros do Sólides DP, e uma edição errada pode gerar cadastro duplicado lá.</p></div>
+
+    <h3>6.5 Rotina recomendada</h3>
+    <table>
+        <thead><tr><th>Quando</th><th>O quê</th></tr></thead>
+        <tbody>
+            <tr><td>Diário</td><td class="quebra">Painel da Web: integração ativa, última execução recente e sem falha. (O RH acompanha as Pendências.)</td></tr>
+            <tr><td>Semanal</td><td class="quebra">Conferir enviados (Web ou <code>--reconcile</code>). Olhar os logs procurando <code>[ERR]</code>.</td></tr>
+            <tr><td>Mensal</td><td class="quebra">Limpar a pasta <code>reports</code>. Conferir o espaço em disco e a validade do token.</td></tr>
+            <tr><td>A cada atualização</td><td class="quebra">Rodar <code>--check-config</code> e <code>--version</code> e acompanhar a primeira execução no Painel.</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================== 7 ============================== -->
+<section class="capitulo" id="problemas">
+    <h2><span class="num">7</span>Solução de problemas no servidor</h2>
+    <p>Os problemas de cadastro (CPF, cargo, CNPJ...) estão na Web, em Ajuda › Deu problema, e agora?. Aqui ficam os que dependem do TI.</p>
+    <table>
+        <thead><tr><th>Sintoma</th><th>Causa provável e solução</th></tr></thead>
+        <tbody>
+            <tr><td class="quebra">Serviço não inicia, ou para logo após iniciar</td>
+                <td class="quebra">Rode <code>.\IntegracaoSolidesDP.exe --check-config</code> no console: a configuração inválida aparece listada (código de saída 2). Confira também o log do dia e o Visualizador de Eventos do Windows.</td></tr>
+            <tr><td class="quebra">"Informe exatamente um entre Execution:Interval e Execution:TimesOfDay"</td>
+                <td class="quebra">As duas chaves estão preenchidas, ou nenhuma. Deixe só uma e apague a linha da outra.</td></tr>
+            <tr><td class="quebra">Web mostra "O serviço ainda não preparou o banco"</td>
+                <td class="quebra"><code>Gestao:Habilitada</code> está <code>false</code>, ou o serviço ainda não rodou depois de ligada. Ligue, reinicie o serviço (ou rode <code>--check-config</code>) e recarregue a Web.</td></tr>
+            <tr><td class="quebra">Pedidos da Web parados em "Aguardando o serviço"</td>
+                <td class="quebra">Serviço parado, gestão desligada, <code>Web:InstanceName</code> diferente de <code>Sync:InstanceName</code>, ou uma execução longa em andamento. Verifique nessa ordem.</td></tr>
+            <tr><td class="quebra"><code>Sólides DP recusou o token (HTTP 401/403)</code></td>
+                <td class="quebra">Token inválido, revogado ou da conta errada. Gere outro no Sólides DP (Empregador › Integrações), atualize <code>SolidesDP__Token</code> e reinicie.</td></tr>
+            <tr><td class="quebra">Falha de conexão/timeout com o Sólides DP</td>
+                <td class="quebra">Saída HTTPS bloqueada, proxy ou certificado. Teste no servidor: <code>Test-NetConnection employer.tangerino.com.br -Port 443</code>.</td></tr>
+            <tr><td class="quebra"><code>source_empty</code>: nenhum colaborador lido</td>
+                <td class="quebra">Connection string apontando para outro banco, ou filtros da Configuração (piloto, empresas) que não casam com nada. A trava impede que um banco vazio leve a desligamentos em massa.</td></tr>
+            <tr><td class="quebra">"tabelas ausentes em dbo" no <code>--check-config</code></td>
+                <td class="quebra">O login não tem leitura no <code>dbo</code> ou o banco não é o do RHSenso. Revise o <code>db_datareader</code> do login.</td></tr>
+            <tr><td class="quebra">Erro de permissão ao criar tabelas <code>solidesdp</code></td>
+                <td class="quebra">O login do serviço precisa ser dono do schema <code>solidesdp</code> e ter <code>CREATE TABLE</code> (script em INSTALL.md, seção 1).</td></tr>
+            <tr><td class="quebra">Serviço recusa iniciar: "O estado foi gravado com a chave de colaborador ..."</td>
+                <td class="quebra">A versão instalada usa outra forma de identificar o colaborador. <strong>Não force.</strong> Volte a versão anterior e fale com a RHSenso antes de atualizar.</td></tr>
+            <tr><td class="quebra">Execução "Em andamento" que nunca termina</td>
+                <td class="quebra">O serviço foi parado no meio. Na próxima execução ela é marcada como <em>Falhou</em> automaticamente. Se o serviço estiver rodando e travado, reinicie-o.</td></tr>
+            <tr><td class="quebra">Web não abre (erro 500.30 no IIS)</td>
+                <td class="quebra">Hosting Bundle do .NET ausente, connection string vazia ou sem acesso ao banco. Veja o log da Web e o Visualizador de Eventos (origem "IIS AspNetCore Module").</td></tr>
+            <tr><td class="quebra">Tela Primeiro acesso diz "somente no servidor"</td>
+                <td class="quebra">Por segurança, o primeiro administrador só é criado num navegador aberto no próprio servidor (<code>localhost</code>).</td></tr>
+            <tr><td class="quebra">Todos os usuários Admin perderam o acesso</td>
+                <td class="quebra">Um Admin pode redefinir a senha de outro. Sem nenhum Admin ativo, fale com a RHSenso: a recuperação é feita no banco (<code>solidesdp_auth</code>) com procedimento assistido.</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================== 8 ============================== -->
+<section class="capitulo" id="manutencao">
+    <h2><span class="num">8</span>Manutenção deste manual</h2>
+    <ul>
+        <li>Fonte: <code>docs/manual-tecnico/manual-tecnico.html</code> no repositório. O PDF fica ao lado (<code>manual-tecnico.pdf</code>) e vai embutido na dll da Web, que o oferece só ao perfil Admin em Ajuda › Para o TI.</li>
+        <li>Para gerar o PDF depois de editar o HTML (Windows, usa o Microsoft Edge já instalado):</li>
+    </ul>
+<pre><code>powershell -ExecutionPolicy Bypass -File scripts\gerar-manual-tecnico.ps1</code></pre>
+    <ul>
+        <li>Faça commit do HTML e do PDF juntos e publique a Web de novo.</li>
+        <li>O manual de uso das telas não fica aqui: está na própria Web (<code>Views/Ajuda</code>), junto do código que ele descreve. Testes automatizados conferem se todo status, campo da Configuração e ação de auditoria está documentado ali.</li>
+    </ul>
+</section>
+
+</main>
+</body>
+</html>

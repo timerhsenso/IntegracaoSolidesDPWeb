@@ -3,6 +3,7 @@
     string Ativo(string alvo) => string.Equals(controller, alvo, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
     var nome = User.FindFirst(ClaimsWeb.Nome)?.Value ?? User.Identity?.Name;
     var perfil = Perfis.Todos.LastOrDefault(User.IsInRole) ?? "—";
+    var ajudaDaTela = AjudaTopicos.DaTela(controller);
 }
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -34,6 +35,8 @@
                 <a class="nav-link @Ativo("Usuarios")" asp-controller="Usuarios" asp-action="Index"><i class="bi bi-person-gear"></i> Usuários</a>
                 <a class="nav-link @Ativo("Auditoria")" asp-controller="Auditoria" asp-action="Index"><i class="bi bi-journal-text"></i> Auditoria</a>
             }
+            <div class="nav-titulo">Suporte</div>
+            <a class="nav-link @Ativo("Ajuda")" asp-controller="Ajuda" asp-action="Index"><i class="bi bi-question-circle"></i> Ajuda</a>
         </nav>
     </aside>
 
@@ -41,6 +44,13 @@
         <header class="app-topbar d-flex align-items-center px-3 py-2 gap-3">
             <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none" data-alternar-menu aria-label="Menu"><i class="bi bi-list"></i></button>
             <h1 class="h5 mb-0 flex-grow-1">@ViewData["Title"]</h1>
+            @if (ajudaDaTela is not null)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#ajuda-tela"
+                        aria-controls="ajuda-tela" title="Ajuda desta tela">
+                    <i class="bi bi-question-circle"></i><span class="d-none d-md-inline"> Ajuda</span>
+                </button>
+            }
             <div class="dropdown">
                 <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-person-circle"></i> @nome <span class="badge text-bg-secondary ms-1">@perfil</span>
@@ -62,6 +72,24 @@
             @RenderBody()
         </main>
     </div>
+
+    @if (ajudaDaTela is not null)
+    {
+        @* Ajuda contextual: o mesmo texto da página Ajuda, só o tópico desta tela. *@
+        <div class="offcanvas offcanvas-end ajuda-offcanvas" tabindex="-1" id="ajuda-tela" aria-labelledby="ajuda-tela-titulo">
+            <div class="offcanvas-header border-bottom">
+                <h2 class="offcanvas-title h5" id="ajuda-tela-titulo"><i class="bi @ajudaDaTela.Icone"></i> @ajudaDaTela.Titulo</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+            </div>
+            <div class="offcanvas-body ajuda-texto">
+                <partial name="@ajudaDaTela.Partial" />
+                <hr />
+                <a class="btn btn-sm btn-outline-primary" asp-controller="Ajuda" asp-action="Index" asp-fragment="@ajudaDaTela.Id">
+                    <i class="bi bi-book"></i> Abrir o manual completo
+                </a>
+            </div>
+        </div>
+    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

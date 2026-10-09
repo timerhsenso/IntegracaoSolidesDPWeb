@@ -1,0 +1,31 @@
+@* Ajuda › O que foi migrado *@
+<p>
+    O retrato do que a integração mantém hoje no Sólides DP, com o id de cada registro lá. Há uma aba para cada tipo:
+    <strong>Colaborador</strong>, <strong>Cargo</strong>, <strong>Local de trabalho</strong> e <strong>Férias</strong>.
+</p>
+
+<h4>Como ler</h4>
+<dl class="ajuda-def">
+    <dt>Código</dt>
+    <dd>
+        A chave do registro na integração. Colaborador: <code>empresa-matrícula</code> (ex.: <code>14-00901482</code>).
+        Cargo: o código do cargo. Local: <code>empresa-filial</code>.
+    </dd>
+    <dt>Id no DP</dt><dd>O número do registro no Sólides DP. Use para encontrar o mesmo cadastro lá.</dd>
+    <dt>Status</dt>
+    <dd>
+        A situação atual do registro (veja o <a asp-controller="Ajuda" asp-action="Index" asp-fragment="status">Glossário de status</a>).
+        Na aba Férias, quando o último envio falhou, a mensagem de erro aparece embaixo do status.
+    </dd>
+    <dt>Tentativas</dt><dd>Só em Férias: quantas vezes a integração tentou enviar aquele período.</dd>
+</dl>
+
+<h4>Histórico de um registro</h4>
+<p>
+    Clique no código para ver os últimos 200 envios (ou tentativas) daquele registro, em todas as execuções.
+    O histórico de um colaborador inclui as férias dele. É o lugar certo para responder perguntas como
+    "quando esta pessoa foi criada no DP?" ou "por que as férias dela não foram?".
+</p>
+<p class="small text-body-secondary mb-0">
+    Só aparecem registros que a integração criou ou adotou. Cadastros feitos direto no Sólides DP, sem passar pela integração, não estão aqui.
+</p>

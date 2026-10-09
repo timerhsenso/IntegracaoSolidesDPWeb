@@ -1,0 +1,32 @@
+@* Ajuda › Execuções *@
+<p>Cada vez que o serviço sincroniza, nasce uma execução. Esta tela lista todas, da mais recente para a mais antiga.</p>
+
+<h4>Colunas da lista</h4>
+<dl class="ajuda-def">
+    <dt>Início e Duração</dt><dd>Quando começou e quanto tempo levou. Clique na data para abrir o detalhe.</dd>
+    <dt>Modo</dt><dd><span class="badge text-bg-primary">Real</span> enviou ao Sólides DP; <span class="badge text-bg-info">Simulação</span> só mostrou o que faria.</dd>
+    <dt>Origem</dt>
+    <dd>
+        <strong>Agendada</strong> (horário automático do serviço), <strong>Web</strong> (pedido nesta tela),
+        <strong>Início do serviço</strong> (quando o serviço liga) ou <strong>Linha de comando</strong> (rodada pelo TI no servidor).
+    </dd>
+    <dt>Pedida por</dt><dd>O usuário da Web que fez o pedido, quando houver.</dd>
+    <dt>Config.</dt><dd>A versão da configuração usada. Serve para saber com quais regras aquela execução rodou.</dd>
+    <dt>Resumo</dt><dd>Quantos itens de cada tipo foram criados, atualizados, bloqueados etc. Se a execução falhou, mostra o erro.</dd>
+</dl>
+<p class="small text-body-secondary">Use a caixa <em>Buscar</em> e clique no título das colunas para ordenar.</p>
+
+<h4>Detalhe de uma execução</h4>
+<ul>
+    <li><strong>Contagem por entidade:</strong> colaboradores, cargos, locais e férias, separados por status.</li>
+    <li><strong>Erro:</strong> se a execução falhou, a mensagem aparece em vermelho no topo.</li>
+    <li>
+        <strong>Itens da execução:</strong> um registro por linha, com a ação (Criar, Atualizar, Desligar, Cancelar), o status,
+        o código HTTP devolvido pelo Sólides DP e a mensagem. Filtre por entidade e por status nas caixas acima da grade.
+        Clique no código do registro para ver o histórico dele.
+    </li>
+</ul>
+<div class="alert alert-light border small mb-0">
+    <i class="bi bi-info-circle"></i> Registros <strong>Sem alteração</strong> entram só na contagem, não na grade de itens. Numa execução
+    normal do dia a dia quase tudo é "Sem alteração", e a grade mostra só o que realmente mudou.
+</div>

@@ -131,6 +131,11 @@ pre.resultado {
     overflow: auto;
 }
 
+/* O resumo de validação só aparece quando há erro. */
+.validation-summary-valid {
+    display: none;
+}
+
 .mensagem {
     white-space: pre-wrap;
     word-break: break-word;
@@ -152,4 +157,146 @@ table.dataTable td {
 .login-card {
     width: 100%;
     max-width: 420px;
+}
+
+/* Ajuda: página do manual e painel lateral (offcanvas) de cada tela. */
+.ajuda-sumario {
+    position: sticky;
+    top: 4.5rem;
+    max-height: calc(100vh - 5.5rem);
+    overflow-y: auto;
+}
+
+.ajuda-sumario .nav-link {
+    padding: .3rem .6rem;
+    font-size: .9rem;
+    color: var(--bs-body-color);
+}
+
+.ajuda-sumario .nav-link.active {
+    color: #fff;
+}
+
+.ajuda-secao {
+    scroll-margin-top: 4.5rem;
+}
+
+.ajuda-texto h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1.25rem;
+    margin-bottom: .5rem;
+}
+
+.ajuda-texto h4:first-child {
+    margin-top: 0;
+}
+
+.ajuda-def dt {
+    font-weight: 600;
+}
+
+.ajuda-def dd {
+    margin-bottom: .6rem;
+}
+
+.ajuda-passos > li {
+    margin-bottom: .6rem;
+}
+
+.ajuda-checklist {
+    list-style: none;
+    padding-left: .25rem;
+}
+
+.ajuda-checklist li::before {
+    content: "\2610";
+    margin-right: .4rem;
+}
+
+.ajuda-fluxo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .35rem;
+}
+
+.ajuda-fluxo span {
+    border: 1px solid #dee2e6;
+    border-radius: .375rem;
+    padding: .15rem .5rem;
+    background: #f8f9fa;
+    font-size: .875rem;
+}
+
+.ajuda-campo {
+    border-left: 3px solid #dee2e6;
+    padding: .4rem .75rem;
+    margin-bottom: .75rem;
+    scroll-margin-top: 5rem;
+    transition: background-color .4s ease;
+}
+
+.ajuda-campo-nome {
+    font-weight: 600;
+}
+
+.ajuda-campo-padrao {
+    font-size: .8rem;
+    color: var(--bs-secondary-color);
+    margin-bottom: .25rem;
+}
+
+.ajuda-destaque {
+    background: #fff3cd;
+    border-left-color: #ffc107;
+}
+
+.ajuda-problemas td:first-child {
+    width: 38%;
+}
+
+.ajuda-status td:first-child {
+    width: 12rem;
+}
+
+.ajuda-offcanvas {
+    --bs-offcanvas-width: 560px;
+}
+
+a.dica-ajuda {
+    text-decoration: none;
+}
+
+@media print {
+    .app-sidebar, .app-topbar, .ajuda aside, .ajuda-topo, #ajuda-sem-resultado {
+        display: none !important;
+    }
+
+    .app-main {
+        margin-left: 0;
+    }
+
+    body {
+        background: #fff;
+    }
+
+    .ajuda .col-lg-9 {
+        width: 100%;
+    }
+
+    .ajuda-secao {
+        break-inside: auto;
+        border: 0;
+    }
+
+    .ajuda-secao .card-header {
+        background: none;
+        border-bottom: 2px solid #000;
+        break-after: avoid;
+    }
+
+    .ajuda-secao.d-none {
+        display: block !important;
+    }
 }

@@ -1,0 +1,136 @@
+@* Ajuda › Deu problema, e agora? *@
+<p>
+    Os casos mais comuns. A mensagem aparece na coluna <em>Mensagem</em> dos itens (Pendências, detalhe da execução ou histórico do
+    registro) e começa com o código entre aspas abaixo.
+</p>
+
+<h4>Na Web</h4>
+<table class="table table-sm align-top ajuda-problemas">
+    <thead><tr><th>Sintoma</th><th>O que fazer</th></tr></thead>
+    <tbody>
+        <tr>
+            <td>Pedido parado em <strong>Aguardando o serviço</strong>, ou aviso de pedido esperando no Painel</td>
+            <td>Se houver execução em andamento, espere ela terminar. Se não houver, o serviço está parado ou com a gestão desligada: <strong>fale com o TI</strong>.</td>
+        </tr>
+        <tr>
+            <td>Painel diz que o serviço ainda não preparou o banco</td>
+            <td>O serviço nunca rodou com a gestão ligada. <strong>TI.</strong></td>
+        </tr>
+        <tr>
+            <td>Botão <strong>Executar agora</strong> desabilitado</td>
+            <td>A integração está desativada. Um Admin ativa no Painel. A simulação continua disponível.</td>
+        </tr>
+        <tr>
+            <td>Não consigo salvar a configuração</td>
+            <td>Leia a mensagem em vermelho no topo do formulário. O caso mais comum: modo simulação desligado sem a data de go-live.</td>
+        </tr>
+        <tr>
+            <td>Execução <strong>Em andamento</strong> há muito tempo</td>
+            <td>Se o serviço foi parado no meio, a próxima execução marca essa como Falhou. Se continuar, <strong>TI</strong>.</td>
+        </tr>
+        <tr>
+            <td>Usuário bloqueado</td>
+            <td>Espere 15 minutos ou peça a um Admin para redefinir a senha.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h4>Execução que falhou</h4>
+<table class="table table-sm align-top ajuda-problemas">
+    <thead><tr><th>Erro no topo da execução</th><th>O que fazer</th></tr></thead>
+    <tbody>
+        <tr>
+            <td><code>config_invalid</code></td>
+            <td>A versão da configuração em vigor tem um problema (o texto diz qual). Se for falta do token do Sólides DP, é com o <strong>TI</strong>; se for regra, um Admin salva uma versão corrigida.</td>
+        </tr>
+        <tr>
+            <td>Erro de banco ou de conexão</td>
+            <td>Banco do RHSenso ou internet fora do ar. Peça <strong>Verificar configuração</strong> para confirmar e acione o <strong>TI</strong>.</td>
+        </tr>
+        <tr>
+            <td><code>Sólides DP recusou o token</code></td>
+            <td>Token inválido ou expirado. <strong>TI</strong> (o token é gerado no Sólides DP em Empregador › Integrações).</td>
+        </tr>
+        <tr>
+            <td><code>source_empty</code></td>
+            <td>
+                Nenhum colaborador foi lido, e a trava parou tudo. Confira os filtros da Configuração: uma matrícula errada no piloto
+                ou uma empresa inexistente em <em>Empresas incluídas</em> dá esse erro. Se os filtros estiverem certos, o serviço está
+                lendo um banco vazio ou errado: <strong>TI</strong>.
+            </td>
+        </tr>
+        <tr>
+            <td><code>Escala '...' não existe</code> / <code>Regra de ponto '...' não existe</code></td>
+            <td>O id informado na Configuração não existe no Sólides DP. Peça <strong>Consultar o Sólides DP</strong> e corrija o id.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h4>Itens com pendência</h4>
+<table class="table table-sm align-top ajuda-problemas">
+    <thead><tr><th>Mensagem</th><th>O que significa e o que fazer</th></tr></thead>
+    <tbody>
+        <tr>
+            <td><code>company_not_found</code></td>
+            <td>O CNPJ da filial não está cadastrado como empresa no Sólides DP. Cadastre a empresa lá (ou corrija o CNPJ da filial no RHSenso). Todos os colaboradores dessa filial ficam bloqueados até isso.</td>
+        </tr>
+        <tr>
+            <td><code>cargo ... indisponível no DP</code> / <code>local ... indisponível no DP</code></td>
+            <td>O cargo ou o local do colaborador não chegou ao Sólides DP. Veja, na mesma execução, o item do cargo ou do local: a causa está lá.</td>
+        </tr>
+        <tr>
+            <td><code>cargo referenciado em func1 não existe em cargo1</code>, <code>cargo sem descrição</code>, <code>filial ... não existe em test1</code></td>
+            <td>Cadastro incompleto no RHSenso. Corrija o cargo ou a filial lá.</td>
+        </tr>
+        <tr>
+            <td><code>skipped_duplicate_cpf</code></td>
+            <td>Duas matrículas ativas com o mesmo CPF. Corrija no RHSenso ou, se for duplo vínculo de verdade, um Admin liga essa opção na Configuração.</td>
+        </tr>
+        <tr>
+            <td><code>missing_name</code>, <code>missing_admission_date</code>, <code>missing_job_role</code></td>
+            <td>Falta nome, data de admissão ou cargo no cadastro do colaborador. Corrija no RHSenso.</td>
+        </tr>
+        <tr>
+            <td><code>missing_cpf</code>, <code>invalid_cpf_check_digit</code>, <code>cpf_truncado_no_rhsenso</code>, <code>invalid_pis_check_digit</code></td>
+            <td>O colaborador foi enviado <strong>sem</strong> o CPF ou o PIS, que estão vazios ou inválidos. Corrija no RHSenso: a próxima execução completa o cadastro.</td>
+        </tr>
+        <tr>
+            <td><code>update_unsupported</code></td>
+            <td>A descrição de um cargo mudou no RHSenso, mas o Sólides DP não aceita essa alteração pela integração. Ajuste o nome do cargo à mão no Sólides DP.</td>
+        </tr>
+        <tr>
+            <td><code>superseded</code></td>
+            <td>Linha duplicada da mesma matrícula no RHSenso. A integração usou a mais recente. Só informativo.</td>
+        </tr>
+        <tr>
+            <td><code>max_creates_exceeded</code> / <code>max_cancellations_exceeded</code></td>
+            <td>A trava segurou a etapa e nada dela foi enviado. Confira se o volume faz sentido (carga inicial de uma empresa?). Se fizer, um Admin aumenta o limite temporariamente.</td>
+        </tr>
+        <tr>
+            <td><code>programada ... (enviada quando for liberada)</code></td>
+            <td>Férias ainda Programadas no RHSenso. Libere no RHSenso para que sejam enviadas.</td>
+        </tr>
+        <tr>
+            <td><code>colaborador ainda não sincronizado com o DP</code></td>
+            <td>As férias esperam o colaborador chegar ao Sólides DP. Resolva a pendência do colaborador. As férias vão em seguida.</td>
+        </tr>
+        <tr>
+            <td><code>Motivo de ajuste FÉRIAS não encontrado</code></td>
+            <td>Peça <strong>Consultar o Sólides DP</strong>, encontre o id do motivo de férias e um Admin preenche na Configuração.</td>
+        </tr>
+        <tr>
+            <td><code>desistiu após N tentativas</code></td>
+            <td>O período de férias falhou várias vezes. Leia o erro que vem junto, corrija a causa e altere o período no RHSenso, ou fale com o TI.</td>
+        </tr>
+        <tr>
+            <td><code>resultado desconhecido, será reconciliado</code></td>
+            <td>O Sólides DP não respondeu a tempo. Na próxima execução a integração confere lá antes de reenviar. Nada a fazer.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h4>Conferir enviados mostrou [AUSENTE]</h4>
+<p class="mb-0">
+    Alguém excluiu o colaborador direto no Sólides DP. Confirme se foi intencional. Se não foi, o <strong>TI</strong> reenvia os ausentes
+    pela linha de comando (veja o manual técnico).
+</p>
