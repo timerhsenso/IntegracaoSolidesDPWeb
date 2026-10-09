@@ -1,0 +1,328 @@
+From 4cbc481c7f17300582091e3b69ef2552401b79e0 Mon Sep 17 00:00:00 2001
+From: "Carlos (RHSenso)" <webmaster@rhsenso.com.br>
+Date: Thu, 8 Oct 2026 20:03:41 -0300
+Subject: [PATCH 1/2] =?UTF-8?q?refactor:=20biblioteca=20IntegracaoSolidesD?=
+ =?UTF-8?q?P.Core=20com=20o=20c=C3=B3digo=20compartilhado=20com=20a=20Web?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Move para um projeto de biblioteca, sem mudar namespaces nem comportamento:
+SyncOptions e SyncOptionsValidator (agora público), CodeMaps, modelos de estado,
+ConnectionFactory e as tabelas da gestão (SqlManagementStore, SyncOptionsJson).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01WfLGS1yhUeWDbcijzAR4jp
+---
+ Directory.Packages.props                      |  1 +
+ IntegracaoSolidesDP.slnx                      |  1 +
+ .../IntegracaoSolidesDP.Core.csproj           | 21 ++++++++
+ .../Management/ManagementModels.cs            |  0
+ .../Management/SqlManagementStore.cs          |  0
+ .../Management/SyncOptionsJson.cs             |  0
+ .../Mapping/CodeMaps.cs                       |  0
+ .../Options/SyncOptions.cs                    |  0
+ .../Options/SyncOptionsValidator.cs           | 52 +++++++++++++++++++
+ .../Source/ConnectionFactory.cs               | 24 +++++++++
+ .../State/StateModels.cs                      |  0
+ src/IntegracaoSolidesDP.Worker/Dockerfile     |  2 +
+ .../IntegracaoSolidesDP.Worker.csproj         |  4 ++
+ .../Options/OptionsValidators.cs              | 48 -----------------
+ .../Source/SqlSourceReader.cs                 | 22 --------
+ 15 files changed, 105 insertions(+), 70 deletions(-)
+ create mode 100644 src/IntegracaoSolidesDP.Core/IntegracaoSolidesDP.Core.csproj
+ rename src/{IntegracaoSolidesDP.Worker => IntegracaoSolidesDP.Core}/Management/ManagementModels.cs (100%)
+ rename src/{IntegracaoSolidesDP.Worker => IntegracaoSolidesDP.Core}/Management/SqlManagementStore.cs (100%)
+ rename src/{IntegracaoSolidesDP.Worker => IntegracaoSolidesDP.Core}/Management/SyncOptionsJson.cs (100%)
+ rename src/{IntegracaoSolidesDP.Worker => IntegracaoSolidesDP.Core}/Mapping/CodeMaps.cs (100%)
+ rename src/{IntegracaoSolidesDP.Worker => IntegracaoSolidesDP.Core}/Options/SyncOptions.cs (100%)
+ create mode 100644 src/IntegracaoSolidesDP.Core/Options/SyncOptionsValidator.cs
+ create mode 100644 src/IntegracaoSolidesDP.Core/Source/ConnectionFactory.cs
+ rename src/{IntegracaoSolidesDP.Worker => IntegracaoSolidesDP.Core}/State/StateModels.cs (100%)
+
+diff --git a/Directory.Packages.props b/Directory.Packages.props
+index 02ee29d..5df255a 100644
+--- a/Directory.Packages.props
++++ b/Directory.Packages.props
+@@ -12,6 +12,7 @@
+     <PackageVersion Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.12" />
+     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
+     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
++    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
+     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
+     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+diff --git a/IntegracaoSolidesDP.slnx b/IntegracaoSolidesDP.slnx
+index ac7fd45..e7d95f9 100644
+--- a/IntegracaoSolidesDP.slnx
++++ b/IntegracaoSolidesDP.slnx
+@@ -1,5 +1,6 @@
+ <Solution>
+   <Folder Name="/src/">
++    <Project Path="src/IntegracaoSolidesDP.Core/IntegracaoSolidesDP.Core.csproj" />
+     <Project Path="src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj" />
+     <Project Path="src/SolidesDP.Fake/SolidesDP.Fake.csproj" />
+   </Folder>
+diff --git a/src/IntegracaoSolidesDP.Core/IntegracaoSolidesDP.Core.csproj b/src/IntegracaoSolidesDP.Core/IntegracaoSolidesDP.Core.csproj
+new file mode 100644
+index 0000000..2ffcf11
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Core/IntegracaoSolidesDP.Core.csproj
+@@ -0,0 +1,21 @@
++<Project Sdk="Microsoft.NET.Sdk">
++
++  <!--
++    Código compartilhado entre o serviço (IntegracaoSolidesDP.Worker) e a aplicação Web
++    (IntegracaoSolidesDP.Web): regras da seção Sync, modelos de estado e as tabelas da gestão.
++    Os namespaces continuam os de origem (IntegracaoSolidesDP.Worker.*) para não alterar o serviço.
++  -->
++  <PropertyGroup>
++    <RootNamespace>IntegracaoSolidesDP.Worker</RootNamespace>
++    <AssemblyName>IntegracaoSolidesDP.Core</AssemblyName>
++    <!-- Mesmas plataformas do worker: o packages.lock.json precisa cobrir o publish com -r. -->
++    <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64</RuntimeIdentifiers>
++  </PropertyGroup>
++
++  <ItemGroup>
++    <PackageReference Include="Dapper" />
++    <PackageReference Include="Microsoft.Data.SqlClient" />
++    <PackageReference Include="Microsoft.Extensions.Options" />
++  </ItemGroup>
++
++</Project>
+diff --git a/src/IntegracaoSolidesDP.Worker/Management/ManagementModels.cs b/src/IntegracaoSolidesDP.Core/Management/ManagementModels.cs
+similarity index 100%
+rename from src/IntegracaoSolidesDP.Worker/Management/ManagementModels.cs
+rename to src/IntegracaoSolidesDP.Core/Management/ManagementModels.cs
+diff --git a/src/IntegracaoSolidesDP.Worker/Management/SqlManagementStore.cs b/src/IntegracaoSolidesDP.Core/Management/SqlManagementStore.cs
+similarity index 100%
+rename from src/IntegracaoSolidesDP.Worker/Management/SqlManagementStore.cs
+rename to src/IntegracaoSolidesDP.Core/Management/SqlManagementStore.cs
+diff --git a/src/IntegracaoSolidesDP.Worker/Management/SyncOptionsJson.cs b/src/IntegracaoSolidesDP.Core/Management/SyncOptionsJson.cs
+similarity index 100%
+rename from src/IntegracaoSolidesDP.Worker/Management/SyncOptionsJson.cs
+rename to src/IntegracaoSolidesDP.Core/Management/SyncOptionsJson.cs
+diff --git a/src/IntegracaoSolidesDP.Worker/Mapping/CodeMaps.cs b/src/IntegracaoSolidesDP.Core/Mapping/CodeMaps.cs
+similarity index 100%
+rename from src/IntegracaoSolidesDP.Worker/Mapping/CodeMaps.cs
+rename to src/IntegracaoSolidesDP.Core/Mapping/CodeMaps.cs
+diff --git a/src/IntegracaoSolidesDP.Worker/Options/SyncOptions.cs b/src/IntegracaoSolidesDP.Core/Options/SyncOptions.cs
+similarity index 100%
+rename from src/IntegracaoSolidesDP.Worker/Options/SyncOptions.cs
+rename to src/IntegracaoSolidesDP.Core/Options/SyncOptions.cs
+diff --git a/src/IntegracaoSolidesDP.Core/Options/SyncOptionsValidator.cs b/src/IntegracaoSolidesDP.Core/Options/SyncOptionsValidator.cs
+new file mode 100644
+index 0000000..84877b3
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Core/Options/SyncOptionsValidator.cs
+@@ -0,0 +1,52 @@
++using Microsoft.Extensions.Options;
++
++namespace IntegracaoSolidesDP.Worker.Options;
++
++/// <summary>Regras da seção Sync. Usado no start do serviço, em cada execução com a gestão ligada e pela Web antes de gravar.</summary>
++public sealed class SyncOptionsValidator : IValidateOptions<SyncOptions>
++{
++    public ValidateOptionsResult Validate(string? name, SyncOptions options)
++    {
++        var errors = new List<string>();
++
++        if (options.TiposColaborador.Count == 0)
++        {
++            errors.Add("Sync:TiposColaborador não pode ser vazio.");
++        }
++
++        if (!options.DryRun && options.GoLiveDate is null)
++        {
++            errors.Add("Sync:GoLiveDate é obrigatório fora do dry-run (vira o effectiveDate de quem já trabalha na empresa).");
++        }
++
++        if (options.FeriasJanelaDias is < 0 or > 3650)
++        {
++            errors.Add("Sync:FeriasJanelaDias deve estar entre 0 e 3650.");
++        }
++
++        if (options.MaxCreatesPerRun < 0 || options.MaxCancellationsPerRun < 0)
++        {
++            errors.Add("Sync:MaxCreatesPerRun e Sync:MaxCancellationsPerRun não podem ser negativos.");
++        }
++
++        if (options.FeriasMaxTentativas < 1)
++        {
++            errors.Add("Sync:FeriasMaxTentativas deve ser pelo menos 1.");
++        }
++
++        if (string.IsNullOrWhiteSpace(options.InstanceName) || options.InstanceName.Length > 64)
++        {
++            errors.Add("Sync:InstanceName deve ter entre 1 e 64 caracteres.");
++        }
++
++        foreach (var (code, reason) in options.MotivoDemissaoMap)
++        {
++            if (!Mapping.CodeMaps.ResignationReasons.Contains(reason))
++            {
++                errors.Add($"Sync:MotivoDemissaoMap:{code} = '{reason}' não é um resignationReason válido do DP.");
++            }
++        }
++
++        return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
++    }
++}
+diff --git a/src/IntegracaoSolidesDP.Core/Source/ConnectionFactory.cs b/src/IntegracaoSolidesDP.Core/Source/ConnectionFactory.cs
+new file mode 100644
+index 0000000..e09623f
+--- /dev/null
++++ b/src/IntegracaoSolidesDP.Core/Source/ConnectionFactory.cs
+@@ -0,0 +1,24 @@
++using Microsoft.Data.SqlClient;
++
++namespace IntegracaoSolidesDP.Worker.Source;
++
++/// <summary>Abre conexões com o banco do RHSenso (ConnectionStrings:Rhu).</summary>
++public sealed class ConnectionFactory(string connectionString)
++{
++    public string ConnectionString { get; } = connectionString;
++
++    public async Task<SqlConnection> OpenAsync(CancellationToken ct)
++    {
++        var connection = new SqlConnection(ConnectionString);
++        try
++        {
++            await connection.OpenAsync(ct);
++            return connection;
++        }
++        catch
++        {
++            await connection.DisposeAsync();
++            throw;
++        }
++    }
++}
+diff --git a/src/IntegracaoSolidesDP.Worker/State/StateModels.cs b/src/IntegracaoSolidesDP.Core/State/StateModels.cs
+similarity index 100%
+rename from src/IntegracaoSolidesDP.Worker/State/StateModels.cs
+rename to src/IntegracaoSolidesDP.Core/State/StateModels.cs
+diff --git a/src/IntegracaoSolidesDP.Worker/Dockerfile b/src/IntegracaoSolidesDP.Worker/Dockerfile
+index 4367faf..a0478c3 100644
+--- a/src/IntegracaoSolidesDP.Worker/Dockerfile
++++ b/src/IntegracaoSolidesDP.Worker/Dockerfile
+@@ -12,8 +12,10 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ ARG VERSION=1.0.0
+ WORKDIR /repo
+ COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
++COPY src/IntegracaoSolidesDP.Core/IntegracaoSolidesDP.Core.csproj src/IntegracaoSolidesDP.Core/packages.lock.json src/IntegracaoSolidesDP.Core/
+ COPY src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj src/IntegracaoSolidesDP.Worker/packages.lock.json src/IntegracaoSolidesDP.Worker/
+ RUN dotnet restore src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj --locked-mode
++COPY src/IntegracaoSolidesDP.Core/ src/IntegracaoSolidesDP.Core/
+ COPY src/IntegracaoSolidesDP.Worker/ src/IntegracaoSolidesDP.Worker/
+ RUN dotnet publish src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj -c Release --no-restore \
+       -o /app/publish -p:UseAppHost=false -p:Version=$VERSION \
+diff --git a/src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj b/src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj
+index cefa058..b82e62d 100644
+--- a/src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj
++++ b/src/IntegracaoSolidesDP.Worker/IntegracaoSolidesDP.Worker.csproj
+@@ -14,6 +14,10 @@
+     <InternalsVisibleTo Include="IntegracaoSolidesDP.Tests" />
+   </ItemGroup>
+ 
++  <ItemGroup>
++    <ProjectReference Include="..\IntegracaoSolidesDP.Core\IntegracaoSolidesDP.Core.csproj" />
++  </ItemGroup>
++
+   <ItemGroup>
+     <PackageReference Include="Dapper" />
+     <PackageReference Include="Microsoft.Data.SqlClient" />
+diff --git a/src/IntegracaoSolidesDP.Worker/Options/OptionsValidators.cs b/src/IntegracaoSolidesDP.Worker/Options/OptionsValidators.cs
+index fee48aa..0c5b8f8 100644
+--- a/src/IntegracaoSolidesDP.Worker/Options/OptionsValidators.cs
++++ b/src/IntegracaoSolidesDP.Worker/Options/OptionsValidators.cs
+@@ -92,51 +92,3 @@ internal sealed class ManagementOptionsValidator : IValidateOptions<ManagementOp
+             ? ValidateOptionsResult.Fail("Gestao:IntervaloComandos deve estar entre 00:00:01 e 00:10:00.")
+             : ValidateOptionsResult.Success;
+ }
+-
+-internal sealed class SyncOptionsValidator : IValidateOptions<SyncOptions>
+-{
+-    public ValidateOptionsResult Validate(string? name, SyncOptions options)
+-    {
+-        var errors = new List<string>();
+-
+-        if (options.TiposColaborador.Count == 0)
+-        {
+-            errors.Add("Sync:TiposColaborador não pode ser vazio.");
+-        }
+-
+-        if (!options.DryRun && options.GoLiveDate is null)
+-        {
+-            errors.Add("Sync:GoLiveDate é obrigatório fora do dry-run (vira o effectiveDate de quem já trabalha na empresa).");
+-        }
+-
+-        if (options.FeriasJanelaDias is < 0 or > 3650)
+-        {
+-            errors.Add("Sync:FeriasJanelaDias deve estar entre 0 e 3650.");
+-        }
+-
+-        if (options.MaxCreatesPerRun < 0 || options.MaxCancellationsPerRun < 0)
+-        {
+-            errors.Add("Sync:MaxCreatesPerRun e Sync:MaxCancellationsPerRun não podem ser negativos.");
+-        }
+-
+-        if (options.FeriasMaxTentativas < 1)
+-        {
+-            errors.Add("Sync:FeriasMaxTentativas deve ser pelo menos 1.");
+-        }
+-
+-        if (string.IsNullOrWhiteSpace(options.InstanceName) || options.InstanceName.Length > 64)
+-        {
+-            errors.Add("Sync:InstanceName deve ter entre 1 e 64 caracteres.");
+-        }
+-
+-        foreach (var (code, reason) in options.MotivoDemissaoMap)
+-        {
+-            if (!Mapping.CodeMaps.ResignationReasons.Contains(reason))
+-            {
+-                errors.Add($"Sync:MotivoDemissaoMap:{code} = '{reason}' não é um resignationReason válido do DP.");
+-            }
+-        }
+-
+-        return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
+-    }
+-}
+diff --git a/src/IntegracaoSolidesDP.Worker/Source/SqlSourceReader.cs b/src/IntegracaoSolidesDP.Worker/Source/SqlSourceReader.cs
+index ac1bd7a..73d351f 100644
+--- a/src/IntegracaoSolidesDP.Worker/Source/SqlSourceReader.cs
++++ b/src/IntegracaoSolidesDP.Worker/Source/SqlSourceReader.cs
+@@ -1,5 +1,4 @@
+ using Dapper;
+-using Microsoft.Data.SqlClient;
+ 
+ namespace IntegracaoSolidesDP.Worker.Source;
+ 
+@@ -138,24 +137,3 @@ public sealed class SqlSourceReader(ConnectionFactory connections) : ISourceRead
+         return found;
+     }
+ }
+-
+-/// <summary>Abre conexões com o banco do RHSenso (ConnectionStrings:Rhu).</summary>
+-public sealed class ConnectionFactory(string connectionString)
+-{
+-    public string ConnectionString { get; } = connectionString;
+-
+-    public async Task<SqlConnection> OpenAsync(CancellationToken ct)
+-    {
+-        var connection = new SqlConnection(ConnectionString);
+-        try
+-        {
+-            await connection.OpenAsync(ct);
+-            return connection;
+-        }
+-        catch
+-        {
+-            await connection.DisposeAsync();
+-            throw;
+-        }
+-    }
+-}
+-- 
+2.43.0
+

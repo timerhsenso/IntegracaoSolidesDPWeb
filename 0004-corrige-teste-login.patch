@@ -1,0 +1,28 @@
+From 8d28a86ba7267b658c52fc9c124886d686233d70 Mon Sep 17 00:00:00 2001
+From: "Carlos (RHSenso)" <webmaster@rhsenso.com.br>
+Date: Thu, 8 Oct 2026 20:55:05 -0300
+Subject: [PATCH] test: compara a mensagem de login com o HTML decodificado
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01WfLGS1yhUeWDbcijzAR4jp
+---
+ tests/IntegracaoSolidesDP.Tests/Web/WebTests.cs | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tests/IntegracaoSolidesDP.Tests/Web/WebTests.cs b/tests/IntegracaoSolidesDP.Tests/Web/WebTests.cs
+index 36787ae..5da7690 100644
+--- a/tests/IntegracaoSolidesDP.Tests/Web/WebTests.cs
++++ b/tests/IntegracaoSolidesDP.Tests/Web/WebTests.cs
+@@ -58,7 +58,8 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
+             new() { ["Usuario"] = login, ["Senha"] = "errada" });
+ 
+         response.StatusCode.Should().Be(HttpStatusCode.OK);
+-        (await response.Content.ReadAsStringAsync(Ct)).Should().Contain("Usuário ou senha inválidos");
++        // O Razor codifica os acentos no HTML (&#xE1;): compara o texto como o navegador mostra.
++        WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync(Ct)).Should().Contain("Usuário ou senha inválidos");
+         (await Auditoria(login)).Should().Contain("LOGIN_FALHOU");
+     }
+ 
+-- 
+2.43.0
+
