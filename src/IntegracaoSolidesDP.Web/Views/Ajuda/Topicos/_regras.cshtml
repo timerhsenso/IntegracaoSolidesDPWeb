@@ -15,25 +15,47 @@
     depois do colaborador. Por isso um problema num cargo aparece como colaborador <em>Bloqueado</em>.
 </p>
 
-<h4>Quem entra</h4>
+<h4>Cada empresa é uma conta do Sólides DP</h4>
 <ul>
-    <li>Os tipos de colaborador configurados (de fábrica, Empregado e Estagiário), das empresas incluídas.</li>
-    <li><strong>Afastados continuam ativos</strong> no Sólides DP.</li>
-    <li>Situações ignoradas (de fábrica, 99 = pré-cadastro) ficam de fora por completo.</li>
-    <li>
-        <strong>Desligados antigos nunca são enviados.</strong> A integração só desliga no Sólides DP quem ela mesma criou lá.
-    </li>
-    <li>
-        <strong>CPF repetido</strong> entre colaboradores ativos: as matrículas ficam de fora (Ignorado) até alguém decidir, a menos que o
-        duplo vínculo esteja ligado na Configuração.
-    </li>
+    <li>Cada empresa do RHSenso tem o seu login e o seu token no Sólides DP. As execuções passam pelas empresas habilitadas na tela
+        <a asp-controller="Ajuda" asp-action="Index" asp-fragment="empresas">Empresas</a>, uma depois da outra, e cada empresa aparece
+        como uma execução própria.</li>
+    <li>Tudo o que é incluído ou alterado no RHSenso vai, num sentido só, para o Sólides DP. O que é alterado direto no Sólides DP
+        não volta para o RHSenso.</li>
 </ul>
 
-<h4>Identidade do colaborador: empresa + matrícula</h4>
+<h4>Quem entra</h4>
 <ul>
-    <li>A chave é <code>empresa-matrícula</code>, sem a filial.</li>
-    <li><strong>Transferência entre filiais</strong> da mesma empresa: o colaborador continua o mesmo no Sólides DP e só muda de local de trabalho. O histórico de ponto não se divide.</li>
-    <li><strong>Transferência para outra empresa</strong>: é um vínculo novo. O antigo é desligado (motivo transferência) e o novo é criado.</li>
+    <li>Os tipos de colaborador configurados (de fábrica, Empregado e Estagiário) das empresas habilitadas, só das filiais marcadas
+        (nenhuma marcada = todas) e só de empresas e filiais ativas no RHSenso.</li>
+    <li><strong>Situações</strong>: 01 ativo; afastamentos e licenças (02 a 07, 10, 15) <strong>continuam ativos</strong>; 08 (demitido) e
+        11, 12, 14 (aposentado) <strong>desligam</strong>; 09 é transferência; 99 (pré-cadastro) é ignorado.</li>
+    <li><strong>Desligados antigos nunca são enviados.</strong> Só é desligado no Sólides DP quem a integração já vinculou (criou ou vinculou pelo CPF).</li>
+    <li><strong>Desligar é sempre um fato do RHSenso</strong> (demissão, aposentadoria, transferência). Desmarcar uma filial, desabilitar
+        uma empresa ou inativá-la na folha <strong>não desliga ninguém</strong>: a pessoa só deixa de ser sincronizada (aparece como
+        "fora do escopo").</li>
+    <li><strong>CPF ativo em duas matrículas ou filiais</strong> da mesma empresa, ou <strong>CPF inválido</strong>: fica de fora
+        (Ignorado) até ser corrigido no RHSenso.</li>
+</ul>
+
+<h4>Identidade do colaborador: o CPF dentro da empresa</h4>
+<ul>
+    <li>No Sólides DP só existe um cadastro ativo por CPF em cada conta. A integração procura a pessoa pelo CPF:
+        <strong>já vinculada</strong>, atualiza o mesmo cadastro; <strong>já existe no Sólides DP</strong> (cadastro feito à mão),
+        <strong>vincula</strong> e passa a atualizar, sem duplicar; <strong>não existe</strong>, cria.</li>
+    <li>Nas telas, o colaborador aparece como <code>empresa-matrícula</code> (ex.: <code>15-00007811</code>), nunca pelo CPF.</li>
+    <li><strong>Transferência entre filiais</strong> da mesma empresa: o colaborador continua o mesmo no Sólides DP e só muda de local de trabalho.</li>
+    <li><strong>Transferência para outra empresa</strong>: o cadastro é desligado na conta antiga (motivo transferência) e criado ou vinculado na conta nova.</li>
+</ul>
+
+<h4>Código Externo e matrícula</h4>
+<ul>
+    <li>O campo <strong>Matrícula</strong> do Sólides DP recebe sempre a matrícula do RHSenso.</li>
+    <li>O <strong>Código Externo</strong> é usado por outro sistema do cliente, então a integração só mexe nele quando é (ou deveria ser)
+        a matrícula: vazio ou zerado recebe a matrícula; igual à matrícula fica como está; com 8 dígitos mas diferente é corrigido
+        para a matrícula; qualquer outro valor <strong>não é alterado</strong>.</li>
+    <li>Pessoa nova: o Código Externo é a matrícula. Se essa matrícula já for o Código Externo de <em>outra</em> pessoa no Sólides DP,
+        a criação é bloqueada para conferência.</li>
 </ul>
 
 <h4>Sem envio repetido</h4>
@@ -45,8 +67,12 @@
 <h4>O que é preservado no Sólides DP</h4>
 <ul>
     <li>A <strong>escala</strong> e a regra de ponto só são definidas na criação. Depois, o que o RH ajustar no Sólides DP é mantido.</li>
-    <li>Quem foi admitido antes do go-live entra com a data de go-live, para não gerar ponto retroativo.</li>
+    <li>O <strong>início da vigência</strong> de quem já existe no Sólides DP não muda. Quem a integração cria e foi admitido antes do
+        go-live começa na data de go-live, para não gerar ponto retroativo.</li>
+    <li><strong>Cargo e local de trabalho</strong> vêm sempre do RHSenso: a integração cria na conta os cargos e as filiais (como locais)
+        e os colaboradores passam a usá-los. Troca de cargo vale a partir do dia da execução.</li>
     <li>Se a descrição de um cargo mudar no RHSenso, a integração avisa (Aviso) em vez de alterar: o ajuste é manual no Sólides DP.</li>
+    <li>Cadastros que existem só no Sólides DP, sem correspondente no RHSenso, nunca são alterados nem desligados.</li>
 </ul>
 
 <h4>Férias</h4>
@@ -62,8 +88,8 @@
 
 <h4>Travas de segurança</h4>
 <ul>
-    <li>Modo simulação ligado de fábrica.</li>
+    <li>Modo simulação ligado de fábrica, na regra geral e em cada empresa. A simulação nunca grava no Sólides DP.</li>
     <li>Máximo de colaboradores novos e de férias excluídas por execução.</li>
     <li>A execução para se o banco devolver zero colaboradores (proteção contra banco vazio ou errado).</li>
-    <li>Duas execuções nunca rodam ao mesmo tempo: a segunda é descartada.</li>
+    <li>Duas execuções da mesma empresa nunca rodam ao mesmo tempo: a segunda é descartada.</li>
 </ul>

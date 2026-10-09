@@ -7,13 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace IntegracaoSolidesDP.Web.Controllers;
 
 [ExigeGestaoPreparada]
-public sealed class ExecucoesController(PainelRepository painel) : Controller
+public sealed class ExecucoesController(PainelRepository painel, EmpresasRepository empresas) : Controller
 {
-    public IActionResult Index() => View();
+    public async Task<IActionResult> Index() => View(await empresas.EmpresasAtivasAsync(HttpContext.RequestAborted));
 
     [HttpGet]
-    public async Task<IActionResult> Dados() =>
-        Json(await painel.ExecucoesAsync(DataTablesRequest.From(Request.Query), HttpContext.RequestAborted));
+    public async Task<IActionResult> Dados(int? empresa) =>
+        Json(await painel.ExecucoesAsync(DataTablesRequest.From(Request.Query), HttpContext.RequestAborted, empresa));
 
     public async Task<IActionResult> Detalhe(Guid id)
     {

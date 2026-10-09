@@ -1,0 +1,208 @@
+@model EmpresaEditarViewModel
+@using IntegracaoSolidesDP.Worker.Management
+@{
+    var f = Model.Form;
+    ViewData["Title"] = $"Empresa {f.Cdempresa} · {Model.Nome}";
+    var somenteLeitura = !Model.PodeEditar;
+}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Index"><i class="bi bi-arrow-left"></i> Empresas</a>
+    <div class="flex-grow-1 small">
+        @if (!Model.AtivaNaFolha)
+        {
+            <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> Inativa no RHSenso: fora do escopo, nada é enviado nem desligado.</span>
+        }
+        @if (Model.UltimaExecucao is { } e)
+        {
+            <span>Última execução: <a asp-controller="Execucoes" asp-action="Detalhe" asp-route-id="@e.RunId">@F.Data(e.Inicio)</a>
+                (@(e.DryRun ? "simulação" : "real")) @Rotulos.Badge(e.Status)</span>
+        }
+        @if (Model.Vinculos is { } v)
+        {
+            <span class="ms-2">No Sólides DP: @v.Criados criados pela integração, @v.VinculadosCpf vinculados pelo CPF, @v.Desligados desligados.</span>
+        }
+    </div>
+</div>
+
+@if (somenteLeitura)
+{
+    <div class="alert alert-light border small"><i class="bi bi-eye"></i> Somente o perfil Admin altera a empresa e o token.</div>
+}
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <form asp-action="Salvar" method="post" novalidate>
+            <input type="hidden" name="Form.Cdempresa" value="@f.Cdempresa" />
+            <div asp-validation-summary="All" class="alert alert-danger small"></div>
+            <fieldset disabled="@somenteLeitura">
+                <div class="card mb-3">
+                    <div class="card-header">Integração desta empresa</div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input asp-for="Form.Habilitada" class="form-check-input" role="switch" />
+                            <label asp-for="Form.Habilitada" class="form-check-label"></label>
+                            <dica-campo for="Form.Habilitada" ajuda="empresas" />
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input asp-for="Form.DryRun" class="form-check-input" role="switch" />
+                            <label asp-for="Form.DryRun" class="form-check-label"></label>
+                            <dica-campo for="Form.DryRun" ajuda="empresas" />
+                            @if (Model.DryRunGeral)
+                            {
+                                <div class="small text-info"><i class="bi bi-shield-check"></i> A simulação geral (tela Configuração) está ligada: nada é enviado de verdade.</div>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Form.GoLiveDate" class="form-label"></label>
+                            <input type="date" name="Form.GoLiveDate" id="Form_GoLiveDate" class="form-control w-auto"
+                                   value="@f.GoLiveDate?.ToString("yyyy-MM-dd")" />
+                            <dica-campo for="Form.GoLiveDate" ajuda="empresas" />
+                            <div class="form-text">Geral: @(Model.GoLiveGeral?.ToString("dd/MM/yyyy") ?? "não definida").</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Filiais</div>
+                    <div class="card-body">
+                        <p class="small mb-2">@Html.DisplayNameFor(m => m.Form.Filiais)</p>
+                        @if (Model.FiliaisDisponiveis.Count == 0)
+                        {
+                            <div class="small text-danger">A empresa não tem filial ativa no RHSenso (<code>test1.flativofilial = 1</code>).</div>
+                        }
+                        <div class="row g-1">
+                            @foreach (var filial in Model.FiliaisDisponiveis)
+                            {
+                                var id = $"filial-{filial.Cdfilial}";
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="Form.Filiais" value="@filial.Cdfilial" id="@id"
+                                               checked="@f.Filiais.Contains(filial.Cdfilial)" />
+                                        <label class="form-check-label small" for="@id">
+                                            <strong>@filial.Cdfilial</strong> @filial.Nome
+                                            @if (!string.IsNullOrWhiteSpace(filial.Cnpj))
+                                            {
+                                                <span class="text-body-secondary">(@filial.Cnpj)</span>
+                                            }
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <dica-campo for="Form.Filiais" ajuda="empresas" />
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Regras próprias desta conta do Sólides DP <span class="small text-body-secondary">(vazio = a regra geral)</span></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="Form.WorkScheduleExternalId" class="form-label"></label>
+                                <input asp-for="Form.WorkScheduleExternalId" class="form-control" />
+                                <dica-campo for="Form.WorkScheduleExternalId" ajuda="empresas" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.PunchRuleExternalId" class="form-label"></label>
+                                <input asp-for="Form.PunchRuleExternalId" class="form-control" />
+                                <dica-campo for="Form.PunchRuleExternalId" ajuda="empresas" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.FeriasMotivoId" class="form-label"></label>
+                                <input asp-for="Form.FeriasMotivoId" class="form-control" />
+                                <dica-campo for="Form.FeriasMotivoId" ajuda="empresas" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.ModoEmpresa" class="form-label"></label>
+                                <select asp-for="Form.ModoEmpresa" class="form-select">
+                                    <option value="">Como na regra geral</option>
+                                    <option value="@ModosEmpresa.PorCnpj">Procurar a empresa pelo CNPJ da filial</option>
+                                    <option value="@ModosEmpresa.Nenhuma">Não enviar empresa (conta com uma só empresa)</option>
+                                </select>
+                                <dica-campo for="Form.ModoEmpresa" ajuda="empresas" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!somenteLeitura)
+                {
+                    <div class="card">
+                        <div class="card-body">
+                            <label asp-for="Form.Observacao" class="form-label"></label>
+                            <input asp-for="Form.Observacao" class="form-control" maxlength="500" />
+                            <span asp-validation-for="Form.Observacao" class="small text-danger"></span>
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar a empresa</button>
+                                <span class="small text-body-secondary ms-2">Cria uma versão nova da configuração; o serviço usa na próxima execução.</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </fieldset>
+        </form>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-key"></i> Token do Sólides DP</div>
+            <div class="card-body small">
+                @if (Model.TemToken)
+                {
+                    <p class="mb-2 text-success"><i class="bi bi-key-fill"></i> Cadastrado por @Model.Token!.CriadoPor em @F.Data(Model.Token.CriadoEm).</p>
+                }
+                else
+                {
+                    <p class="mb-2">Sem token: a empresa só pode simular.</p>
+                }
+                <p class="text-body-secondary">
+                    O token é gerado no Sólides DP da empresa, em Empregador › Integrações. Ele é gravado cifrado e nunca é mostrado
+                    de volta. Não mande o token por e-mail ou chat.
+                </p>
+                @if (Model.PodeEditar)
+                {
+                    <form asp-action="Token" asp-route-id="@f.Cdempresa" method="post" class="mb-2" autocomplete="off">
+                        <label for="token" class="form-label">@(Model.TemToken ? "Trocar o token" : "Cadastrar o token")</label>
+                        <div class="input-group">
+                            <input type="password" name="token" id="token" class="form-control" autocomplete="new-password" required />
+                            <button type="submit" class="btn btn-primary">Gravar</button>
+                        </div>
+                    </form>
+                    @if (Model.TemToken)
+                    {
+                        <form asp-action="RemoverToken" asp-route-id="@f.Cdempresa" method="post"
+                              data-motivo="Motivo para remover o token desta empresa (ela deixa de enviar ao Sólides DP):">
+                            <input type="hidden" name="motivo" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Remover o token</button>
+                        </form>
+                    }
+                }
+            </div>
+        </div>
+
+        @if (Model.PodeOperar)
+        {
+            <div class="card">
+                <div class="card-header"><i class="bi bi-terminal"></i> Pedidos ao serviço só desta empresa</div>
+                <div class="card-body d-grid gap-2">
+                    @foreach (var (tipo, descricao) in new[]
+                    {
+                        (CommandTypes.CheckConfig, "Testar o token e conferir a configuração da empresa."),
+                        (CommandTypes.Discover, "Listar escalas, regras de ponto e motivos desta conta do Sólides DP."),
+                        (CommandTypes.DryRun, "Simular: mostra quem seria vinculado pelo CPF, criado ou atualizado. Nada é gravado no Sólides DP."),
+                        (CommandTypes.Run, "Executar agora com a configuração em vigor (real ou simulação)."),
+                        (CommandTypes.Reconcile, "Conferir se os colaboradores vinculados ainda existem no Sólides DP."),
+                    })
+                    {
+                        <form asp-action="Solicitar" asp-route-id="@f.Cdempresa" method="post" class="d-flex gap-2 align-items-start"
+                              data-confirmar="@(tipo == CommandTypes.Run ? $"Executar a empresa {f.Cdempresa} agora? Com o envio real ligado, os dados vão para o Sólides DP." : "")">
+                            <input type="hidden" name="tipo" value="@tipo" />
+                            <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary") text-nowrap">@Rotulos.Comando(tipo)</button>
+                            <span class="small text-body-secondary">@descricao</span>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>

@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "O que foi migrado";
     var ferias = Model.Tipo == EntityTypes.Vacation;
+    var colaborador = Model.Tipo == EntityTypes.Employee;
 }
 <ul class="nav nav-tabs mb-3">
     @foreach (var tipo in IntegracaoSolidesDP.Web.Controllers.MigradosController.Tipos)
@@ -13,19 +14,25 @@
     }
 </ul>
 <p class="small text-body-secondary">
-    Registros que a integração criou ou adotou no Sólides DP, com o id de lá. Clique no registro para ver o histórico de envios.
+    Registros vinculados ao Sólides DP de cada empresa, com o id de lá: os que a integração criou e os que já existiam e foram
+    vinculados pelo CPF. Clique no registro para ver o histórico de envios.
 </p>
 <div class="card">
     <div class="card-body">
+        <div class="mb-2"><partial name="_FiltroEmpresa" model='new FiltroEmpresaModel("filtro-empresa", Model.Empresas)' /></div>
         <table id="migrados" class="table table-sm table-hover w-100">
             <thead>
                 @if (ferias)
                 {
-                    <tr><th>Colaborador</th><th>Nome</th><th>Início</th><th>Fim</th><th>Id no DP</th><th>Status</th><th>Tentativas</th><th>Atualizado em</th></tr>
+                    <tr><th>Empresa</th><th>Colaborador</th><th>Nome</th><th>Início</th><th>Fim</th><th>Id no DP</th><th>Status</th><th>Tentativas</th><th>Atualizado em</th></tr>
+                }
+                else if (colaborador)
+                {
+                    <tr><th>Empresa</th><th>Matrícula</th><th>Nome</th><th>Id no DP</th><th>Status</th><th>Atualizado em</th><th>Origem</th><th>Código Externo</th></tr>
                 }
                 else
                 {
-                    <tr><th>Código</th><th>Nome</th><th>Id no DP</th><th>Status</th><th>Atualizado em</th></tr>
+                    <tr><th>Empresa</th><th>Código</th><th>Nome</th><th>Id no DP</th><th>Status</th><th>Atualizado em</th></tr>
                 }
             </thead>
         </table>
@@ -38,7 +45,8 @@
         @if (ferias)
         {
             <text>
-            app.grid('#migrados', url, [
+            const grade = app.grid('#migrados', url, [
+                { data: 'cdempresa' },
                 { data: 'externalId', render: v => app.linkHistorico('employee', v) },
                 { data: 'nome', render: v => app.esc(v || '') },
                 { data: 'inicio', render: v => app.dia(v) },
@@ -47,20 +55,28 @@
                 { data: 'status', render: (v, t, r) => app.badge(v) + (r.ultimoErro ? `<div class="small text-danger mensagem">${app.esc(r.ultimoErro)}</div>` : '') },
                 { data: 'tentativas' },
                 { data: 'atualizadoEm', render: v => app.data(v) }
-            ], { order: [[2, 'desc']] });
+            ], { order: [[3, 'desc']], params: () => ({ empresa: $('#filtro-empresa').val() }) });
             </text>
         }
         else
         {
             <text>
-            app.grid('#migrados', url, [
+            const colunas = [
+                { data: 'cdempresa' },
                 { data: 'externalId', render: v => app.linkHistorico(tipo, v) },
                 { data: 'nome', render: v => app.esc(v || '') },
                 { data: 'remoteId', render: v => v ?? '' },
                 { data: 'status', render: v => app.badge(v) },
                 { data: 'atualizadoEm', render: v => app.data(v) }
-            ], { order: [[0, 'asc']] });
+            ];
+            if (tipo === 'employee') {
+                colunas.push(
+                    { data: 'origem', orderable: false, render: v => v === 'vinculado_cpf' ? 'Vinculado pelo CPF' : v === 'criado' ? 'Criado pela integração' : '' },
+                    { data: 'codigoExterno', orderable: false, render: v => app.esc(v || '') });
+            }
+            const grade = app.grid('#migrados', url, colunas, { order: [[1, 'asc']], params: () => ({ empresa: $('#filtro-empresa').val() }) });
             </text>
         }
+        $('#filtro-empresa').on('change', () => grade.ajax.reload());
     </script>
 }

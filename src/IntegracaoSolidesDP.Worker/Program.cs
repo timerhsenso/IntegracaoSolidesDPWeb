@@ -92,7 +92,7 @@ var ct = cancellation.Token;
 switch (command.Mode)
 {
     case CliMode.CheckConfig:
-        return await services.GetRequiredService<OperatorCommands>().CheckConfigAsync(ct);
+        return await services.GetRequiredService<OperatorCommands>().CheckConfigAsync(command.Empresa, ct);
     case CliMode.Discover:
         return await services.GetRequiredService<OperatorCommands>().DiscoverAsync(command.Empresa, ct);
     case CliMode.Reconcile:

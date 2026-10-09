@@ -23,6 +23,7 @@ public sealed partial class WebHarness(SqlServerFixture db) : IAsyncDisposable
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:Rhu", db.ConnectionString);
         builder.UseSetting("Web:InstanceName", "default");
+        builder.UseSetting("Web:ChaveTokens", EndToEnd.E2EHarness.ChaveTokens);
     });
 
     public HttpClient Cliente() => _factory.CreateClient(new WebApplicationFactoryClientOptions

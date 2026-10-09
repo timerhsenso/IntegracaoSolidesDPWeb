@@ -48,4 +48,7 @@ public static class AcoesAuditoria
     public const string IntegracaoAtivada = "INTEGRACAO_ATIVADA";
     public const string IntegracaoDesativada = "INTEGRACAO_DESATIVADA";
     public const string ComandoSolicitado = "COMANDO_SOLICITADO";
+    public const string EmpresaAlterada = "EMPRESA_ALTERADA";
+    public const string EmpresaTokenCadastrado = "EMPRESA_TOKEN_CADASTRADO";
+    public const string EmpresaTokenRemovido = "EMPRESA_TOKEN_REMOVIDO";
 }

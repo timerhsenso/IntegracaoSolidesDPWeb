@@ -5,6 +5,9 @@ namespace IntegracaoSolidesDP.Web.Data;
 public sealed record Execucao
 {
     public Guid RunId { get; init; }
+
+    /// <summary>Empresa (conta do Sólides DP) da execução; nula nas execuções que pararam antes de chegar a uma empresa.</summary>
+    public int? Cdempresa { get; init; }
     public string Status { get; init; } = string.Empty;
     public bool DryRun { get; init; }
     public string Origem { get; init; } = string.Empty;
@@ -31,7 +34,16 @@ public sealed record ItemExecucao
 
 public sealed record RegistroMigrado
 {
+    public int Cdempresa { get; init; }
+
+    /// <summary>Código do registro, o mesmo dos itens das execuções (colaborador: "{empresa}-{matrícula}").</summary>
     public string ExternalId { get; init; } = string.Empty;
+
+    /// <summary>Colaborador: "criado" pela integração ou "vinculado_cpf" (já existia no Sólides DP).</summary>
+    public string? Origem { get; init; }
+
+    /// <summary>Colaborador: Código Externo enviado ao Sólides DP.</summary>
+    public string? CodigoExterno { get; init; }
     public string? Nome { get; init; }
     public long? RemoteId { get; init; }
     public string Status { get; init; } = string.Empty;
@@ -41,6 +53,7 @@ public sealed record RegistroMigrado
 public sealed record FeriasMigradas
 {
     public Guid Feria2Id { get; init; }
+    public int Cdempresa { get; init; }
     public string ExternalId { get; init; } = string.Empty;
     public string? Nome { get; init; }
     public DateTime? Inicio { get; init; }
@@ -68,6 +81,9 @@ public sealed record HistoricoItem
 public sealed record Comando
 {
     public long Id { get; init; }
+
+    /// <summary>Empresa do pedido; nula = todas as habilitadas.</summary>
+    public int? Cdempresa { get; init; }
     public string Tipo { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
     public string SolicitadoPor { get; init; } = string.Empty;

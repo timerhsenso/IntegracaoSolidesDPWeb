@@ -123,6 +123,20 @@ public sealed class RunReportWriter(IOptions<SyncOptions> options, ILogger<RunRe
             return string.Empty;
         }
 
+        // "15-1" (empresa-filial) o Excel abre como data (15/jan): vai como fórmula de texto.
+        if (PareceData(value))
+        {
+            return "\"=\"\"" + value + "\"\"\"";
+        }
+
         return value.IndexOfAny([';', '"', '\n', '\r']) >= 0 ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"" : value;
+    }
+
+    private static bool PareceData(string value)
+    {
+        var traco = value.IndexOfAny(['-', '/']);
+        return traco is > 0 and <= 4
+               && value.Length - traco - 1 is > 0 and <= 4
+               && value.Remove(traco, 1).All(char.IsAsciiDigit);
     }
 }

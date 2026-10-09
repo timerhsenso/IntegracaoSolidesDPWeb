@@ -8,9 +8,9 @@ namespace IntegracaoSolidesDP.Web.Controllers;
 
 /// <summary>Pedidos ao serviço (solidesdp.comando). A Web só grava o pedido; o serviço executa e grava o resultado.</summary>
 [ExigeGestaoPreparada]
-public sealed class ComandosController(PainelRepository painel, GestaoService gestao) : Controller
+public sealed class ComandosController(PainelRepository painel, GestaoService gestao, EmpresasRepository empresas) : Controller
 {
-    public IActionResult Index() => View();
+    public async Task<IActionResult> Index() => View(await empresas.EmpresasAtivasAsync(HttpContext.RequestAborted));
 
     [HttpGet]
     public async Task<IActionResult> Dados() =>
@@ -18,9 +18,9 @@ public sealed class ComandosController(PainelRepository painel, GestaoService ge
 
     [HttpPost]
     [Authorize(Policy = Politicas.Operar)]
-    public async Task<IActionResult> Solicitar(string tipo)
+    public async Task<IActionResult> Solicitar(string tipo, int? cdempresa)
     {
-        var resultado = await gestao.SolicitarComandoAsync(tipo, HttpContext.Usuario(), HttpContext.RequestAborted);
+        var resultado = await gestao.SolicitarComandoAsync(tipo, HttpContext.Usuario(), cdempresa, HttpContext.RequestAborted);
         if (resultado.Sucesso)
         {
             TempData["Sucesso"] = $"Pedido \"{Rotulos.Comando(tipo)}\" registrado. O serviço o atende em alguns segundos.";

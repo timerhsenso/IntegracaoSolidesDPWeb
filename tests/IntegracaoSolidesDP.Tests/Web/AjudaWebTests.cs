@@ -69,7 +69,7 @@ public sealed class AjudaWebTests(SqlServerFixture db) : IAsyncLifetime
     {
         var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Admin));
 
-        foreach (var url in new[] { "/", "/Execucoes", "/Migrados", "/Pendencias", "/Comandos", "/Configuracao", "/Usuarios", "/Auditoria", "/Conta/AlterarSenha" })
+        foreach (var url in new[] { "/", "/Empresas", "/Execucoes", "/Migrados", "/Pendencias", "/Comandos", "/Configuracao", "/Usuarios", "/Auditoria", "/Conta/AlterarSenha" })
         {
             var html = await client.GetStringAsync(url, Ct);
             html.Should().Contain("id=\"ajuda-tela\"", $"a tela {url} deveria ter o botão Ajuda");

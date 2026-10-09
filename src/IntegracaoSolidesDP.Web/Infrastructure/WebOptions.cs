@@ -13,4 +13,11 @@ public sealed class WebOptions
 
     /// <summary>Aplica as migrations do login (schema solidesdp_auth) ao iniciar.</summary>
     public bool AplicarMigrationsNoStart { get; set; } = true;
+
+    /// <summary>
+    /// Chave (32 bytes em base64) que cifra o token do Sólides DP de cada empresa. Tem de ser a mesma do
+    /// Gestao:ChaveTokens do serviço. Vazia, no Windows, o token é protegido pela máquina (DPAPI): Web e
+    /// serviço precisam estar no mesmo servidor. Guardar em variável de ambiente ou user-secrets.
+    /// </summary>
+    public string? ChaveTokens { get; set; }
 }

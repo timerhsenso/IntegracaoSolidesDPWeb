@@ -8,6 +8,17 @@
         <div class="card h-100">
             <div class="card-body">
                 <dl class="row mb-0 small">
+                    <dt class="col-5">Empresa</dt>
+                    <dd class="col-7">
+                        @if (e.Cdempresa is { } cdempresa)
+                        {
+                            <a asp-controller="Empresas" asp-action="Editar" asp-route-id="@cdempresa">@cdempresa</a>
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
+                    </dd>
                     <dt class="col-5">Status</dt><dd class="col-7">@Rotulos.Badge(e.Status)</dd>
                     <dt class="col-5">Modo</dt><dd class="col-7">@(e.DryRun ? "Simulação (dry-run): nada foi enviado" : "Real")</dd>
                     <dt class="col-5">Origem</dt><dd class="col-7">@Rotulos.Origem(e.Origem)@(e.SolicitadoPor is null ? "" : $", pedida por {e.SolicitadoPor}")</dd>

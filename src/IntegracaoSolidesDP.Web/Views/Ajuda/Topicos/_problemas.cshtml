@@ -41,7 +41,13 @@
     <tbody>
         <tr>
             <td><code>config_invalid</code></td>
-            <td>A versão da configuração em vigor tem um problema (o texto diz qual). Se for falta do token do Sólides DP, é com o <strong>TI</strong>; se for regra, um Admin salva uma versão corrigida.</td>
+            <td>A configuração em vigor tem um problema (o texto diz qual e de qual empresa). <em>A empresa não tem token</em>: um Admin cadastra o
+                token na tela Empresas. <em>Token não pôde ser decifrado</em>: a chave dos tokens mudou ou a Web e o serviço estão em máquinas
+                diferentes; cadastre o token de novo e fale com o <strong>TI</strong>. Se for regra, um Admin salva uma versão corrigida.</td>
+        </tr>
+        <tr>
+            <td><code>sem_filial_ativa</code></td>
+            <td>Nenhuma das filiais marcadas da empresa está ativa no RHSenso (ou a empresa não tem filial ativa). Ajuste as filiais na tela Empresas.</td>
         </tr>
         <tr>
             <td>Erro de banco ou de conexão</td>
@@ -49,13 +55,13 @@
         </tr>
         <tr>
             <td><code>Sólides DP recusou o token</code></td>
-            <td>Token inválido ou expirado. <strong>TI</strong> (o token é gerado no Sólides DP em Empregador › Integrações).</td>
+            <td>Token da empresa inválido, expirado ou revogado. Gere outro no Sólides DP (Empregador › Integrações) e um Admin cadastra na tela Empresas.</td>
         </tr>
         <tr>
             <td><code>source_empty</code></td>
             <td>
                 Nenhum colaborador foi lido, e a trava parou tudo. Confira os filtros da Configuração: uma matrícula errada no piloto
-                ou uma empresa inexistente em <em>Empresas incluídas</em> dá esse erro. Se os filtros estiverem certos, o serviço está
+                ou uma empresa sem colaboradores dos tipos configurados dá esse erro. Se os filtros estiverem certos, o serviço está
                 lendo um banco vazio ou errado: <strong>TI</strong>.
             </td>
         </tr>
@@ -83,8 +89,24 @@
             <td>Cadastro incompleto no RHSenso. Corrija o cargo ou a filial lá.</td>
         </tr>
         <tr>
-            <td><code>skipped_duplicate_cpf</code></td>
-            <td>Duas matrículas ativas com o mesmo CPF. Corrija no RHSenso ou, se for duplo vínculo de verdade, um Admin liga essa opção na Configuração.</td>
+            <td><code>cpf_ativo_duplicado</code></td>
+            <td>O mesmo CPF está ativo em duas matrículas ou filiais da mesma empresa. No Sólides DP só pode haver um. Corrija no RHSenso.</td>
+        </tr>
+        <tr>
+            <td><code>cpf_invalido</code></td>
+            <td>O colaborador ativo está sem CPF ou com CPF inválido. Sem CPF não há como achar a pessoa no Sólides DP: corrija <code>func1.nocpf</code> no RHSenso.</td>
+        </tr>
+        <tr>
+            <td><code>cpf_duplicado_no_dp</code></td>
+            <td>Há mais de um cadastro ativo com o mesmo CPF no Sólides DP. Desligue ou corrija o cadastro errado lá; a próxima execução vincula o certo.</td>
+        </tr>
+        <tr>
+            <td><code>codigo_externo_em_uso</code></td>
+            <td>A pessoa não existe no Sólides DP, mas a matrícula dela já é o Código Externo de <strong>outra</strong> pessoa lá. Confira no Sólides DP qual cadastro está certo antes de seguir.</td>
+        </tr>
+        <tr>
+            <td><code>fora_do_escopo</code></td>
+            <td>A pessoa está ativa numa filial que não está marcada (ou está inativa) na tela Empresas. Nada é enviado e ela não é desligada. Marque a filial se ela deve entrar.</td>
         </tr>
         <tr>
             <td><code>missing_name</code>, <code>missing_admission_date</code>, <code>missing_job_role</code></td>

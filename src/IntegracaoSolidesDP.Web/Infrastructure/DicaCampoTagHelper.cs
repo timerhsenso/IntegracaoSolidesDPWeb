@@ -8,13 +8,17 @@ namespace IntegracaoSolidesDP.Web.Infrastructure;
 
 /// <summary>
 /// <c>&lt;dica-campo for="Form.Campo" /&gt;</c>: a dica curta do campo (<c>[Display(Description)]</c>) e um "?"
-/// que abre o trecho do manual sobre ele em outra aba, sem perder o que já foi digitado.
+/// que abre o trecho do manual sobre ele em outra aba, sem perder o que já foi digitado. <c>ajuda="id"</c> troca o trecho.
 /// </summary>
 [HtmlTargetElement("dica-campo", Attributes = "for", TagStructure = TagStructure.WithoutEndTag)]
 public sealed class DicaCampoTagHelper(IUrlHelperFactory urlHelperFactory) : TagHelper
 {
     [HtmlAttributeName("for")]
     public ModelExpression For { get; set; } = null!;
+
+    /// <summary>Âncora do manual para o "?" (padrão: o campo da tela Configuração, <c>cfg-{Campo}</c>).</summary>
+    [HtmlAttributeName("ajuda")]
+    public string? Ajuda { get; set; }
 
     [ViewContext]
     [HtmlAttributeNotBound]
@@ -23,7 +27,7 @@ public sealed class DicaCampoTagHelper(IUrlHelperFactory urlHelperFactory) : Tag
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
         var propriedade = For.Metadata.PropertyName ?? For.Name;
-        var url = urlHelperFactory.GetUrlHelper(ViewContext).Action("Index", "Ajuda") + "#" + CamposConfiguracao.Ancora(propriedade);
+        var url = urlHelperFactory.GetUrlHelper(ViewContext).Action("Index", "Ajuda") + "#" + (Ajuda ?? CamposConfiguracao.Ancora(propriedade));
 
         output.TagName = "div";
         output.TagMode = TagMode.StartTagAndEndTag;

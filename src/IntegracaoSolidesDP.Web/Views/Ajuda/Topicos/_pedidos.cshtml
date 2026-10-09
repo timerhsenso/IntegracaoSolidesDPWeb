@@ -4,6 +4,13 @@
     faça algo agora, sem esperar o próximo horário automático. O perfil Consulta vê a lista, mas não faz pedidos.
 </p>
 
+<h4>Para qual empresa</h4>
+<p>
+    No alto da tela, escolha <strong>Pedido para</strong>: uma empresa, ou todas as habilitadas. Consultar o Sólides DP e Conferir
+    enviados são de uma conta só: com mais de uma empresa habilitada, escolha a empresa. Os mesmos pedidos, já com a empresa,
+    ficam na tela de cada empresa em <a asp-controller="Empresas" asp-action="Index">Empresas</a>.
+</p>
+
 <h4>Os cinco pedidos</h4>
 <dl class="ajuda-def">
     <dt>Executar agora</dt>
@@ -12,7 +19,7 @@
         ao Sólides DP, por isso o sistema pede confirmação. Fica bloqueado com a integração desativada.
     </dd>
     <dt>Simular (dry-run)</dt>
-    <dd>Faz toda a análise e mostra o que seria enviado, <strong>sem enviar nada</strong>. Pode ser usado mesmo com a integração desativada. Use antes de qualquer mudança grande.</dd>
+    <dd>Faz toda a análise e mostra o que seria enviado, <strong>sem gravar nada no Sólides DP</strong>. Com o token da empresa, só consulta quem já está lá para mostrar quem seria vinculado pelo CPF e quem seria criado. Pode ser usado mesmo com a integração desativada. Use antes de qualquer mudança grande.</dd>
     <dt>Verificar configuração</dt>
     <dd>Testa o acesso ao banco do RHSenso, as regras em vigor e o token do Sólides DP. Cada linha do resultado vem com <code>[OK]</code> ou <code>[ERRO]</code>.</dd>
     <dt>Consultar o Sólides DP</dt>

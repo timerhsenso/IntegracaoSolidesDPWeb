@@ -1,3 +1,4 @@
+@model IReadOnlyList<EmpresaRhsenso>
 @using IntegracaoSolidesDP.Worker.Management
 @{
     ViewData["Title"] = "Pedidos ao serviço";
@@ -11,6 +12,11 @@
 {
     <div class="card mb-3">
         <div class="card-body">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <label for="pedido-empresa" class="small">Pedido para</label>
+                <partial name="_FiltroEmpresa" model='new FiltroEmpresaModel("pedido-empresa", Model, Todas: "Todas as empresas habilitadas")' />
+                <span class="small text-body-secondary">Consultar o Sólides DP e Conferir enviados exigem a empresa quando há mais de uma.</span>
+            </div>
             <div class="row g-2">
                 @foreach (var tipo in CommandTypes.All)
                 {
@@ -18,6 +24,7 @@
                         <form asp-action="Solicitar" method="post" class="d-flex gap-2 align-items-start border rounded p-2 h-100"
                               data-confirmar="@(tipo == CommandTypes.Run ? "Executar a sincronização agora? Com o envio real ligado, os dados vão para o Sólides DP." : "")">
                             <input type="hidden" name="tipo" value="@tipo" />
+                            <input type="hidden" name="cdempresa" data-empresa-do-pedido />
                             <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary") text-nowrap">@Rotulos.Comando(tipo)</button>
                             <span class="small text-body-secondary">@(tipo switch
                             {
@@ -38,7 +45,7 @@
     <div class="card-body">
         <table id="comandos" class="table table-sm table-hover w-100">
             <thead>
-                <tr><th>#</th><th>Pedido</th><th>Status</th><th>Pedido por</th><th>Pedido em</th><th>Concluído em</th></tr>
+                <tr><th>#</th><th>Pedido</th><th>Empresa</th><th>Status</th><th>Pedido por</th><th>Pedido em</th><th>Concluído em</th></tr>
             </thead>
         </table>
     </div>
@@ -48,10 +55,16 @@
         app.grid('#comandos', '@Url.Action("Dados")', [
             { data: 'id', render: v => `<a href="@Url.Action("Detalhe")/${v}">${v}</a>` },
             { data: 'tipo', render: v => app.comando(v) },
+            { data: 'cdempresa', render: v => v ?? 'todas' },
             { data: 'status', render: v => app.badge(v) },
             { data: 'solicitadoPor', render: v => app.esc(v) },
             { data: 'solicitadoEm', render: v => app.data(v) },
             { data: 'concluidoEm', render: v => app.data(v) }
         ]);
+        // A empresa escolhida vai em todos os pedidos desta tela.
+        document.addEventListener('submit', () => {
+            const empresa = document.getElementById('pedido-empresa')?.value || '';
+            document.querySelectorAll('[data-empresa-do-pedido]').forEach(i => i.value = empresa);
+        }, true);
     </script>
 }

@@ -10,15 +10,21 @@
 
 <ol class="ajuda-passos">
     <li>
-        <strong>Antes de tudo, com o TI.</strong> O serviço instalado e rodando, com a gestão pela Web ligada e o token do Sólides DP configurado.
+        <strong>Antes de tudo, com o TI.</strong> O serviço instalado e rodando, com a gestão pela Web ligada.
         Se o Painel mostrar "O serviço ainda não preparou o banco para a Web", este passo não foi concluído.
     </li>
     <li>
-        <strong>Verificar.</strong> Em <a asp-controller="Comandos" asp-action="Index">Pedidos ao serviço</a>, clique em
-        <strong>Verificar configuração</strong>. O resultado precisa mostrar o banco e o token com <code>[OK]</code>.
+        <strong>Cadastrar a empresa</strong> <span class="badge text-bg-dark">Admin</span>. Em
+        <a asp-controller="Empresas" asp-action="Index">Empresas</a>, abra a empresa, cadastre o <strong>token</strong> dela
+        (Sólides DP › Empregador › Integrações), marque as filiais (ou nenhuma, para todas), deixe <strong>habilitada</strong> e com a
+        <strong>simulação ligada</strong>, e salve. Cada empresa é uma conta do Sólides DP: repita para cada uma, uma de cada vez.
     </li>
     <li>
-        <strong>Consultar o Sólides DP.</strong> Peça <strong>Consultar o Sólides DP</strong> e, no resultado, anote:
+        <strong>Verificar.</strong> Na tela da empresa, clique em <strong>Verificar configuração</strong> (testar o token). O resultado
+        precisa mostrar o banco e o token da empresa com <code>[OK]</code>.
+    </li>
+    <li>
+        <strong>Consultar o Sólides DP.</strong> Na tela da empresa, peça <strong>Consultar o Sólides DP</strong> e, no resultado, anote:
         <ul>
             <li>o id da <strong>escala</strong> e da <strong>regra de ponto</strong> que os novos colaboradores devem receber;</li>
             <li>se os <strong>CNPJs</strong> das filiais aparecem na lista de empresas;</li>
@@ -27,19 +33,21 @@
     </li>
     <li>
         <strong>Configurar</strong> <span class="badge text-bg-dark">Admin</span>. Em <a asp-controller="Configuracao" asp-action="Index">Configuração</a>,
-        preencha a escala, a regra de ponto, a <strong>data de go-live</strong> e, se precisar, os motivos de demissão.
-        <strong>Deixe o modo simulação ligado.</strong> Salve informando o motivo.
+        preencha a <strong>data de go-live</strong> e, se precisar, os motivos de demissão. A escala e a regra de ponto podem ser as gerais ou
+        as da empresa (tela Empresas), porque cada conta tem os seus ids. <strong>Deixe o modo simulação ligado.</strong> Salve informando o motivo.
     </li>
     <li>
-        <strong>Simular.</strong> Peça <strong>Simular (dry-run)</strong>. Abra a execução e veja a contagem por entidade e as
+        <strong>Simular.</strong> Peça <strong>Simular (dry-run)</strong> da empresa. Abra a execução e veja, para cada colaborador, se ele seria
+        <strong>vinculado pelo CPF</strong> (já existe no Sólides DP) ou <strong>criado</strong>, e as
         <a asp-controller="Pendencias" asp-action="Index">Pendências</a>. Corrija no RHSenso o que estiver errado (CPF, cargo, filial...)
         e simule de novo até o RH concordar com o resultado.
     </li>
     <li>
-        <strong>Piloto com 2 ou 3 pessoas</strong> <span class="badge text-bg-dark">Admin</span>. Na Configuração, coloque as matrículas em
-        <em>Piloto: só estes colaboradores</em>, <strong>desligue o modo simulação</strong> e salve. Depois peça <strong>Executar agora</strong>.
-        No Sólides DP, confira:
+        <strong>Piloto com 2 ou 3 pessoas</strong> <span class="badge text-bg-dark">Admin</span>. Na Configuração, coloque as pessoas em
+        <em>Piloto: só estes colaboradores</em> e <strong>desligue o modo simulação</strong> geral; na empresa, desligue a simulação dela.
+        Depois peça <strong>Executar agora</strong> da empresa. Antes, tire um print da ficha de quem já existe no Sólides DP. Confira:
         <ul class="ajuda-checklist">
+            <li>quem já existia foi vinculado (não duplicou) e manteve o início da vigência e o Código Externo;</li>
             <li>colaborador criado com cargo, local, empresa, escala e regra de ponto corretos;</li>
             <li>uma segunda execução não muda nada (tudo "Sem alteração");</li>
             <li>uma alteração no RHSenso chega ao DP sem apagar o que o RH preencheu lá;</li>
@@ -48,12 +56,12 @@
         </ul>
     </li>
     <li>
-        <strong>Liberar por empresa</strong> <span class="badge text-bg-dark">Admin</span>. Limpe o piloto e informe uma empresa em
-        <em>Empresas incluídas</em>. Acompanhe uma ou duas execuções e acrescente as próximas empresas.
+        <strong>Liberar a empresa</strong> <span class="badge text-bg-dark">Admin</span>. Limpe o piloto. Acompanhe uma ou duas execuções.
     </li>
     <li>
-        <strong>Liberar tudo</strong> <span class="badge text-bg-dark">Admin</span>. Deixe <em>Empresas incluídas</em> vazio.
-        A partir daqui o serviço sincroniza sozinho, e o dia a dia é acompanhar o Painel e as Pendências.
+        <strong>Próximas empresas</strong> <span class="badge text-bg-dark">Admin</span>. Repita a partir do passo 2 para cada empresa,
+        uma de cada vez, sempre começando pela simulação. A partir daqui o serviço sincroniza sozinho, e o dia a dia é acompanhar o
+        Painel e as Pendências.
     </li>
 </ol>
 

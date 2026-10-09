@@ -76,7 +76,7 @@ public sealed class CommandProcessor(
                     var operations = ActivatorUtilities.CreateInstance<OperatorCommands>(services, (TextWriter)output);
                     var exitCode = command.Type switch
                     {
-                        CommandTypes.CheckConfig => await operations.CheckConfigAsync(ct),
+                        CommandTypes.CheckConfig => await operations.CheckConfigAsync(command.Cdempresa, ct),
                         CommandTypes.Discover => await operations.DiscoverAsync(command.Cdempresa, ct),
                         // Pela Web só a conferência; o --repair continua sendo decisão de quem opera o servidor.
                         _ => await operations.ReconcileAsync(command.Cdempresa, repair: false, ct),

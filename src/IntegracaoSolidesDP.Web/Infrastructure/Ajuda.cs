@@ -25,6 +25,7 @@ public static class AjudaTopicos
         new("acesso", "Acesso e perfis", "bi-person-lock", "Conta"),
         new("implantacao", "Roteiro de implantação", "bi-signpost-split"),
         new("painel", "Painel", "bi-speedometer2", "Painel"),
+        new("empresas", "Empresas", "bi-building", "Empresas"),
         new("execucoes", "Execuções", "bi-clock-history", "Execucoes"),
         new("migrados", "O que foi migrado", "bi-people", "Migrados"),
         new("pendencias", "Pendências", "bi-exclamation-triangle", "Pendencias"),

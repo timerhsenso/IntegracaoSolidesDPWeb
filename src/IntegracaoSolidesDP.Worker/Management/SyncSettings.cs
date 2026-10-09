@@ -90,7 +90,7 @@ public sealed class SyncSettingsLoader(
         options.ReportDirectory = baseline.ReportDirectory;
 
         // As exigências da execução real (go-live, token) são conferidas por empresa.
-        var validation = new SyncOptionsValidator().Validate(null, Clone(options, dryRun: true));
+        var validation = new SyncOptionsValidator().Validate(null, EmpresaOptions.Copiar(options, dryRun: true));
         if (validation.Failed)
         {
             throw new SyncAbortedException($"config_invalid: versão {current.Version} de solidesdp.configuracao: {validation.FailureMessage}");
@@ -114,23 +114,8 @@ public sealed class SyncSettingsLoader(
     public Task TagRunAsync(Guid runId, string? requestedBy, SyncSettings settings, CancellationToken ct) =>
         ManagementEnabled ? store.TagRunAsync(runId, requestedBy, settings.Version, ct) : Task.CompletedTask;
 
-    /// <summary>Regra da empresa por cima da geral. A simulação vale se estiver ligada em qualquer uma das duas.</summary>
-    public static SyncOptions OptionsFor(SyncOptions geral, EmpresaConfiguracao empresa)
-    {
-        var options = Clone(geral, geral.DryRun || empresa.DryRun);
-        options.EmpresasIncluidas = [empresa.Cdempresa];
-        options.GoLiveDate = empresa.GoLiveDate ?? geral.GoLiveDate;
-        options.WorkScheduleExternalId = Override(empresa.WorkScheduleExternalId) ?? geral.WorkScheduleExternalId;
-        options.PunchRuleExternalId = Override(empresa.PunchRuleExternalId) ?? geral.PunchRuleExternalId;
-        options.FeriasMotivoId = empresa.FeriasMotivoId ?? geral.FeriasMotivoId;
-        options.CompanyMode = empresa.ModoEmpresa switch
-        {
-            ModosEmpresa.Nenhuma => CompanyMode.None,
-            ModosEmpresa.PorCnpj => CompanyMode.ResolveByCnpj,
-            _ => geral.CompanyMode,
-        };
-        return options;
-    }
+    /// <summary>Regra da empresa por cima da geral (ver <see cref="EmpresaOptions.Mesclar"/>).</summary>
+    public static SyncOptions OptionsFor(SyncOptions geral, EmpresaConfiguracao empresa) => EmpresaOptions.Mesclar(geral, empresa);
 
     private EmpresaSettings ForEmpresa(SyncOptions geral, EmpresaConfiguracao empresa, EmpresaToken? stored)
     {
@@ -199,15 +184,4 @@ public sealed class SyncSettingsLoader(
 
     private static string? Problema(int cdempresa, List<string> problemas) =>
         problemas.Count == 0 ? null : FormattableString.Invariant($"config_invalid: empresa {cdempresa}: {string.Join("; ", problemas)}");
-
-    private static string? Override(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static SyncOptions Clone(SyncOptions source, bool dryRun)
-    {
-        var copy = SyncOptionsJson.Deserialize(SyncOptionsJson.Serialize(source));
-        copy.InstanceName = source.InstanceName;
-        copy.ReportDirectory = source.ReportDirectory;
-        copy.DryRun = dryRun;
-        return copy;
-    }
 }

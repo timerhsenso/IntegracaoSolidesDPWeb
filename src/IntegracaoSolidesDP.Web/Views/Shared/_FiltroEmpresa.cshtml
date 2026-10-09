@@ -1,0 +1,9 @@
+@model FiltroEmpresaModel
+@* Seleção de empresa das grades (Execuções, O que foi migrado, Pedidos). *@
+<select id="@Model.Id" class="form-select form-select-sm w-auto" aria-label="Empresa">
+    <option value="">@Model.Todas</option>
+    @foreach (var empresa in Model.Empresas)
+    {
+        <option value="@empresa.Cdempresa" selected="@(empresa.Cdempresa == Model.Selecionada)">@empresa.Cdempresa · @empresa.Nome</option>
+    }
+</select>

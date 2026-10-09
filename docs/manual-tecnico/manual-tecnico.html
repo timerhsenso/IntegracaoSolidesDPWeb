@@ -384,6 +384,7 @@
             <tr><td><code>Web:InstanceName</code></td><td><code>default</code></td><td class="quebra">Instância do serviço que esta Web gerencia. <strong>Igual a <code>Sync:InstanceName</code> do serviço.</strong></td></tr>
             <tr><td><code>Web:TimeZone</code></td><td><code>America/Bahia</code></td><td class="quebra">Fuso para exibir datas e agrupar as execuções por dia no Painel.</td></tr>
             <tr><td><code>Web:AplicarMigrationsNoStart</code></td><td><code>true</code></td><td class="quebra">Cria e atualiza as tabelas de login (<code>solidesdp_auth</code>) ao iniciar. Desligue se a política do banco exigir que o DBA aplique os scripts.</td></tr>
+            <tr><td><code>Web:ChaveTokens</code></td><td>—</td><td class="quebra">Chave que cifra o token de cada empresa cadastrado na tela Empresas. <strong>Igual a <code>Gestao:ChaveTokens</code> do serviço.</strong> Vazia, no Windows, usa a proteção da máquina (DPAPI): Web e serviço no mesmo servidor. Fora do Windows é obrigatória. Gere com <code>[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))</code> (PowerShell 7) e guarde como segredo (<code>Web__ChaveTokens</code>).</td></tr>
             <tr><td><code>Serilog</code></td><td>console + arquivo</td><td class="quebra">Logs em <code>logs/integracao-solidesdp-web-AAAAMMDD.log</code>, mantidos por 30 dias. A identidade do app pool precisa poder escrever na pasta <code>logs</code>.</td></tr>
         </tbody>
     </table>

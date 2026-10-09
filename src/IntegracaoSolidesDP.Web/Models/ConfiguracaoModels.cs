@@ -15,20 +15,20 @@ namespace IntegracaoSolidesDP.Web.Models;
 /// </summary>
 public sealed class ConfiguracaoForm
 {
-    [Display(Name = "Modo simulação (dry-run): não envia nada ao Sólides DP", Description = "Ligado: só simula e grava o relatório, sem chamar o Sólides DP. Desligue apenas depois do piloto.")]
+    [Display(Name = "Modo simulação (dry-run) geral: nada é gravado no Sólides DP", Description = "Ligado: todas as empresas só simulam e gravam o relatório (com token, só consultam o Sólides DP). Desligue apenas depois do piloto.")]
     public bool DryRun { get; set; } = true;
 
-    [Display(Name = "Data de início no Sólides DP (go-live)", Description = "Obrigatória para o envio real. Quem foi admitido antes começa no Sólides DP nesta data, sem ponto retroativo.")]
+    [Display(Name = "Data de início no Sólides DP (go-live)", Description = "Obrigatória para o envio real (aqui ou na empresa). Quem a integração cria e foi admitido antes começa nesta data; quem já existe no Sólides DP mantém a data de lá.")]
     [DataType(DataType.Date)]
     public DateOnly? GoLiveDate { get; set; }
 
     [Display(Name = "Tipos de colaborador (func1.tpcolab)", Description = "Códigos de func1.tpcolab que entram: 1 = Empregado, 2 = Estagiário. Separe por vírgula.")]
     public string? TiposColaborador { get; set; } = "1, 2";
 
-    [Display(Name = "Empresas incluídas (vazio = todas)", Description = "Códigos de empresa (func1.cdempresa) separados por vírgula. Use para liberar uma empresa de cada vez.")]
+    [Display(Name = "Empresa usada antes da tela Empresas (uma só)", Description = "Só vale enquanto nenhuma empresa estiver configurada na tela Empresas: a empresa (func1.cdempresa) sincronizada com o token do servidor.")]
     public string? EmpresasIncluidas { get; set; }
 
-    [Display(Name = "Piloto: só estes colaboradores ({empresa}-{matrícula}, um por linha; vazio = todos)", Description = "Para o piloto: só estes colaboradores são enviados, no formato empresa-matrícula (ex.: 14-00901482).")]
+    [Display(Name = "Piloto: só estes colaboradores (um por linha; vazio = todos)", Description = "Para o piloto: só estes colaboradores são enviados. Use o CPF, a matrícula ou empresa-matrícula (ex.: 15-00007811).")]
     public string? ExternalIdAllowList { get; set; }
 
     [Display(Name = "Situação de transferência", Description = "Código de func1.cdsituacao que indica transferência (a pessoa continua em outra empresa ou filial).")]
@@ -37,10 +37,10 @@ public sealed class ConfiguracaoForm
     [Display(Name = "Situações ignoradas", Description = "Códigos de situação que a integração ignora por completo (ex.: 99 = pré-cadastro).")]
     public string? SituacoesIgnoradas { get; set; } = "99";
 
-    [Display(Name = "Escala dos novos colaboradores (externalId; vazio = padrão da conta)", Description = "Usada só na criação do colaborador. O id aparece em Pedidos ao serviço › Consultar o Sólides DP.")]
+    [Display(Name = "Escala dos novos colaboradores (externalId; vazio = padrão da conta)", Description = "Usada só na criação do colaborador. Cada empresa pode ter a sua (tela Empresas). O id aparece em Consultar o Sólides DP.")]
     public string? WorkScheduleExternalId { get; set; }
 
-    [Display(Name = "Regra de ponto dos novos colaboradores (externalId; vazio = padrão da conta)", Description = "Usada só na criação do colaborador. O id aparece em Pedidos ao serviço › Consultar o Sólides DP.")]
+    [Display(Name = "Regra de ponto dos novos colaboradores (externalId; vazio = padrão da conta)", Description = "Usada só na criação do colaborador. Cada empresa pode ter a sua (tela Empresas). O id aparece em Consultar o Sólides DP.")]
     public string? PunchRuleExternalId { get; set; }
 
     [Display(Name = "Empresa no Sólides DP", Description = "Como informar a empresa do colaborador: pelo CNPJ da filial, ou nenhuma (conta do DP com uma só empresa).")]
@@ -48,9 +48,6 @@ public sealed class ConfiguracaoForm
 
     [Display(Name = "Criar no Sólides DP a empresa (CNPJ) que não existir", Description = "Desligado: colaborador de CNPJ que não existe no DP fica bloqueado até a empresa ser cadastrada lá.")]
     public bool CreateMissingCompanies { get; set; }
-
-    [Display(Name = "Enviar CPFs repetidos como duplo vínculo", Description = "Desligado: matrículas ativas com o mesmo CPF ficam de fora e aparecem em Pendências.")]
-    public bool AllowDoubleBind { get; set; }
 
     [Display(Name = "Motivos de demissão (código=MOTIVO, um por linha; vazio = padrão)", Description = "Só para trocar o padrão: uma linha por código (causa de rescisão do RHSenso = motivo do Sólides DP). Código desconhecido vai como OUTROS.")]
     public string? MotivoDemissaoMap { get; set; }
@@ -98,7 +95,6 @@ public sealed class ConfiguracaoForm
         PunchRuleExternalId = options.PunchRuleExternalId,
         CompanyMode = options.CompanyMode,
         CreateMissingCompanies = options.CreateMissingCompanies,
-        AllowDoubleBind = options.AllowDoubleBind,
         MotivoDemissaoMap = string.Join(Environment.NewLine, options.MotivoDemissaoMap.Select(p => $"{p.Key}={p.Value}")),
         FeriasJanelaDias = options.FeriasJanelaDias,
         FeriasEnviarProgramadas = options.FeriasEnviarProgramadas,
@@ -123,7 +119,6 @@ public sealed class ConfiguracaoForm
         PunchRuleExternalId = (PunchRuleExternalId ?? string.Empty).Trim(),
         CompanyMode = CompanyMode,
         CreateMissingCompanies = CreateMissingCompanies,
-        AllowDoubleBind = AllowDoubleBind,
         MotivoDemissaoMap = Mapa(MotivoDemissaoMap, nameof(MotivoDemissaoMap), erros),
         FeriasJanelaDias = FeriasJanelaDias,
         FeriasEnviarProgramadas = FeriasEnviarProgramadas,

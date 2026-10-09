@@ -1,0 +1,51 @@
+@* Ajuda › Empresas *@
+<p>
+    Cada empresa do RHSenso é uma <strong>conta separada no Sólides DP</strong>, com o seu próprio login e token. Nesta tela você
+    escolhe quais empresas a integração sincroniza, cadastra o token de cada uma e marca as filiais. Todos os perfis veem; só o
+    <span class="badge text-bg-dark">Admin</span> altera, e o <span class="badge text-bg-primary">Operador</span> pode fazer pedidos ao serviço.
+</p>
+
+<h4>A lista</h4>
+<ul>
+    <li>Mostra as empresas <strong>ativas na folha</strong> (<code>temp1.flativo = 'S'</code>). Para usar outra, ative-a no RHSenso.</li>
+    <li>Uma empresa configurada que depois foi inativada na folha aparece em amarelo: ela fica <strong>fora do escopo</strong>,
+        nada é enviado e ninguém é desligado.</li>
+    <li><em>Colaboradores no Sólides DP</em>: quantos a integração criou, quantos já existiam e foram vinculados pelo CPF, e quantos desligou.</li>
+</ul>
+
+<h4>Configurar uma empresa</h4>
+<dl class="ajuda-def">
+    <dt>Habilitada na integração</dt><dd>Desligada, a empresa não é sincronizada. Desabilitar não desliga ninguém no Sólides DP.</dd>
+    <dt>Modo simulação nesta empresa</dt>
+    <dd>Ligado, a empresa só simula. O envio real exige a simulação desligada aqui <strong>e</strong> na tela Configuração (regra geral).</dd>
+    <dt>Data de go-live</dt>
+    <dd>Vazia, vale a geral. Só afeta quem a integração <strong>cria</strong>: quem já existe no Sólides DP mantém o início da vigência de lá.</dd>
+    <dt>Filiais</dt>
+    <dd>Nenhuma marcada = todas as filiais ativas (<code>test1.flativofilial = 1</code>). Marcando, só os colaboradores dessas filiais
+        vão para o Sólides DP. Desmarcar uma filial não desliga ninguém: a pessoa só deixa de ser sincronizada.</dd>
+    <dt>Escala, regra de ponto, motivo FÉRIAS e empresa no Sólides DP</dt>
+    <dd>Cada conta do Sólides DP tem os seus ids. Vazios, valem os da tela Configuração. Use <em>Consultar o Sólides DP</em> desta
+        empresa para ver os ids da conta dela.</dd>
+</dl>
+<p>Cada gravação cria uma versão nova da configuração (com o motivo), igual à tela Configuração. O serviço usa na próxima execução.</p>
+
+<h4>Token</h4>
+<ul>
+    <li>Gerado no Sólides DP da empresa, em <strong>Empregador › Integrações</strong>. Cole só o token (se vier com "Basic" na frente, tudo bem).</li>
+    <li>É gravado <strong>cifrado</strong> no banco e <strong>nunca é mostrado de volta</strong>, nem na auditoria. Para trocar, cadastre um novo.</li>
+    <li>Depois de gravar, use <em>Testar o token</em>: o serviço confere com o Sólides DP e o resultado aparece no pedido.</li>
+    <li>Sem token, a empresa só simula (e a simulação não consulta o Sólides DP). Não mande token por e-mail ou chat; se isso acontecer,
+        gere outro no Sólides DP e revogue o antigo.</li>
+</ul>
+
+<h4>Pedidos só desta empresa</h4>
+<p>
+    No quadro da direita: testar o token, consultar o Sólides DP (escalas, regras, motivos), simular, executar e conferir enviados,
+    só para esta empresa. O resultado fica em <a asp-controller="Ajuda" asp-action="Index" asp-fragment="pedidos">Pedidos ao serviço</a>.
+</p>
+
+<h4>Antes da tela Empresas</h4>
+<p class="mb-0">
+    Enquanto nenhuma empresa for salva aqui, o serviço sincroniza só a empresa do campo <em>Empresa usada antes da tela Empresas</em> da Configuração,
+    com o token do servidor. <strong>Ao salvar a primeira empresa, passa a valer só esta tela</strong>: cadastre o token dela também.
+</p>

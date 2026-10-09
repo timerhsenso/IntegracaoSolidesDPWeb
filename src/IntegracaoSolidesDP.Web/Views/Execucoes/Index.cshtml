@@ -1,19 +1,22 @@
+@model IReadOnlyList<EmpresaRhsenso>
 @{
     ViewData["Title"] = "Execuções";
 }
 <div class="card">
     <div class="card-body">
+        <div class="mb-2"><partial name="_FiltroEmpresa" model='new FiltroEmpresaModel("filtro-empresa", Model)' /></div>
         <table id="execucoes" class="table table-sm table-hover w-100">
             <thead>
-                <tr><th>Início</th><th>Modo</th><th>Origem</th><th>Pedida por</th><th>Status</th><th>Duração</th><th>Config.</th><th>Resumo</th></tr>
+                <tr><th>Início</th><th>Empresa</th><th>Modo</th><th>Origem</th><th>Pedida por</th><th>Status</th><th>Duração</th><th>Config.</th><th>Resumo</th></tr>
             </thead>
         </table>
     </div>
 </div>
 @section Scripts {
     <script>
-        app.grid('#execucoes', '@Url.Action("Dados")', [
+        const grade = app.grid('#execucoes', '@Url.Action("Dados")', [
             { data: 'inicio', render: (v, t, r) => `<a href="@Url.Action("Detalhe")/${r.runId}">${app.data(v)}</a>` },
+            { data: 'cdempresa', render: v => v ?? '' },
             { data: 'dryRun', render: v => v ? '<span class="badge text-bg-info">Simulação</span>' : '<span class="badge text-bg-primary">Real</span>' },
             { data: 'origem', render: v => app.origem(v) },
             { data: 'solicitadoPor', render: v => app.esc(v || '') },
@@ -21,6 +24,7 @@
             { data: 'duracao', render: v => app.duracao(v) },
             { data: 'configVersao', render: v => v ?? '' },
             { data: 'resumoJson', orderable: false, render: (v, t, r) => app.resumo(v, r.erro) }
-        ]);
+        ], { params: () => ({ empresa: $('#filtro-empresa').val() }) });
+        $('#filtro-empresa').on('change', () => grade.ajax.reload());
     </script>
 }

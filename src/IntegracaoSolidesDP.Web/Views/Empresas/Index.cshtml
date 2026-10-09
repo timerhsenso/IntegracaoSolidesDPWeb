@@ -1,0 +1,130 @@
+@model EmpresasViewModel
+@{
+    ViewData["Title"] = "Empresas";
+}
+<p class="small text-body-secondary">
+    Cada empresa do RHSenso é uma conta do Sólides DP, com o seu próprio token. Aqui aparecem as empresas ativas na folha
+    (<code>temp1.flativo = 'S'</code>). Para usar uma empresa que não está na lista, ative-a no RHSenso.
+</p>
+
+@if (Model.ModoUmaEmpresa)
+{
+    <div class="alert alert-warning small">
+        <i class="bi bi-info-circle"></i>
+        Nenhuma empresa foi configurada nesta tela ainda. Enquanto isso, o serviço sincroniza só a empresa do campo
+        <em>Empresa usada antes da tela Empresas</em> da tela Configuração (@(Model.EmpresasIncluidas.Count == 0 ? "vazio" : string.Join(", ", Model.EmpresasIncluidas)))
+        com o token do servidor. <strong>Ao salvar a primeira empresa aqui, passa a valer só o que estiver nesta tela</strong>:
+        cadastre também o token dela.
+    </div>
+}
+
+@if (Model.DryRunGeral)
+{
+    <div class="alert alert-info small">
+        <i class="bi bi-shield-check"></i> O <strong>modo simulação geral</strong> (tela Configuração) está ligado: nenhuma empresa envia de verdade,
+        mesmo com a simulação dela desligada.
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Empresa</th><th>Na integração</th><th>Modo</th><th>Filiais</th><th>Token</th>
+                        <th>Colaboradores no Sólides DP</th><th>Última execução</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var linha in Model.Linhas)
+                    {
+                        <tr class="@(linha.AtivaNaFolha ? "" : "table-warning")">
+                            <td>
+                                <strong>@linha.Cdempresa</strong> @linha.Nome
+                                @if (!linha.AtivaNaFolha)
+                                {
+                                    <div class="small text-danger">Inativa no RHSenso: fora do escopo (nada é enviado nem desligado).</div>
+                                }
+                            </td>
+                            <td>
+                                @if (linha.Habilitada)
+                                {
+                                    <span class="badge text-bg-success">Habilitada</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">@(linha.Config is null ? "Não configurada" : "Desabilitada")</span>
+                                }
+                            </td>
+                            <td>
+                                @if (linha.Config is null)
+                                {
+                                    <span class="text-body-secondary">—</span>
+                                }
+                                else if (linha.Config.DryRun || Model.DryRunGeral)
+                                {
+                                    <span class="badge text-bg-info">Simulação</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-primary">Real</span>
+                                }
+                            </td>
+                            <td class="small">
+                                @(linha.Config is null ? "—" : linha.Config.Filiais.Count == 0 ? "todas" : string.Join(", ", linha.Config.Filiais))
+                            </td>
+                            <td class="small">
+                                @if (linha.TemToken)
+                                {
+                                    <span class="text-success"><i class="bi bi-key-fill"></i> cadastrado</span>
+                                    <div class="text-body-secondary">por @linha.Token!.CriadoPor em @F.Data(linha.Token.CriadoEm)</div>
+                                }
+                                else
+                                {
+                                    <span class="text-body-secondary"><i class="bi bi-key"></i> sem token</span>
+                                }
+                            </td>
+                            <td class="small">
+                                @if (linha.Vinculos is { } v)
+                                {
+                                    <span title="criados pela integração">@v.Criados criados</span>
+                                    <span> · </span>
+                                    <span title="já existiam no Sólides DP e foram vinculados pelo CPF">@v.VinculadosCpf vinculados</span>
+                                    @if (v.Desligados > 0)
+                                    {
+                                        <span> · @v.Desligados desligados</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-body-secondary">—</span>
+                                }
+                            </td>
+                            <td class="small">
+                                @if (linha.UltimaExecucao is { } e)
+                                {
+                                    <a asp-controller="Execucoes" asp-action="Detalhe" asp-route-id="@e.RunId">@F.Data(e.Inicio)</a>
+                                    @Rotulos.Badge(e.Status)
+                                }
+                                else
+                                {
+                                    <span class="text-body-secondary">—</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary text-nowrap" asp-action="Editar" asp-route-id="@linha.Cdempresa">
+                                    <i class="bi @(Model.PodeEditar ? "bi-pencil" : "bi-eye")"></i> @(Model.PodeEditar ? "Configurar" : "Ver")
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Linhas.Count == 0)
+                    {
+                        <tr><td colspan="8" class="text-body-secondary">Nenhuma empresa ativa no RHSenso.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

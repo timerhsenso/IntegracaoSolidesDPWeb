@@ -1,19 +1,35 @@
-@model Execucao?
+@model PendenciasViewModel
 @{
     ViewData["Title"] = "Pendências";
+    var execucao = Model.Execucao;
 }
-@if (Model is null)
+<form method="get" class="mb-3 d-flex gap-2 align-items-center">
+    <label for="empresa" class="small">Empresa</label>
+    <select id="empresa" name="empresa" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+        <option value="">A última execução de qualquer empresa</option>
+        @foreach (var empresa in Model.Empresas)
+        {
+            <option value="@empresa.Cdempresa" selected="@(empresa.Cdempresa == Model.Empresa)">@empresa.Cdempresa · @empresa.Nome</option>
+        }
+    </select>
+</form>
+@if (execucao is null)
 {
-    <div class="alert alert-info">Ainda não há execuções.</div>
+    <div class="alert alert-info">Ainda não há execuções@(Model.Empresa is null ? "" : " desta empresa").</div>
     return;
 }
 <div class="alert alert-light border small">
-    Itens da execução de <a asp-controller="Execucoes" asp-action="Detalhe" asp-route-id="@Model.RunId">@F.Data(Model.Inicio)</a>
-    (@(Model.DryRun ? "simulação" : "real"), @Rotulos.Badge(Model.Status)) que pedem atenção: falhas, bloqueios, ignorados, avisos e adiados.
+    Itens da execução de <a asp-controller="Execucoes" asp-action="Detalhe" asp-route-id="@execucao.RunId">@F.Data(execucao.Inicio)</a>
+    @(execucao.Cdempresa is { } cdempresa ? $"da empresa {cdempresa} " : "")(@(execucao.DryRun ? "simulação" : "real"), @Rotulos.Badge(execucao.Status))
+    que pedem atenção: falhas, bloqueios, ignorados, avisos e adiados.
     A maioria se resolve corrigindo o cadastro no RHSenso (CPF, cargo, filial...); a próxima execução reenvia.
 </div>
+@if (execucao.Erro is not null)
+{
+    <div class="alert alert-danger small"><pre class="mb-0 mensagem">@execucao.Erro</pre></div>
+}
 <div class="card">
     <div class="card-body">
-        <partial name="_ItensExecucao" model="new ItensExecucaoModel(Model.RunId, true)" />
+        <partial name="_ItensExecucao" model="new ItensExecucaoModel(execucao.RunId, true)" />
     </div>
 </div>

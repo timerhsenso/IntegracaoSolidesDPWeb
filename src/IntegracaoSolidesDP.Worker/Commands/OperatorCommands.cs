@@ -28,7 +28,10 @@ public sealed class OperatorCommands(
 {
     private static readonly string[] RequiredTables = ["func1", "cargo1", "temp1", "test1", "tcus1", "tsitu1", "feria2"];
 
-    public async Task<int> CheckConfigAsync(CancellationToken ct)
+    public Task<int> CheckConfigAsync(CancellationToken ct) => CheckConfigAsync(cdempresa: null, ct);
+
+    /// <summary>Confere banco, configuração e token; com <paramref name="cdempresa"/>, só aquela empresa.</summary>
+    public async Task<int> CheckConfigAsync(int? cdempresa, CancellationToken ct)
     {
         // As options já foram validadas no start (ValidateOnStart); aqui confere os recursos externos.
         var ok = true;
@@ -88,12 +91,16 @@ public sealed class OperatorCommands(
             return 1;
         }
 
-        if (settings.Empresas.Count == 0)
+        var empresas = settings.Empresas.Where(e => cdempresa is null || e.Cdempresa == cdempresa).ToList();
+        if (empresas.Count == 0)
         {
-            await output.WriteLineAsync("[--] Nenhuma empresa habilitada: nada será sincronizado (habilite na tela Empresas da Web)");
+            ok &= cdempresa is null;
+            await output.WriteLineAsync(cdempresa is { } pedida
+                ? FormattableString.Invariant($"[ERRO] A empresa {pedida} não está habilitada na integração (tela Empresas da Web)")
+                : "[--] Nenhuma empresa habilitada: nada será sincronizado (habilite na tela Empresas da Web)");
         }
 
-        foreach (var empresa in settings.Empresas)
+        foreach (var empresa in empresas)
         {
             var options = empresa.Options;
             var filiais = empresa.Filiais.Count == 0 ? "todas as filiais ativas" : $"filiais {string.Join(", ", empresa.Filiais.Order())}";

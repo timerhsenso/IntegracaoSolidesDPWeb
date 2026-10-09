@@ -1,16 +1,20 @@
 @* Ajuda › O que foi migrado *@
 <p>
-    O retrato do que a integração mantém hoje no Sólides DP, com o id de cada registro lá. Há uma aba para cada tipo:
-    <strong>Colaborador</strong>, <strong>Cargo</strong>, <strong>Local de trabalho</strong> e <strong>Férias</strong>.
+    O retrato do que a integração mantém vinculado no Sólides DP de cada empresa, com o id de cada registro lá. Há uma aba para cada tipo:
+    <strong>Colaborador</strong>, <strong>Cargo</strong>, <strong>Local de trabalho</strong> e <strong>Férias</strong>, e um filtro de empresa.
 </p>
 
 <h4>Como ler</h4>
 <dl class="ajuda-def">
-    <dt>Código</dt>
+    <dt>Empresa</dt><dd>A empresa do RHSenso, ou seja, a conta do Sólides DP onde o registro está.</dd>
+    <dt>Matrícula / Código</dt>
     <dd>
-        A chave do registro na integração. Colaborador: <code>empresa-matrícula</code> (ex.: <code>14-00901482</code>).
+        Colaborador: <code>empresa-matrícula</code> (ex.: <code>15-00007811</code>); a identidade de verdade é o CPF, que não aparece na tela.
         Cargo: o código do cargo. Local: <code>empresa-filial</code>.
     </dd>
+    <dt>Origem</dt>
+    <dd>Só em Colaborador: <em>Criado pela integração</em>, ou <em>Vinculado pelo CPF</em> quando a pessoa já estava cadastrada no Sólides DP.</dd>
+    <dt>Código Externo</dt><dd>Só em Colaborador: o Código Externo que está no Sólides DP (veja as regras em "Como a integração decide").</dd>
     <dt>Id no DP</dt><dd>O número do registro no Sólides DP. Use para encontrar o mesmo cadastro lá.</dd>
     <dt>Status</dt>
     <dd>
@@ -27,5 +31,5 @@
     "quando esta pessoa foi criada no DP?" ou "por que as férias dela não foram?".
 </p>
 <p class="small text-body-secondary mb-0">
-    Só aparecem registros que a integração criou ou adotou. Cadastros feitos direto no Sólides DP, sem passar pela integração, não estão aqui.
+    Só aparecem registros que a integração criou ou vinculou. Cadastros feitos direto no Sólides DP que não têm correspondente no RHSenso não estão aqui.
 </p>

@@ -23,7 +23,12 @@ public static class WebRegistration
         // (e não no registro) para valer a configuração final, inclusive a dos testes.
         services.AddSingleton(sp => new ConnectionFactory(ConnectionString(sp.GetRequiredService<IConfiguration>())));
         services.AddSingleton<IManagementStore, SqlManagementStore>();
+        services.AddSingleton<ITokenProtector>(sp => new TokenProtector(new TokenProtectionOptions
+        {
+            ChaveBase64 = sp.GetRequiredService<IOptions<WebOptions>>().Value.ChaveTokens,
+        }));
         services.AddScoped<PainelRepository>();
+        services.AddScoped<EmpresasRepository>();
         services.AddScoped<Auditoria>();
         services.AddScoped<GestaoService>();
         services.AddSingleton<Formatador>();

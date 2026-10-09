@@ -35,7 +35,20 @@ public sealed class ExecucaoDetalheViewModel
         new Dictionary<string, IReadOnlyDictionary<string, int>>();
 }
 
-public sealed record MigradosViewModel(string Tipo);
+public sealed record MigradosViewModel(string Tipo)
+{
+    public IReadOnlyList<EmpresaRhsenso> Empresas { get; init; } = [];
+}
+
+public sealed class PendenciasViewModel
+{
+    public Execucao? Execucao { get; init; }
+    public IReadOnlyList<EmpresaRhsenso> Empresas { get; init; } = [];
+    public int? Empresa { get; init; }
+}
+
+/// <summary>Seleção de empresa das grades.</summary>
+public sealed record FiltroEmpresaModel(string Id, IReadOnlyList<EmpresaRhsenso> Empresas, int? Selecionada = null, string Todas = "Todas as empresas");
 
 public sealed class HistoricoViewModel
 {

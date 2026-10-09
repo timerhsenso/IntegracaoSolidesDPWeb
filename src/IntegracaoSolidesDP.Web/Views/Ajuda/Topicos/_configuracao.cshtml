@@ -40,8 +40,9 @@
 @{
     Campo(nameof(ConfiguracaoForm.DryRun), @<text>
         <p class="mb-1">
-            Com a simulação ligada, toda execução, inclusive a agendada, só gera o relatório. Para o envio real é preciso
-            desligar a simulação <strong>e</strong> ter a data de go-live preenchida. O Painel mostra qual modo está valendo.
+            Com a simulação ligada, toda execução, inclusive a agendada, só gera o relatório. Nada é gravado no Sólides DP; se a empresa
+            tiver token, a simulação só <strong>consulta</strong> quem já está lá, para mostrar quem seria vinculado pelo CPF e quem seria criado.
+            Para o envio real é preciso desligar a simulação aqui <strong>e</strong> na empresa (tela Empresas) e ter a data de go-live.
         </p>
     </text>);
     Campo(nameof(ConfiguracaoForm.GoLiveDate), @<text>
@@ -65,7 +66,10 @@
 @{
     Campo(nameof(ConfiguracaoForm.TiposColaborador));
     Campo(nameof(ConfiguracaoForm.EmpresasIncluidas), @<text>
-        <p class="mb-1">Vazio = todas as empresas. Usado na liberação gradual (roteiro de implantação, passo 7).</p>
+        <p class="mb-1">
+            Só para a fase antes da tela <a asp-controller="Ajuda" asp-action="Index" asp-fragment="empresas">Empresas</a>: com uma empresa aqui,
+            o serviço sincroniza essa empresa com o token do servidor. Assim que uma empresa for salva na tela Empresas, este campo deixa de valer.
+        </p>
     </text>);
     Campo(nameof(ConfiguracaoForm.SituacaoTransferido), @<text>
         <p class="mb-1">
@@ -77,12 +81,8 @@
     Campo(nameof(ConfiguracaoForm.SituacoesIgnoradas));
     Campo(nameof(ConfiguracaoForm.ExternalIdAllowList), @<text>
         <p class="mb-1">
-            Vazio = todos. Preenchido, <strong>só</strong> essas pessoas são enviadas e o resto fica de fora. Limpe o campo ao terminar o piloto.
-        </p>
-    </text>);
-    Campo(nameof(ConfiguracaoForm.AllowDoubleBind), @<text>
-        <p class="mb-1">
-            Ligue só se a mesma pessoa tiver de fato dois vínculos ativos ao mesmo tempo. Ligado, os dois cadastros são enviados como duplo vínculo.
+            Vazio = todos. Preenchido, <strong>só</strong> essas pessoas são enviadas e o resto fica de fora (inclusive desligamentos e férias).
+            Cada linha pode ser o CPF, a matrícula ou <code>empresa-matrícula</code>. Limpe o campo ao terminar o piloto.
         </p>
     </text>);
 }
