@@ -30,7 +30,7 @@ public static class AjudaTopicos
         new("migrados", "O que foi migrado", "bi-people", "Migrados"),
         new("pendencias", "Pendências", "bi-exclamation-triangle", "Pendencias"),
         new("pedidos", "Pedidos ao serviço", "bi-terminal", "Comandos"),
-        new("configuracao", "Configuração", "bi-sliders", "Configuracao"),
+        new("configuracao", "Regras gerais", "bi-sliders", "Configuracao"),
         new("usuarios", "Usuários", "bi-person-gear", "Usuarios"),
         new("auditoria", "Auditoria", "bi-journal-text", "Auditoria"),
         new("regras", "Como a integração decide", "bi-diagram-3"),

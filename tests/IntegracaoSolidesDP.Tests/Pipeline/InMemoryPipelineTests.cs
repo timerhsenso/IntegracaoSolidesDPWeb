@@ -9,6 +9,8 @@ namespace IntegracaoSolidesDP.Tests.Pipeline;
 /// <summary>Identidade por CPF, Código Externo, escopo e contas por empresa, de ponta a ponta contra o fake.</summary>
 public sealed class InMemoryPipelineTests : IAsyncLifetime
 {
+    private static readonly DateOnly GoLive = new(2026, 1, 1);
+
     private readonly InMemoryPipeline _pipeline = new();
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -181,7 +183,7 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
     {
         _pipeline.Source.Workplaces.Add(new WorkplaceRow { Cdempresa = 1, Cdfilial = 2, NomeFantasia = "FILIAL 2", Cnpj = "00594807000108", Ativa = true });
         _pipeline.Management.Configure(
-            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, Filiais = [1] }],
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = GoLive, Filiais = [1] }],
             new Dictionary<int, string> { [1] = InMemoryPipeline.Token },
             Rules());
         _pipeline.Settings["Gestao:Habilitada"] = "true";
@@ -221,8 +223,8 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000002", empresa: 15, cpf: TestData.Cpf2));
         _pipeline.Management.Configure(
             [
-                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false },
-                new EmpresaConfiguracao { Cdempresa = 15, Habilitada = true, DryRun = false },
+                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = GoLive },
+                new EmpresaConfiguracao { Cdempresa = 15, Habilitada = true, DryRun = false, GoLiveDate = GoLive },
             ],
             new Dictionary<int, string> { [1] = InMemoryPipeline.Token, [15] = InMemoryPipeline.Token2 },
             Rules());
@@ -245,8 +247,8 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001", empresa: 1));
         _pipeline.Management.Configure(
             [
-                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false },
-                new EmpresaConfiguracao { Cdempresa = 15, Habilitada = true, DryRun = false },
+                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = GoLive },
+                new EmpresaConfiguracao { Cdempresa = 15, Habilitada = true, DryRun = false, GoLiveDate = GoLive },
             ],
             new Dictionary<int, string> { [1] = InMemoryPipeline.Token },
             Rules());
@@ -265,8 +267,8 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001", empresa: 1));
         _pipeline.Management.Configure(
             [
-                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = false, DryRun = false },
-                new EmpresaConfiguracao { Cdempresa = 20, Habilitada = true, DryRun = false },
+                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = false, DryRun = false, GoLiveDate = GoLive },
+                new EmpresaConfiguracao { Cdempresa = 20, Habilitada = true, DryRun = false, GoLiveDate = GoLive },
             ],
             new Dictionary<int, string> { [1] = InMemoryPipeline.Token, [20] = InMemoryPipeline.Token2 },
             Rules());

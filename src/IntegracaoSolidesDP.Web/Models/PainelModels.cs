@@ -7,7 +7,6 @@ public sealed class PainelViewModel
 {
     public bool GestaoPreparada { get; init; }
     public ConfigurationVersion? Configuracao { get; init; }
-    public bool? DryRunConfigurado { get; init; }
     public Execucao? EmAndamento { get; init; }
     public Execucao? UltimaExecucao { get; init; }
     public Execucao? UltimaExecucaoReal { get; init; }

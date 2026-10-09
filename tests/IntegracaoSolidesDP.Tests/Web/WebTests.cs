@@ -125,21 +125,24 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
         var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Admin));
         var campos = new Dictionary<string, string>
         {
-            ["Form.DryRun"] = "false",
-            ["Form.TiposColaborador"] = "1, 2",
-            ["Form.Observacao"] = "liberar envio real",
+            ["Form.TiposColaborador"] = "1, x",
+            ["Form.MaxCreatesPerRun"] = "50",
+            ["Form.Observacao"] = "trava menor na carga inicial",
         };
 
         var invalida = await WebHarness.PostFormAsync(client, "/Configuracao", "/Configuracao/Salvar", new(campos));
-        campos["Form.GoLiveDate"] = "2026-11-01";
+        campos["Form.TiposColaborador"] = "1, 2, 3";
         var valida = await WebHarness.PostFormAsync(client, "/Configuracao", "/Configuracao/Salvar", new(campos));
 
-        invalida.StatusCode.Should().Be(HttpStatusCode.OK, "sem go-live o envio real é recusado");
-        (await invalida.Content.ReadAsStringAsync(Ct)).Should().Contain("GoLiveDate");
+        invalida.StatusCode.Should().Be(HttpStatusCode.OK, "\"x\" não é um tipo de colaborador");
+        (await invalida.Content.ReadAsStringAsync(Ct)).Should().Contain("não é um número");
         valida.StatusCode.Should().Be(HttpStatusCode.Redirect);
         var atual = await _store.GetCurrentConfigurationAsync("default", Ct);
         atual!.Version.Should().Be(1);
-        SyncOptionsJson.Deserialize(atual.SyncJson).GoLiveDate.Should().Be(new DateOnly(2026, 11, 1));
+        var regras = SyncOptionsJson.Deserialize(atual.SyncJson);
+        regras.TiposColaborador.Should().Equal(1, 2, 3);
+        regras.MaxCreatesPerRun.Should().Be(50);
+        regras.DryRun.Should().BeTrue("a simulação é decidida por empresa; a regra geral fica sempre em simulação");
     }
 
     [Fact]

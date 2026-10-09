@@ -1,10 +1,8 @@
-using System.Text.Json;
 using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Identity;
 using IntegracaoSolidesDP.Web.Infrastructure;
 using IntegracaoSolidesDP.Web.Models;
 using IntegracaoSolidesDP.Worker.Management;
-using IntegracaoSolidesDP.Worker.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,7 +24,6 @@ public sealed class EmpresasController(
     {
         var ct = HttpContext.RequestAborted;
         var atual = await gestao.ConfiguracaoAtualAsync(ct);
-        var geral = Regras(atual);
         var ativas = await empresas.EmpresasAtivasAsync(ct);
         var tokens = await gestao.TokensAsync(ct);
         var vinculos = await empresas.VinculosAsync(ct);
@@ -49,8 +46,6 @@ public sealed class EmpresasController(
         {
             Linhas = linhas,
             Configuracao = atual,
-            DryRunGeral = geral.DryRun,
-            EmpresasIncluidas = geral.EmpresasIncluidas.ToList(),
             PodeEditar = User.IsInRole(Perfis.Admin),
         });
 
@@ -95,6 +90,12 @@ public sealed class EmpresasController(
 
         var disponiveis = modelo.FiliaisDisponiveis.Select(f => f.Cdfilial).ToHashSet();
         var invalidas = form.Filiais.Where(f => !disponiveis.Contains(f)).ToList();
+        if ((form.Piloto ?? string.Empty).Split(['\r', '\n', ',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(i => i.Length > 32))
+        {
+            ModelState.AddModelError("Form.Piloto", "Cada linha do piloto deve ter um CPF, uma matrícula ou empresa-matrícula.");
+        }
+
         if (invalidas.Count > 0)
         {
             ModelState.AddModelError("Form.Filiais", $"Filiais que não estão ativas no RHSenso: {string.Join(", ", invalidas)}.");
@@ -176,7 +177,6 @@ public sealed class EmpresasController(
             return null;
         }
 
-        var geral = Regras(atual);
         var tokens = await gestao.TokensAsync(ct);
         form.Cdempresa = id;
         return new EmpresaEditarViewModel
@@ -188,27 +188,9 @@ public sealed class EmpresasController(
             Token = tokens.GetValueOrDefault(id),
             Vinculos = (await empresas.VinculosAsync(ct)).GetValueOrDefault(id),
             UltimaExecucao = await painel.UltimaExecucaoAsync(somenteReal: false, ct, id),
-            DryRunGeral = geral.DryRun,
-            GoLiveGeral = geral.GoLiveDate,
+            IntegracaoDesativada = atual is { Active: false },
             PodeEditar = User.IsInRole(Perfis.Admin),
             PodeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin),
         };
-    }
-
-    private static SyncOptions Regras(ConfigurationVersion? atual)
-    {
-        if (atual is null)
-        {
-            return new SyncOptions();
-        }
-
-        try
-        {
-            return SyncOptionsJson.Deserialize(atual.SyncJson);
-        }
-        catch (JsonException)
-        {
-            return new SyncOptions();
-        }
     }
 }

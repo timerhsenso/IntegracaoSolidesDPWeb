@@ -99,6 +99,20 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
                 REFERENCES solidesdp.configuracao_empresa (configuracao_id, cdempresa)
         );
 
+        IF COL_LENGTH(N'solidesdp.configuracao_empresa', N'criar_empresas') IS NULL
+            ALTER TABLE solidesdp.configuracao_empresa ADD criar_empresas bit NOT NULL
+                CONSTRAINT df_solidesdp_configuracao_empresa_criar DEFAULT 0;
+
+        IF OBJECT_ID(N'solidesdp.configuracao_piloto', N'U') IS NULL
+        CREATE TABLE solidesdp.configuracao_piloto (
+            configuracao_id   int           NOT NULL,
+            cdempresa         int           NOT NULL,
+            item              nvarchar(32)  NOT NULL,
+            CONSTRAINT pk_solidesdp_configuracao_piloto PRIMARY KEY (configuracao_id, cdempresa, item),
+            CONSTRAINT fk_solidesdp_configuracao_piloto_empresa FOREIGN KEY (configuracao_id, cdempresa)
+                REFERENCES solidesdp.configuracao_empresa (configuracao_id, cdempresa)
+        );
+
         IF OBJECT_ID(N'solidesdp.empresa_token', N'U') IS NULL
         BEGIN
             CREATE TABLE solidesdp.empresa_token (
@@ -181,7 +195,8 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
     {
         var empresas = await connection.QueryAsync<EmpresaRow>(new CommandDefinition("""
             SELECT cdempresa AS Cdempresa, habilitada AS Habilitada, dry_run AS DryRun, go_live AS GoLive,
-                   escala_externa AS Escala, regra_externa AS Regra, motivo_ferias_id AS MotivoFerias, modo_empresa AS ModoEmpresa
+                   escala_externa AS Escala, regra_externa AS Regra, motivo_ferias_id AS MotivoFerias, modo_empresa AS ModoEmpresa,
+                   criar_empresas AS CriarEmpresas
             FROM solidesdp.configuracao_empresa
             WHERE configuracao_id = @Id
             ORDER BY cdempresa
@@ -190,6 +205,10 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             SELECT cdempresa, cdfilial FROM solidesdp.configuracao_filial WHERE configuracao_id = @Id ORDER BY cdempresa, cdfilial
             """, new { Id = configuracaoId }, cancellationToken: ct)))
             .ToLookup(f => f.Cdempresa, f => f.Cdfilial);
+        var piloto = (await connection.QueryAsync<(int Cdempresa, string Item)>(new CommandDefinition("""
+            SELECT cdempresa, item FROM solidesdp.configuracao_piloto WHERE configuracao_id = @Id ORDER BY cdempresa, item
+            """, new { Id = configuracaoId }, cancellationToken: ct)))
+            .ToLookup(p => p.Cdempresa, p => p.Item);
 
         return empresas.Select(e => new EmpresaConfiguracao
         {
@@ -201,7 +220,9 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             PunchRuleExternalId = e.Regra,
             FeriasMotivoId = e.MotivoFerias,
             ModoEmpresa = e.ModoEmpresa,
+            CriarEmpresasFaltantes = e.CriarEmpresas,
             Filiais = filiais[e.Cdempresa].ToList(),
+            Piloto = piloto[e.Cdempresa].ToList(),
         }).ToList();
     }
 
@@ -261,14 +282,19 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
                     ORDER BY versao DESC);
 
                 INSERT INTO solidesdp.configuracao_empresa
-                    (configuracao_id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa)
-                SELECT @Id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa
+                    (configuracao_id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa, criar_empresas)
+                SELECT @Id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa, criar_empresas
                 FROM solidesdp.configuracao_empresa
                 WHERE configuracao_id = @Anterior;
 
                 INSERT INTO solidesdp.configuracao_filial (configuracao_id, cdempresa, cdfilial)
                 SELECT @Id, cdempresa, cdfilial
                 FROM solidesdp.configuracao_filial
+                WHERE configuracao_id = @Anterior;
+
+                INSERT INTO solidesdp.configuracao_piloto (configuracao_id, cdempresa, item)
+                SELECT @Id, cdempresa, item
+                FROM solidesdp.configuracao_piloto
                 WHERE configuracao_id = @Anterior;
                 """,
                 new { InstanceName = instanceName, inserted.Id, inserted.Versao },
@@ -279,8 +305,8 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         {
             await connection.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO solidesdp.configuracao_empresa
-                    (configuracao_id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa)
-                VALUES (@Id, @Cdempresa, @Habilitada, @DryRun, @GoLive, @Escala, @Regra, @MotivoFerias, @ModoEmpresa);
+                    (configuracao_id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa, criar_empresas)
+                VALUES (@Id, @Cdempresa, @Habilitada, @DryRun, @GoLive, @Escala, @Regra, @MotivoFerias, @ModoEmpresa, @CriarEmpresas);
                 """,
                 empresas.Select(e => new
                 {
@@ -293,6 +319,7 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
                     Regra = Vazio(e.PunchRuleExternalId),
                     MotivoFerias = e.FeriasMotivoId,
                     ModoEmpresa = Vazio(e.ModoEmpresa),
+                    CriarEmpresas = e.CriarEmpresasFaltantes,
                 }),
                 transaction,
                 cancellationToken: ct));
@@ -301,6 +328,17 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
                 INSERT INTO solidesdp.configuracao_filial (configuracao_id, cdempresa, cdfilial) VALUES (@Id, @Cdempresa, @Cdfilial);
                 """,
                 empresas.SelectMany(e => e.Filiais.Distinct().Select(f => new { inserted.Id, e.Cdempresa, Cdfilial = f })),
+                transaction,
+                cancellationToken: ct));
+
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO solidesdp.configuracao_piloto (configuracao_id, cdempresa, item) VALUES (@Id, @Cdempresa, @Item);
+                """,
+                empresas.SelectMany(e => e.Piloto
+                    .Select(p => p.Trim())
+                    .Where(p => p.Length > 0)
+                    .Distinct(StringComparer.Ordinal)
+                    .Select(p => new { inserted.Id, e.Cdempresa, Item = p })),
                 transaction,
                 cancellationToken: ct));
         }
@@ -419,6 +457,7 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         public string? Regra { get; init; }
         public long? MotivoFerias { get; init; }
         public string? ModoEmpresa { get; init; }
+        public bool CriarEmpresas { get; init; }
     }
 
     /// <summary>MS_Description das tabelas da gestão (idempotente).</summary>
@@ -430,11 +469,14 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         ("configuracao_empresa", "cdempresa", "Empresa do RHSenso (dbo.temp1.cdempresa)."),
         ("configuracao_empresa", "habilitada", "1 = a integração sincroniza esta empresa."),
         ("configuracao_empresa", "dry_run", "1 = só simula esta empresa (não envia ao Sólides DP)."),
-        ("configuracao_empresa", "go_live", "Início do uso do Sólides DP nesta empresa; vazio = data geral da configuração."),
+        ("configuracao_empresa", "go_live", "Início do uso do Sólides DP nesta empresa. Obrigatória para o envio real."),
         ("configuracao_empresa", "escala_externa", "externalId da escala dos novos colaboradores; vazio = padrão da conta."),
         ("configuracao_empresa", "regra_externa", "externalId da regra de ponto dos novos colaboradores; vazio = padrão da conta."),
         ("configuracao_empresa", "motivo_ferias_id", "Id do motivo de ajuste FÉRIAS na conta; vazio = descobrir pela descrição."),
-        ("configuracao_empresa", "modo_empresa", "Nenhuma (conta com uma só empresa) ou PorCnpj; vazio = regra geral."),
+        ("configuracao_empresa", "modo_empresa", "Nenhuma (conta com uma só empresa) ou PorCnpj (padrão)."),
+        ("configuracao_empresa", "criar_empresas", "1 = cria no Sólides DP a empresa (CNPJ da filial) que não existir na conta."),
+        ("configuracao_piloto", null, "Piloto da empresa naquela versão: só estes colaboradores (CPF, matrícula ou empresa-matrícula). Nenhuma linha = todos."),
+        ("configuracao_piloto", "item", "CPF, matrícula ou empresa-matrícula de um colaborador do piloto."),
         ("configuracao_filial", null, "Filiais (dbo.test1) que entram na empresa naquela versão. Nenhuma linha = todas as filiais."),
         ("configuracao_filial", "cdfilial", "Filial do RHSenso (dbo.test1.cdfilial)."),
         ("empresa_token", null, "Token do Sólides DP de cada empresa (só INSERT; vale a linha mais recente). Cifrado: a chave fica fora do banco."),

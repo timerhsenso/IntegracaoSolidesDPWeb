@@ -43,6 +43,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
             DELETE FROM dbo.feria2; DELETE FROM dbo.func1; DELETE FROM dbo.test1; DELETE FROM dbo.temp1; DELETE FROM dbo.cargo1; DELETE FROM dbo.tcus1;
             IF OBJECT_ID('solidesdp.comando') IS NOT NULL DROP TABLE solidesdp.comando;
             IF OBJECT_ID('solidesdp.empresa_token') IS NOT NULL DROP TABLE solidesdp.empresa_token;
+            IF OBJECT_ID('solidesdp.configuracao_piloto') IS NOT NULL DROP TABLE solidesdp.configuracao_piloto;
             IF OBJECT_ID('solidesdp.configuracao_filial') IS NOT NULL DROP TABLE solidesdp.configuracao_filial;
             IF OBJECT_ID('solidesdp.configuracao_empresa') IS NOT NULL DROP TABLE solidesdp.configuracao_empresa;
             IF OBJECT_ID('solidesdp.configuracao') IS NOT NULL DROP TABLE solidesdp.configuracao;

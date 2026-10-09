@@ -1,8 +1,6 @@
-using System.Text.Json;
 using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Infrastructure;
 using IntegracaoSolidesDP.Web.Models;
-using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.State;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,7 +29,6 @@ public sealed class PainelController(PainelRepository painel, GestaoService gest
         {
             GestaoPreparada = true,
             Configuracao = configuracao,
-            DryRunConfigurado = DryRun(configuracao),
             EmAndamento = await painel.ExecucaoEmAndamentoAsync(ct),
             UltimaExecucao = await painel.UltimaExecucaoAsync(somenteReal: false, ct),
             UltimaExecucaoReal = ultimaReal,
@@ -52,22 +49,5 @@ public sealed class PainelController(PainelRepository painel, GestaoService gest
             ComandosRecentes = await painel.ComandosRecentesAsync(8, ct),
             PedidoParadoDesde = aguardandoDesde is { } desde && clock.GetUtcNow() - desde > TimeSpan.FromMinutes(2) ? desde : null,
         });
-    }
-
-    private static bool? DryRun(ConfigurationVersion? configuracao)
-    {
-        if (configuracao is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            return SyncOptionsJson.Deserialize(configuracao.SyncJson).DryRun;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 }

@@ -28,7 +28,7 @@ public sealed class EmpresasWebTests(SqlServerFixture db) : IAsyncLifetime
         await _seed.FilialAsync(empresa: 15, filial: 2, nome: "ADN CAMACARI", cnpj: "00594807000361");
         await _seed.FilialAsync(empresa: 15, filial: 3, nome: "FILIAL INATIVA", cnpj: "11222333000181", ativa: false);
         await _store.SeedConfigurationAsync("default",
-            SyncOptionsJson.Serialize(new SyncOptions { GoLiveDate = new DateOnly(2026, 11, 1) }), Ct);
+            SyncOptionsJson.Serialize(new SyncOptions()), Ct);
         _web = new WebHarness(db);
     }
 
@@ -63,7 +63,28 @@ public sealed class EmpresasWebTests(SqlServerFixture db) : IAsyncLifetime
         empresa.Habilitada.Should().BeTrue();
         empresa.DryRun.Should().BeTrue();
         empresa.Filiais.Should().Equal(2);
+        empresa.Piloto.Should().Equal("15-00007811", "12345678901");
+        empresa.ModoEmpresa.Should().Be(ModosEmpresa.PorCnpj);
         (await AcoesAsync(login)).Should().Contain(AcoesAuditoria.EmpresaAlterada);
+    }
+
+    [Fact]
+    public async Task Real_sending_requires_the_company_go_live()
+    {
+        var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Admin));
+        var campos = Campos(filial: 2);
+        campos["Form.DryRun"] = "false";
+
+        var semGoLive = await WebHarness.PostFormAsync(client, Pagina, "/Empresas/Salvar", new(campos));
+        campos["Form.GoLiveDate"] = "2026-11-01";
+        var comGoLive = await WebHarness.PostFormAsync(client, Pagina, "/Empresas/Salvar", new(campos));
+
+        semGoLive.StatusCode.Should().Be(HttpStatusCode.OK, "sem go-live a simulação não pode ser desligada");
+        (await semGoLive.Content.ReadAsStringAsync(Ct)).Should().Contain("go-live");
+        comGoLive.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        var empresa = (await _store.GetCurrentConfigurationAsync("default", Ct))!.Empresas.Single();
+        empresa.DryRun.Should().BeFalse();
+        empresa.GoLiveDate.Should().Be(new DateOnly(2026, 11, 1));
     }
 
     [Fact]
@@ -113,6 +134,8 @@ public sealed class EmpresasWebTests(SqlServerFixture db) : IAsyncLifetime
         ["Form.Habilitada"] = "true",
         ["Form.DryRun"] = "true",
         ["Form.Filiais"] = filial.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        ["Form.ModoEmpresa"] = ModosEmpresa.PorCnpj,
+        ["Form.Piloto"] = "15-00007811\n 12345678901 ;",
         ["Form.Observacao"] = "piloto da empresa 15",
     };
 

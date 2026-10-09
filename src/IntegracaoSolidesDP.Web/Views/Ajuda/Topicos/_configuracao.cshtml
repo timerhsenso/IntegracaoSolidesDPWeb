@@ -1,4 +1,4 @@
-@* Ajuda › Configuração. Nome, dica e padrão de cada campo vêm de CamposConfiguracao (atributos do formulário). *@
+@* Ajuda › Regras gerais. Nome, dica e padrão de cada campo vêm de CamposConfiguracao (atributos do formulário). *@
 @{
     void Campo(string propriedade, Func<dynamic, object>? detalhe = null)
     {
@@ -15,9 +15,14 @@
     }
 }
 <p>
-    As regras da integração: quem entra, como é enviado e quais travas valem. Todos os perfis veem.
-    Só o <span class="badge text-bg-dark">Admin</span> altera.
+    As regras que <strong>valem para todas as empresas</strong>: quem entra, desligamentos, férias e as travas de segurança.
+    Todos os perfis veem. Só o <span class="badge text-bg-dark">Admin</span> altera.
 </p>
+<div class="alert alert-light border small">
+    <i class="bi bi-buildings"></i> O que é de cada empresa (habilitada, <strong>simulação</strong>, <strong>go-live</strong>, filiais,
+    <strong>piloto</strong>, token, escala, regra de ponto, motivo FÉRIAS, empresa no Sólides DP) fica na tela
+    <a asp-controller="Ajuda" asp-action="Index" asp-fragment="empresas">Empresas</a>. Para parar tudo, use <strong>Desativar</strong> no Painel.
+</div>
 
 <h4>Como funciona o salvamento</h4>
 <ul>
@@ -33,28 +38,15 @@
 </ul>
 <p class="small text-body-secondary">
     Enquanto ninguém salvou nada, vale o arquivo de configuração do serviço, e a primeira execução do serviço cria a versão 1 a partir dele.
-    Listas (tipos, empresas, situações, piloto) podem ser digitadas separadas por vírgula, espaço ou uma por linha.
+    Listas (tipos, situações) podem ser digitadas separadas por vírgula, espaço ou uma por linha.
 </p>
 
-<h4>Envio</h4>
+<h4>Travas de segurança</h4>
 @{
-    Campo(nameof(ConfiguracaoForm.DryRun), @<text>
-        <p class="mb-1">
-            Com a simulação ligada, toda execução, inclusive a agendada, só gera o relatório. Nada é gravado no Sólides DP; se a empresa
-            tiver token, a simulação só <strong>consulta</strong> quem já está lá, para mostrar quem seria vinculado pelo CPF e quem seria criado.
-            Para o envio real é preciso desligar a simulação aqui <strong>e</strong> na empresa (tela Empresas) e ter a data de go-live.
-        </p>
-    </text>);
-    Campo(nameof(ConfiguracaoForm.GoLiveDate), @<text>
-        <p class="mb-1">
-            Para quem foi admitido antes desta data, o Sólides DP considera esta data como início (de contrato, escala e regra),
-            e assim não calcula ponto de um período em que o Sólides DP ainda não era usado. Quem for admitido depois começa na própria admissão.
-        </p>
-    </text>);
     Campo(nameof(ConfiguracaoForm.MaxCreatesPerRun), @<text>
         <p class="mb-1">
-            Protege contra um erro de configuração que mandaria a empresa inteira de uma vez. Na carga inicial de uma empresa grande,
-            aumente o valor temporariamente e volte ao normal depois. O limite não vale para simulação.
+            Protege contra um erro de configuração que mandaria a empresa inteira de uma vez. Vale por empresa, em cada execução.
+            Na carga inicial de uma empresa grande, aumente o valor temporariamente e volte ao normal depois. O limite não vale para simulação.
         </p>
     </text>);
     Campo(nameof(ConfiguracaoForm.MaxCancellationsPerRun), @<text>
@@ -65,12 +57,6 @@
 <h4>Quem entra</h4>
 @{
     Campo(nameof(ConfiguracaoForm.TiposColaborador));
-    Campo(nameof(ConfiguracaoForm.EmpresasIncluidas), @<text>
-        <p class="mb-1">
-            Só para a fase antes da tela <a asp-controller="Ajuda" asp-action="Index" asp-fragment="empresas">Empresas</a>: com uma empresa aqui,
-            o serviço sincroniza essa empresa com o token do servidor. Assim que uma empresa for salva na tela Empresas, este campo deixa de valer.
-        </p>
-    </text>);
     Campo(nameof(ConfiguracaoForm.SituacaoTransferido), @<text>
         <p class="mb-1">
             Com esta situação, a saída da pessoa é tratada como transferência. Para outra filial da mesma empresa, o colaborador continua
@@ -79,36 +65,12 @@
         </p>
     </text>);
     Campo(nameof(ConfiguracaoForm.SituacoesIgnoradas));
-    Campo(nameof(ConfiguracaoForm.ExternalIdAllowList), @<text>
-        <p class="mb-1">
-            Vazio = todos. Preenchido, <strong>só</strong> essas pessoas são enviadas e o resto fica de fora (inclusive desligamentos e férias).
-            Cada linha pode ser o CPF, a matrícula ou <code>empresa-matrícula</code>. Limpe o campo ao terminar o piloto.
-        </p>
-    </text>);
 }
-
-<h4>Sólides DP</h4>
+<p class="small">
+    <strong>Situações de desligamento</strong> (08, 11, 12 e 14) aparecem na tela só para consulta: são as situações da folha que
+    indicam a saída da pessoa e fazem parte da regra da integração, não da configuração.
+</p>
 @{
-    Campo(nameof(ConfiguracaoForm.CompanyMode), @<text>
-        <p class="mb-1">
-            <strong>Procurar pelo CNPJ</strong>: cada colaborador vai para a empresa do Sólides DP com o CNPJ da filial dele. É o normal quando
-            a conta tem mais de uma empresa. <strong>Não enviar empresa</strong>: para contas com uma empresa só.
-        </p>
-    </text>);
-    Campo(nameof(ConfiguracaoForm.CreateMissingCompanies), @<text>
-        <p class="mb-1">
-            Empresa é uma entidade legal (eSocial). O recomendado é cadastrar no Sólides DP e deixar este campo desligado.
-        </p>
-    </text>);
-    Campo(nameof(ConfiguracaoForm.WorkScheduleExternalId), @<text>
-        <p class="mb-1">
-            Vazio = escala padrão da conta. Na atualização de quem já existe, a integração mantém a escala que está no Sólides DP, para não
-            desfazer o que o RH ajustou lá.
-        </p>
-    </text>);
-    Campo(nameof(ConfiguracaoForm.PunchRuleExternalId), @<text>
-        <p class="mb-1">Vazio = regra de ponto padrão da conta.</p>
-    </text>);
 }
 
 <h4>Férias e desligamentos</h4>
@@ -120,12 +82,6 @@
         <p class="mb-1">
             O Sólides DP não tem proteção contra lançamento duplicado de férias. Por isso a integração não insiste sem limite:
             depois deste número de falhas, o período fica como <em>Desistiu</em> em O que foi migrado › Férias.
-        </p>
-    </text>);
-    Campo(nameof(ConfiguracaoForm.FeriasMotivoId), @<text>
-        <p class="mb-1">
-            Preencha só se a conta tiver mais de um motivo parecido ou se o nome não for exatamente FÉRIAS.
-            O id aparece em Pedidos ao serviço › Consultar o Sólides DP.
         </p>
     </text>);
     Campo(nameof(ConfiguracaoForm.FeriasEndDateMode), @<text>

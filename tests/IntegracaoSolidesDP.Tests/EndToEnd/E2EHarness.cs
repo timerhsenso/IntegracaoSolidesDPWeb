@@ -29,6 +29,9 @@ public sealed class E2EHarness : IAsyncDisposable
     public const string Token = "fake-token";
     public const string Token2 = "fake-token-2";
 
+    /// <summary>Data de go-live usada nas empresas dos testes (obrigatória para o envio real).</summary>
+    public static readonly DateOnly GoLive = new(2026, 1, 1);
+
     /// <summary>Chave dos tokens cifrados (Gestao:ChaveTokens) usada nos testes.</summary>
     public static readonly string ChaveTokens = Convert.ToBase64String(Enumerable.Range(1, 32).Select(i => (byte)i).ToArray());
 
@@ -93,7 +96,7 @@ public sealed class E2EHarness : IAsyncDisposable
         await new SqlStateStore(_db.Connections, TimeProvider.System).EnsureSchemaAsync(ct);
         await store.EnsureSchemaAsync(ct);
 
-        var regras = new SyncOptions { DryRun = false, GoLiveDate = new DateOnly(2026, 1, 1), FeriasJanelaDias = 60 };
+        var regras = new SyncOptions { FeriasJanelaDias = 60 };
         await store.AddConfigurationVersionAsync("default", active: true, SyncOptionsJson.Serialize(regras), empresas, "teste", "teste", ct);
         var protector = new TokenProtector(new TokenProtectionOptions { ChaveBase64 = ChaveTokens });
         foreach (var (cdempresa, token) in tokens)

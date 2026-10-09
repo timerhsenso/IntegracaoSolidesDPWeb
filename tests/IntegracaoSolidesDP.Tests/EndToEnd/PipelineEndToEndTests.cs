@@ -81,8 +81,8 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
         await _seed.FilialAsync(empresa: 2, filial: 8, nome: "GTI ABC", cnpj: "00594807000361");
         await _harness.ConfigurarEmpresasAsync(
             [
-                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false },
-                new EmpresaConfiguracao { Cdempresa = 2, Habilitada = true, DryRun = false },
+                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = E2EHarness.GoLive },
+                new EmpresaConfiguracao { Cdempresa = 2, Habilitada = true, DryRun = false, GoLiveDate = E2EHarness.GoLive },
             ],
             new Dictionary<int, string> { [1] = E2EHarness.Token, [2] = E2EHarness.Token2 },
             Ct);
@@ -147,7 +147,7 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
     {
         await _seed.FilialAsync(empresa: 1, filial: 2, nome: "OUTRA FILIAL");
         await _harness.ConfigurarEmpresasAsync(
-            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, Filiais = [1] }],
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = E2EHarness.GoLive, Filiais = [1] }],
             new Dictionary<int, string> { [1] = E2EHarness.Token },
             Ct);
         var original = await _seed.FuncionarioAsync(matric: "00000001");

@@ -64,11 +64,18 @@ Tudo o que é incluído ou alterado no RHSenso vai, num sentido só, para o Sól
 
 Toda chave pode vir do `appsettings.json`, de uma variável de ambiente (`Sync__DryRun=false`) ou da linha de comando (`--Sync:DryRun=false`).
 
+Com a **gestão pela Web ligada**, as chaves `Sync` se dividem em duas partes:
+- **Regras gerais** (tela *Regras gerais*, valem para todas as empresas): `TiposColaborador`, `SituacaoTransferido`, `SituacoesIgnoradas`, `MotivoDemissaoMap`, `Ferias*` (menos `FeriasMotivoId`) e as travas `MaxCreatesPerRun`/`MaxCancellationsPerRun`.
+- **Por empresa** (tela *Empresas*, cada empresa é uma conta do DP): habilitada, simulação (`DryRun`), go-live (obrigatória para o envio real), filiais, piloto (`ExternalIdAllowList`), token, escala, regra de ponto, `FeriasMotivoId`, `CompanyMode` (padrão `ResolveByCnpj`) e `CreateMissingCompanies`.
+- Não existe simulação geral: para parar todas as empresas, use **Desativar** no Painel. Sem empresa habilitada, nada é sincronizado.
+
+Com a gestão desligada, vale a tabela abaixo inteira, para uma só empresa.
+
 | Chave | Padrão | Observação |
 |---|---|---|
 | `ConnectionStrings:Rhu` | — | Obrigatória. Leitura em `dbo`; DDL/DML no schema `solidesdp` (veja INSTALL.md). |
 | `SolidesDP:BaseUrl` | `https://employer.tangerino.com.br` | Em Development aponta para o fake (`http://localhost:5080`). |
-| `SolidesDP:Token` | — | Gerado no DP em Empregador → Integrações. Vale enquanto nenhuma empresa foi configurada na Web (aí `Sync:EmpresasIncluidas` precisa ter uma empresa só). |
+| `SolidesDP:Token` | — | Gerado no DP em Empregador → Integrações. Só com a gestão desligada (uma empresa, a de `Sync:EmpresasIncluidas`). Com a gestão ligada, cada empresa tem o seu token na tela Empresas. |
 | `SolidesDP:TimeoutSeconds` | `30` | Por tentativa; o total é 4x. |
 | `SolidesDP:SkipUnifiedSync` | `true` | Não propaga para a base unificada (CUC) da Sólides. Confirmar com a Sólides. |
 | `SolidesDP:AllowProductionApiOutsideProduction` | `false` | Opt-in para usar a API real fora de Production. |
@@ -100,7 +107,8 @@ Com `Gestao:Habilitada=true`, o serviço passa a ser operado pela aplicação We
 - **Configuração no banco.** As regras da seção `Sync` vêm da versão vigente de `solidesdp.configuracao`.
   - Na primeira execução, a versão 1 é criada a partir do `appsettings.json`.
   - Cada alteração grava uma versão nova; nenhuma versão é alterada nem apagada.
-  - Continuam vindo do `appsettings.json`: `ConnectionStrings`, `SolidesDP` (token), `Execution`, `Sync:InstanceName` e `Sync:ReportDirectory`.
+  - As regras de cada empresa (simulação, go-live, filiais, piloto, token, conta) ficam em `solidesdp.configuracao_empresa`, `configuracao_filial`, `configuracao_piloto` e `empresa_token`, na mesma versão.
+  - Continuam vindo do `appsettings.json`: `ConnectionStrings`, `SolidesDP:BaseUrl`, `Execution`, `Sync:InstanceName` e `Sync:ReportDirectory`.
   - Uma versão inválida não chega à API: a execução é registrada como `failed` com `config_invalid` e o motivo.
 - **Ativar/desativar** também é uma versão da configuração. Desativada, a integração não faz execuções reais (agendadas ou pedidas); o dry-run continua permitido.
 - **Fila de comandos.** A Web grava o pedido em `solidesdp.comando` e o serviço o atende, um por vez, entre as execuções: `EXECUTAR`, `EXECUTAR_DRYRUN`, `CHECK_CONFIG`, `DISCOVER` e `RECONCILE` (só conferência; o `--repair` continua sendo pela linha de comando). Só o serviço fala com a API do Sólides DP.
@@ -121,9 +129,10 @@ ASP.NET Core MVC (Bootstrap 5 + DataTables) para acompanhar e operar a integraç
 | O que foi migrado | todos | Colaboradores, cargos, locais e férias que existem no DP pela integração, com o histórico de cada registro |
 | Pendências | todos | Falhas, bloqueios, ignorados, avisos e adiados da última execução |
 | Pedidos ao serviço | Operador | Executar agora, simular (dry-run), verificar configuração, consultar o DP, conferir enviados |
-| Configuração | Admin altera | Seção `Sync` versionada, com histórico e diferenças entre versões; ativar/desativar |
+| Empresas | Admin altera | Cada empresa (conta do DP): habilitada, simulação, go-live, filiais, piloto, token cifrado e ids da conta; pedidos só da empresa |
+| Regras gerais | Admin altera | Regras que valem para todas as empresas, versionadas, com histórico e diferenças entre versões; ativar/desativar |
 | Usuários e Auditoria | Admin | Usuários (nunca excluídos, só desativados) e tudo o que foi feito na Web |
-| Ajuda | todos | Manual de uso: roteiro de implantação, cada tela, regras, glossário de status e solução de problemas. Cada tela tem um botão **Ajuda** com o seu trecho, e cada campo da Configuração tem dica e link para o manual. O Admin baixa também o manual técnico em PDF |
+| Ajuda | todos | Manual de uso: roteiro de implantação, cada tela, regras, glossário de status e solução de problemas. Cada tela tem um botão **Ajuda** com o seu trecho, e cada campo das Regras gerais tem dica e link para o manual. O Admin baixa também o manual técnico em PDF |
 
 - **Arquitetura.** A Web não fala com o Sólides DP nem guarda o token: ela lê as tabelas do serviço e grava pedidos em `solidesdp.comando`, que o serviço atende (gestão ligada: `Gestao:Habilitada=true`).
 - **Login.** ASP.NET Core Identity no schema `solidesdp_auth`, com perfis Consulta, Operador e Admin.
@@ -131,7 +140,7 @@ ASP.NET Core MVC (Bootstrap 5 + DataTables) para acompanhar e operar a integraç
   - O primeiro administrador é criado na tela de primeiro acesso, que só abre no próprio servidor e só enquanto não existe nenhum usuário.
 - **Nada é excluído.** Configuração, pedidos, execuções e auditoria são só INSERT. Usuário é desativado, nunca apagado.
 - **Front-end.** Bibliotecas em `libman.json`, restauradas no build em `wwwroot/lib` (fora do git): o servidor não precisa de internet.
-- **Manuais.** O manual de uso fica na própria Web (`Views/Ajuda/Topicos`), junto do código que descreve. Testes conferem se todo status, campo da Configuração e ação de auditoria está documentado. O manual técnico (para o TI: configuração, agendamento, comandos, operação) tem a fonte em `docs/manual-tecnico/manual-tecnico.html` e vai embutido na dll da Web. Depois de editar o HTML, gere o PDF com `scripts\gerar-manual-tecnico.ps1` e faça commit dos dois.
+- **Manuais.** O manual de uso fica na própria Web (`Views/Ajuda/Topicos`), junto do código que descreve. Testes conferem se todo status, campo das Regras gerais e ação de auditoria está documentado. O manual técnico (para o TI: configuração, agendamento, comandos, operação) tem a fonte em `docs/manual-tecnico/manual-tecnico.html` e vai embutido na dll da Web. Depois de editar o HTML, gere o PDF com `scripts\gerar-manual-tecnico.ps1` e faça commit dos dois.
 - **Migrations do login:** `dotnet ef migrations add <Nome> --project src/IntegracaoSolidesDP.Web --output-dir Migrations`. São aplicadas ao iniciar a Web (`Web:AplicarMigrationsNoStart`).
 
 Desenvolvimento no Windows:

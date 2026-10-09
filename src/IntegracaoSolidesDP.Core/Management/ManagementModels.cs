@@ -18,27 +18,41 @@ public sealed record ConfigurationVersion
 }
 
 /// <summary>
-/// Uma empresa do RHSenso (dbo.temp1) numa versão da configuração. Cada empresa é uma conta do
-/// Sólides DP, com o seu token (solidesdp.empresa_token). Campos nulos usam o valor geral da seção Sync.
+/// Uma empresa do RHSenso (dbo.temp1) numa versão da configuração. Cada empresa é uma conta do Sólides DP, com o
+/// seu token (solidesdp.empresa_token). Tudo o que depende da conta ou da fase da implantação é da empresa; as regras
+/// da folha (tipos, situações, férias, travas) são gerais (seção Sync), ver <see cref="EmpresaOptions"/>.
 /// </summary>
 public sealed record EmpresaConfiguracao
 {
     public int Cdempresa { get; init; }
     public bool Habilitada { get; init; }
 
-    /// <summary>Simulação desta empresa. Vale a simulação se ela estiver ligada aqui ou na regra geral.</summary>
+    /// <summary>Simulação desta empresa (nada é gravado no Sólides DP). A chave geral é ativar/desativar a integração.</summary>
     public bool DryRun { get; init; } = true;
 
+    /// <summary>Início do uso do Sólides DP nesta empresa. Obrigatória para o envio real.</summary>
     public DateOnly? GoLiveDate { get; init; }
+
+    /// <summary>externalId da escala dos novos colaboradores nesta conta; vazio = a padrão da conta.</summary>
     public string? WorkScheduleExternalId { get; init; }
+
+    /// <summary>externalId da regra de ponto dos novos colaboradores nesta conta; vazio = a padrão da conta.</summary>
     public string? PunchRuleExternalId { get; init; }
+
+    /// <summary>Id do motivo de ajuste FÉRIAS nesta conta; vazio = procurar pela descrição.</summary>
     public long? FeriasMotivoId { get; init; }
 
-    /// <summary>"Nenhuma" (conta com uma só empresa no DP) ou "PorCnpj". Nulo = regra geral.</summary>
+    /// <summary>"PorCnpj" (padrão) ou "Nenhuma" (conta com uma só empresa no DP).</summary>
     public string? ModoEmpresa { get; init; }
+
+    /// <summary>Cria no Sólides DP a empresa (CNPJ) que não existir na conta.</summary>
+    public bool CriarEmpresasFaltantes { get; init; }
 
     /// <summary>Filiais (dbo.test1.cdfilial) que entram. Vazio = todas as filiais da empresa.</summary>
     public IReadOnlyList<int> Filiais { get; init; } = [];
+
+    /// <summary>Piloto: só estes colaboradores (CPF, matrícula ou "{empresa}-{matrícula}"). Vazio = todos.</summary>
+    public IReadOnlyList<string> Piloto { get; init; } = [];
 }
 
 /// <summary>Token de uma empresa (linha mais recente de solidesdp.empresa_token), ainda cifrado.</summary>

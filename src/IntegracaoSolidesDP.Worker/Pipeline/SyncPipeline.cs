@@ -87,7 +87,7 @@ public sealed class SyncPipeline(
             parts.Add(await RunEmpresaAsync(request, settings, empresa, ct));
         }
 
-        return RunSummary.Combine(parts, forcedDryRun || settings.Options.DryRun, started, clock.GetUtcNow());
+        return RunSummary.Combine(parts, forcedDryRun || parts.All(p => p.DryRun), started, clock.GetUtcNow());
     }
 
     private async Task<RunSummary> RunEmpresaAsync(RunRequest request, SyncSettings settings, EmpresaSettings empresa, CancellationToken ct)

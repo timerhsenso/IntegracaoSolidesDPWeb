@@ -9,45 +9,21 @@ using IntegracaoSolidesDP.Worker.Options;
 namespace IntegracaoSolidesDP.Web.Models;
 
 /// <summary>
-/// Formulário da seção Sync. Listas são digitadas separadas por vírgula ou uma por linha;
-/// a conversão para <see cref="SyncOptions"/> devolve os erros de digitação, e as regras de
-/// negócio são as do <see cref="SyncOptionsValidator"/> (as mesmas do serviço).
+/// Regras gerais (seção Sync): as regras da folha, iguais para todas as empresas. O que depende da conta do Sólides DP
+/// ou da fase da implantação (simulação, go-live, piloto, filiais, escala, regra, motivo FÉRIAS, empresa no DP) fica na
+/// tela Empresas. Listas são digitadas separadas por vírgula ou uma por linha; a conversão devolve os erros de digitação,
+/// e as regras de negócio são as do <see cref="SyncOptionsValidator"/> (as mesmas do serviço).
 /// </summary>
 public sealed class ConfiguracaoForm
 {
-    [Display(Name = "Modo simulação (dry-run) geral: nada é gravado no Sólides DP", Description = "Ligado: todas as empresas só simulam e gravam o relatório (com token, só consultam o Sólides DP). Desligue apenas depois do piloto.")]
-    public bool DryRun { get; set; } = true;
-
-    [Display(Name = "Data de início no Sólides DP (go-live)", Description = "Obrigatória para o envio real (aqui ou na empresa). Quem a integração cria e foi admitido antes começa nesta data; quem já existe no Sólides DP mantém a data de lá.")]
-    [DataType(DataType.Date)]
-    public DateOnly? GoLiveDate { get; set; }
-
     [Display(Name = "Tipos de colaborador (func1.tpcolab)", Description = "Códigos de func1.tpcolab que entram: 1 = Empregado, 2 = Estagiário. Separe por vírgula.")]
     public string? TiposColaborador { get; set; } = "1, 2";
-
-    [Display(Name = "Empresa usada antes da tela Empresas (uma só)", Description = "Só vale enquanto nenhuma empresa estiver configurada na tela Empresas: a empresa (func1.cdempresa) sincronizada com o token do servidor.")]
-    public string? EmpresasIncluidas { get; set; }
-
-    [Display(Name = "Piloto: só estes colaboradores (um por linha; vazio = todos)", Description = "Para o piloto: só estes colaboradores são enviados. Use o CPF, a matrícula ou empresa-matrícula (ex.: 15-00007811).")]
-    public string? ExternalIdAllowList { get; set; }
 
     [Display(Name = "Situação de transferência", Description = "Código de func1.cdsituacao que indica transferência (a pessoa continua em outra empresa ou filial).")]
     public string? SituacaoTransferido { get; set; } = "09";
 
     [Display(Name = "Situações ignoradas", Description = "Códigos de situação que a integração ignora por completo (ex.: 99 = pré-cadastro).")]
     public string? SituacoesIgnoradas { get; set; } = "99";
-
-    [Display(Name = "Escala dos novos colaboradores (externalId; vazio = padrão da conta)", Description = "Usada só na criação do colaborador. Cada empresa pode ter a sua (tela Empresas). O id aparece em Consultar o Sólides DP.")]
-    public string? WorkScheduleExternalId { get; set; }
-
-    [Display(Name = "Regra de ponto dos novos colaboradores (externalId; vazio = padrão da conta)", Description = "Usada só na criação do colaborador. Cada empresa pode ter a sua (tela Empresas). O id aparece em Consultar o Sólides DP.")]
-    public string? PunchRuleExternalId { get; set; }
-
-    [Display(Name = "Empresa no Sólides DP", Description = "Como informar a empresa do colaborador: pelo CNPJ da filial, ou nenhuma (conta do DP com uma só empresa).")]
-    public CompanyMode CompanyMode { get; set; } = CompanyMode.ResolveByCnpj;
-
-    [Display(Name = "Criar no Sólides DP a empresa (CNPJ) que não existir", Description = "Desligado: colaborador de CNPJ que não existe no DP fica bloqueado até a empresa ser cadastrada lá.")]
-    public bool CreateMissingCompanies { get; set; }
 
     [Display(Name = "Motivos de demissão (código=MOTIVO, um por linha; vazio = padrão)", Description = "Só para trocar o padrão: uma linha por código (causa de rescisão do RHSenso = motivo do Sólides DP). Código desconhecido vai como OUTROS.")]
     public string? MotivoDemissaoMap { get; set; }
@@ -58,9 +34,6 @@ public sealed class ConfiguracaoForm
 
     [Display(Name = "Enviar férias \"Programadas\" como PENDENTE", Description = "Desligado: só envia férias a partir de Liberada. Ligado: as Programadas vão como PENDENTE.")]
     public bool FeriasEnviarProgramadas { get; set; }
-
-    [Display(Name = "Id do motivo FÉRIAS no Sólides DP (vazio = descobrir)", Description = "Vazio: a integração procura o motivo de ajuste chamado FÉRIAS no Sólides DP.")]
-    public long? FeriasMotivoId { get; set; }
 
     [Display(Name = "Cálculo do fim das férias", Description = "Como o fim das férias é informado ao DP. Confira no piloto se o último dia ficou certo.")]
     public FeriasEndDateMode FeriasEndDateMode { get; set; } = FeriasEndDateMode.InicioDoDiaSeguinte;
@@ -84,50 +57,39 @@ public sealed class ConfiguracaoForm
 
     public static ConfiguracaoForm De(SyncOptions options) => new()
     {
-        DryRun = options.DryRun,
-        GoLiveDate = options.GoLiveDate,
         TiposColaborador = string.Join(", ", options.TiposColaborador),
-        EmpresasIncluidas = string.Join(", ", options.EmpresasIncluidas),
-        ExternalIdAllowList = string.Join(Environment.NewLine, options.ExternalIdAllowList),
         SituacaoTransferido = options.SituacaoTransferido,
         SituacoesIgnoradas = string.Join(", ", options.SituacoesIgnoradas),
-        WorkScheduleExternalId = options.WorkScheduleExternalId,
-        PunchRuleExternalId = options.PunchRuleExternalId,
-        CompanyMode = options.CompanyMode,
-        CreateMissingCompanies = options.CreateMissingCompanies,
         MotivoDemissaoMap = string.Join(Environment.NewLine, options.MotivoDemissaoMap.Select(p => $"{p.Key}={p.Value}")),
         FeriasJanelaDias = options.FeriasJanelaDias,
         FeriasEnviarProgramadas = options.FeriasEnviarProgramadas,
-        FeriasMotivoId = options.FeriasMotivoId,
         FeriasEndDateMode = options.FeriasEndDateMode,
         FeriasMaxTentativas = options.FeriasMaxTentativas,
         MaxCreatesPerRun = options.MaxCreatesPerRun,
         MaxCancellationsPerRun = options.MaxCancellationsPerRun,
     };
 
-    /// <summary>Converte para a seção Sync. Erros de digitação vão para <paramref name="erros"/> (chave = campo).</summary>
-    public SyncOptions ParaOpcoes(IDictionary<string, string> erros) => new()
+    /// <summary>
+    /// Converte para a seção Sync a partir da versão em vigor (<paramref name="atual"/>): só as regras gerais mudam.
+    /// Erros de digitação vão para <paramref name="erros"/> (chave = campo).
+    /// </summary>
+    public SyncOptions ParaOpcoes(SyncOptions? atual, IDictionary<string, string> erros)
     {
-        DryRun = DryRun,
-        GoLiveDate = GoLiveDate,
-        TiposColaborador = Inteiros(TiposColaborador, nameof(TiposColaborador), erros),
-        EmpresasIncluidas = Inteiros(EmpresasIncluidas, nameof(EmpresasIncluidas), erros),
-        ExternalIdAllowList = Itens(ExternalIdAllowList),
-        SituacaoTransferido = (SituacaoTransferido ?? string.Empty).Trim(),
-        SituacoesIgnoradas = Itens(SituacoesIgnoradas),
-        WorkScheduleExternalId = (WorkScheduleExternalId ?? string.Empty).Trim(),
-        PunchRuleExternalId = (PunchRuleExternalId ?? string.Empty).Trim(),
-        CompanyMode = CompanyMode,
-        CreateMissingCompanies = CreateMissingCompanies,
-        MotivoDemissaoMap = Mapa(MotivoDemissaoMap, nameof(MotivoDemissaoMap), erros),
-        FeriasJanelaDias = FeriasJanelaDias,
-        FeriasEnviarProgramadas = FeriasEnviarProgramadas,
-        FeriasMotivoId = FeriasMotivoId,
-        FeriasEndDateMode = FeriasEndDateMode,
-        FeriasMaxTentativas = FeriasMaxTentativas,
-        MaxCreatesPerRun = MaxCreatesPerRun,
-        MaxCancellationsPerRun = MaxCancellationsPerRun,
-    };
+        // Simulação, go-live, piloto e os dados da conta são da empresa: aqui ficam como estavam e não são usados.
+        var options = atual is null ? new SyncOptions() : EmpresaOptions.Copiar(atual, dryRun: true);
+        options.DryRun = true;
+        options.TiposColaborador = Inteiros(TiposColaborador, nameof(TiposColaborador), erros);
+        options.SituacaoTransferido = (SituacaoTransferido ?? string.Empty).Trim();
+        options.SituacoesIgnoradas = Itens(SituacoesIgnoradas);
+        options.MotivoDemissaoMap = Mapa(MotivoDemissaoMap, nameof(MotivoDemissaoMap), erros);
+        options.FeriasJanelaDias = FeriasJanelaDias;
+        options.FeriasEnviarProgramadas = FeriasEnviarProgramadas;
+        options.FeriasEndDateMode = FeriasEndDateMode;
+        options.FeriasMaxTentativas = FeriasMaxTentativas;
+        options.MaxCreatesPerRun = MaxCreatesPerRun;
+        options.MaxCancellationsPerRun = MaxCancellationsPerRun;
+        return options;
+    }
 
     private static readonly char[] Separadores = [',', ';', '\r', '\n', ' ', '\t'];
     private static readonly char[] Linhas = ['\r', '\n'];
@@ -178,6 +140,9 @@ public sealed class ConfiguracaoViewModel
     public required ConfiguracaoForm Form { get; init; }
     public bool PodeEditar { get; init; }
     public bool GestaoPreparada { get; init; }
+
+    /// <summary>Situações que desligam no Sólides DP (fixas; só exibidas).</summary>
+    public IReadOnlyList<string> SituacoesDesligamento { get; init; } = new SyncOptions().SituacoesDesligamento.ToList();
 }
 
 /// <summary>Uma versão e o que mudou em relação à anterior.</summary>

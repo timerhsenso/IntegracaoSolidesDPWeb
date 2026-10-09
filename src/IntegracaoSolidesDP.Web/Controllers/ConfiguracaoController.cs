@@ -10,7 +10,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IntegracaoSolidesDP.Web.Controllers;
 
-/// <summary>Regras da seção Sync, versionadas em solidesdp.configuracao. Cada gravação é uma versão nova.</summary>
+/// <summary>
+/// Regras gerais (as da folha, iguais para todas as empresas), versionadas em solidesdp.configuracao. Cada gravação é
+/// uma versão nova. As regras de cada empresa ficam na tela Empresas.
+/// </summary>
 [ExigeGestaoPreparada]
 public sealed class ConfiguracaoController(GestaoService gestao, PainelRepository painel) : Controller
 {
@@ -48,7 +51,7 @@ public sealed class ConfiguracaoController(GestaoService gestao, PainelRepositor
     {
         var ct = HttpContext.RequestAborted;
         var erros = new Dictionary<string, string>(StringComparer.Ordinal);
-        var regras = form.ParaOpcoes(erros);
+        var regras = form.ParaOpcoes(Lidas(await gestao.ConfiguracaoAtualAsync(ct)), erros);
         foreach (var (campo, mensagem) in erros)
         {
             ModelState.AddModelError($"Form.{campo}", mensagem);
@@ -101,6 +104,23 @@ public sealed class ConfiguracaoController(GestaoService gestao, PainelRepositor
 
         var anterior = versoes.Where(v => v.Versao < id).MaxBy(v => v.Versao);
         return View(new VersaoViewModel { Versao = versao, Anterior = anterior, Diferencas = VersaoViewModel.Comparar(versao, anterior) });
+    }
+
+    private static SyncOptions? Lidas(ConfigurationVersion? atual)
+    {
+        if (atual is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return SyncOptionsJson.Deserialize(atual.SyncJson);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private async Task<IActionResult> DefinirAtivaAsync(bool ativa, string? motivo)

@@ -162,7 +162,7 @@ Os comandos abaixo valem para as três formas. No Windows, use `IntegracaoSolide
    - [ ] o desligamento aparece com a data e o motivo corretos.
 
    Avise a RHSenso sobre qualquer divergência.
-5. **Rollout:** primeiro libere por empresa com `Sync:EmpresasIncluidas`; depois remova os filtros e deixe o serviço rodando com `DryRun: false`.
+5. **Rollout:** remova o piloto (`ExternalIdAllowList`) e deixe o serviço rodando com `DryRun: false`. Com a gestão desligada, o serviço sincroniza uma só empresa (`Sync:EmpresasIncluidas`). Para várias empresas, ligue a gestão pela Web: cada empresa (token, simulação, go-live, filiais e piloto) é configurada na tela **Empresas**.
 
 ## 4. Operação
 

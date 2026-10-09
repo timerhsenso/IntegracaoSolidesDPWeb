@@ -24,6 +24,11 @@
     </div>
 </div>
 
+@if (Model.IntegracaoDesativada)
+{
+    <div class="alert alert-warning small"><i class="bi bi-pause-circle"></i> A integração está <strong>desativada</strong> no Painel: nada é enviado ao Sólides DP até ativar de novo (a simulação continua permitida).</div>
+}
+
 @if (somenteLeitura)
 {
     <div class="alert alert-light border small"><i class="bi bi-eye"></i> Somente o perfil Admin altera a empresa e o token.</div>
@@ -47,17 +52,14 @@
                             <input asp-for="Form.DryRun" class="form-check-input" role="switch" />
                             <label asp-for="Form.DryRun" class="form-check-label"></label>
                             <dica-campo for="Form.DryRun" ajuda="empresas" />
-                            @if (Model.DryRunGeral)
-                            {
-                                <div class="small text-info"><i class="bi bi-shield-check"></i> A simulação geral (tela Configuração) está ligada: nada é enviado de verdade.</div>
-                            }
+                            <div class="small text-body-secondary">Ligada: nada é gravado no Sólides DP, só o relatório do que seria feito. Desligue só depois de conferir a simulação.</div>
                         </div>
                         <div class="mb-3">
                             <label asp-for="Form.GoLiveDate" class="form-label"></label>
                             <input type="date" name="Form.GoLiveDate" id="Form_GoLiveDate" class="form-control w-auto"
                                    value="@f.GoLiveDate?.ToString("yyyy-MM-dd")" />
                             <dica-campo for="Form.GoLiveDate" ajuda="empresas" />
-                            <div class="form-text">Geral: @(Model.GoLiveGeral?.ToString("dd/MM/yyyy") ?? "não definida").</div>
+                            <div class="form-text">Obrigatória para desligar a simulação. Desligamentos e férias anteriores a esta data não são enviados.</div>
                         </div>
                     </div>
                 </div>
@@ -94,7 +96,21 @@
                 </div>
 
                 <div class="card mb-3">
-                    <div class="card-header">Regras próprias desta conta do Sólides DP <span class="small text-body-secondary">(vazio = a regra geral)</span></div>
+                    <div class="card-header">Piloto</div>
+                    <div class="card-body">
+                        <label asp-for="Form.Piloto" class="form-label"></label>
+                        <textarea asp-for="Form.Piloto" class="form-control font-monospace" rows="4" placeholder="15-00007811"></textarea>
+                        <span asp-validation-for="Form.Piloto" class="small text-danger"></span>
+                        <dica-campo for="Form.Piloto" ajuda="empresas" />
+                        @if (!string.IsNullOrWhiteSpace(f.Piloto))
+                        {
+                            <div class="small text-warning-emphasis mt-1"><i class="bi bi-funnel"></i> Piloto ativo: as demais pessoas desta empresa ficam de fora.</div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Conta do Sólides DP desta empresa</div>
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -115,11 +131,17 @@
                             <div class="col-md-6">
                                 <label asp-for="Form.ModoEmpresa" class="form-label"></label>
                                 <select asp-for="Form.ModoEmpresa" class="form-select">
-                                    <option value="">Como na regra geral</option>
                                     <option value="@ModosEmpresa.PorCnpj">Procurar a empresa pelo CNPJ da filial</option>
                                     <option value="@ModosEmpresa.Nenhuma">Não enviar empresa (conta com uma só empresa)</option>
                                 </select>
                                 <dica-campo for="Form.ModoEmpresa" ajuda="empresas" />
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Form.CriarEmpresasFaltantes" class="form-check-input" role="switch" />
+                                    <label asp-for="Form.CriarEmpresasFaltantes" class="form-check-label"></label>
+                                    <dica-campo for="Form.CriarEmpresasFaltantes" ajuda="empresas" />
+                                </div>
                             </div>
                         </div>
                     </div>

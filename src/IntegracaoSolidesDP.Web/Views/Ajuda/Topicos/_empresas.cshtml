@@ -17,17 +17,32 @@
 <dl class="ajuda-def">
     <dt>Habilitada na integração</dt><dd>Desligada, a empresa não é sincronizada. Desabilitar não desliga ninguém no Sólides DP.</dd>
     <dt>Modo simulação nesta empresa</dt>
-    <dd>Ligado, a empresa só simula. O envio real exige a simulação desligada aqui <strong>e</strong> na tela Configuração (regra geral).</dd>
+    <dd>Ligado, a empresa só simula: nada é gravado no Sólides DP; com token, a simulação só <strong>consulta</strong> quem já está lá
+        para mostrar quem seria vinculado pelo CPF e quem seria criado. É só aqui que se liga ou desliga a simulação: não existe mais
+        simulação geral. Para parar todas as empresas de uma vez, use <strong>Desativar</strong> no Painel.</dd>
     <dt>Data de go-live</dt>
-    <dd>Vazia, vale a geral. Só afeta quem a integração <strong>cria</strong>: quem já existe no Sólides DP mantém o início da vigência de lá.</dd>
+    <dd><strong>Obrigatória para desligar a simulação.</strong> Para quem a integração <strong>cria</strong> e foi admitido antes desta data,
+        o Sólides DP considera esta data como início (contrato, escala e regra), para não calcular ponto retroativo. Quem já existe no
+        Sólides DP mantém o início da vigência de lá. Desligamentos e férias anteriores ao go-live não são enviados.</dd>
     <dt>Filiais</dt>
     <dd>Nenhuma marcada = todas as filiais ativas (<code>test1.flativofilial = 1</code>). Marcando, só os colaboradores dessas filiais
         vão para o Sólides DP. Desmarcar uma filial não desliga ninguém: a pessoa só deixa de ser sincronizada.</dd>
-    <dt>Escala, regra de ponto, motivo FÉRIAS e empresa no Sólides DP</dt>
-    <dd>Cada conta do Sólides DP tem os seus ids. Vazios, valem os da tela Configuração. Use <em>Consultar o Sólides DP</em> desta
-        empresa para ver os ids da conta dela.</dd>
+    <dt>Piloto: só estes colaboradores</dt>
+    <dd>Vazio = todos. Preenchido, <strong>só</strong> essas pessoas desta empresa são sincronizadas (inclusive desligamentos e férias).
+        Uma por linha: CPF, matrícula ou <code>empresa-matrícula</code> (ex.: <code>15-00007811</code>). Limpe ao terminar o piloto.</dd>
+    <dt>Escala, regra de ponto e motivo FÉRIAS</dt>
+    <dd>Cada conta do Sólides DP tem os seus ids. Vazios: escala e regra padrão da conta, e o motivo de ajuste chamado FÉRIAS.
+        Use <em>Consultar o Sólides DP</em> desta empresa para ver os ids. Na atualização de quem já existe, a escala de lá é mantida.</dd>
+    <dt>Empresa no Sólides DP</dt>
+    <dd><strong>Procurar pelo CNPJ da filial</strong> (padrão): cada colaborador vai para a empresa da conta com o CNPJ da filial dele.
+        <strong>Não enviar empresa</strong>: para contas com uma empresa só.</dd>
+    <dt>Criar no Sólides DP a empresa que não existir</dt>
+    <dd>Empresa é uma entidade legal (eSocial). O recomendado é cadastrar no Sólides DP e deixar desligado: o colaborador de um CNPJ
+        que não existe lá fica bloqueado até a empresa ser cadastrada.</dd>
 </dl>
-<p>Cada gravação cria uma versão nova da configuração (com o motivo), igual à tela Configuração. O serviço usa na próxima execução.</p>
+<p>Cada gravação cria uma versão nova da configuração (com o motivo), igual à tela Regras gerais. O serviço usa na próxima execução.
+   As regras que valem para todas as empresas (tipos de colaborador, situações, férias, travas) ficam em
+   <a asp-controller="Ajuda" asp-action="Index" asp-fragment="configuracao">Regras gerais</a>.</p>
 
 <h4>Token</h4>
 <ul>
@@ -44,8 +59,7 @@
     só para esta empresa. O resultado fica em <a asp-controller="Ajuda" asp-action="Index" asp-fragment="pedidos">Pedidos ao serviço</a>.
 </p>
 
-<h4>Antes da tela Empresas</h4>
+<h4>Nenhuma empresa habilitada</h4>
 <p class="mb-0">
-    Enquanto nenhuma empresa for salva aqui, o serviço sincroniza só a empresa do campo <em>Empresa usada antes da tela Empresas</em> da Configuração,
-    com o token do servidor. <strong>Ao salvar a primeira empresa, passa a valer só esta tela</strong>: cadastre o token dela também.
+    O serviço sincroniza <strong>só</strong> as empresas habilitadas nesta tela. Sem nenhuma habilitada, nada é sincronizado.
 </p>

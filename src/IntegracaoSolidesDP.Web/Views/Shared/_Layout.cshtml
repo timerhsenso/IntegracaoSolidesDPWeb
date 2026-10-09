@@ -29,7 +29,7 @@
             <a class="nav-link @Ativo("Migrados")" asp-controller="Migrados" asp-action="Index"><i class="bi bi-people"></i> O que foi migrado</a>
             <a class="nav-link @Ativo("Pendencias")" asp-controller="Pendencias" asp-action="Index"><i class="bi bi-exclamation-triangle"></i> Pendências</a>
             <a class="nav-link @Ativo("Comandos")" asp-controller="Comandos" asp-action="Index"><i class="bi bi-terminal"></i> Pedidos ao serviço</a>
-            <a class="nav-link @Ativo("Configuracao")" asp-controller="Configuracao" asp-action="Index"><i class="bi bi-sliders"></i> Configuração</a>
+            <a class="nav-link @Ativo("Configuracao")" asp-controller="Configuracao" asp-action="Index"><i class="bi bi-sliders"></i> Regras gerais</a>
             @if (User.IsInRole(Perfis.Admin))
             {
                 <div class="nav-titulo">Administração</div>

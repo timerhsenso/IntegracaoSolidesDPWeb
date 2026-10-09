@@ -306,7 +306,7 @@
         <thead><tr><th>Chave</th><th>Padrão</th><th>Para que serve</th></tr></thead>
         <tbody>
             <tr><td><code>ConnectionStrings:Rhu</code></td><td>—</td><td class="quebra">Obrigatória. Conexão com o <code>bd_rhu_adn</code>. Login com leitura no <code>dbo</code> e DDL/DML no schema <code>solidesdp</code>.</td></tr>
-            <tr><td><code>SolidesDP:Token</code></td><td>—</td><td class="quebra">Token de integração, gerado no Sólides DP em Empregador › Integrações. Usado só enquanto nenhuma empresa foi configurada na Web: aí vale para a única empresa de <code>Sync:EmpresasIncluidas</code>. Com empresas configuradas, cada uma usa o seu token, cadastrado na Web.</td></tr>
+            <tr><td><code>SolidesDP:Token</code></td><td>—</td><td class="quebra">Token de integração, gerado no Sólides DP em Empregador › Integrações. Usado só com a gestão desligada, para a única empresa de <code>Sync:EmpresasIncluidas</code>. Com a gestão ligada, cada empresa usa o seu token, cadastrado na tela Empresas da Web.</td></tr>
             <tr><td><code>SolidesDP:BaseUrl</code></td><td><code>https://employer.tangerino.com.br</code></td><td class="quebra">Endereço da API. Só muda em desenvolvimento (fake local).</td></tr>
             <tr><td><code>SolidesDP:TimeoutSeconds</code></td><td><code>30</code></td><td class="quebra">Tempo limite de cada tentativa (1 a 300). Com as novas tentativas automáticas, o total pode chegar a 4 vezes este valor.</td></tr>
             <tr><td><code>SolidesDP:SkipUnifiedSync</code></td><td><code>true</code></td><td class="quebra">Não propaga os cadastros para a base unificada (CUC) da Sólides. Confirmar com a Sólides antes de mudar.</td></tr>
@@ -325,19 +325,27 @@
     </table>
 
     <h3>2.3 Regras de negócio com a gestão ligada</h3>
-    <p>As demais chaves da seção <code>Sync</code> (modo simulação, go-live, filtros, escala, férias, travas...) são as <strong>regras de negócio</strong>. Com <code>Gestao:Habilitada = true</code>:</p>
+    <p>As demais chaves da seção <code>Sync</code> são as <strong>regras de negócio</strong>. Com <code>Gestao:Habilitada = true</code>, elas se dividem em duas telas da Web:</p>
+    <table>
+        <thead><tr><th>Tela</th><th>Vale para</th><th>Regras</th></tr></thead>
+        <tbody>
+            <tr><td>Regras gerais</td><td>todas as empresas</td><td class="quebra">Tipos de colaborador, situação de transferência, situações ignoradas, motivos de demissão, férias (janela, programadas, data final, tentativas) e as travas de segurança. As situações de desligamento (08, 11, 12, 14) aparecem só para consulta.</td></tr>
+            <tr><td>Empresas</td><td>cada empresa (uma conta do Sólides DP)</td><td class="quebra">Habilitada, <strong>simulação</strong>, <strong>go-live</strong> (obrigatória para o envio real), filiais, <strong>piloto</strong>, token, escala, regra de ponto, motivo FÉRIAS, empresa no Sólides DP (pelo CNPJ, padrão, ou nenhuma) e criar empresa faltante.</td></tr>
+        </tbody>
+    </table>
+    <p>Não existe simulação geral: para parar todas as empresas de uma vez, o Admin usa <strong>Desativar</strong> no Painel.</p>
     <ul>
         <li>Na primeira execução, o serviço copia a seção <code>Sync</code> do <code>appsettings.json</code> para o banco como <strong>versão 1</strong>.</li>
-        <li>Daí em diante, <strong>vale o que está no banco</strong>, alterado pelo Admin na tela Configuração da Web. Mudar essas chaves no <code>appsettings.json</code> (ou na linha de comando) não tem efeito.</li>
-        <li>Continuam vindo do servidor: <code>ConnectionStrings</code>, <code>SolidesDP</code>, <code>Gestao</code>, <code>Execution</code>, <code>Sync:InstanceName</code> e <code>Sync:ReportDirectory</code>.</li>
+        <li>Daí em diante, <strong>vale o que está no banco</strong>, alterado pelo Admin nas telas Regras gerais e Empresas da Web. Mudar essas chaves no <code>appsettings.json</code> (ou na linha de comando) não tem efeito.</li>
+        <li>Continuam vindo do servidor: <code>ConnectionStrings</code>, <code>SolidesDP:BaseUrl</code> e demais chaves de conexão, <code>Gestao</code>, <code>Execution</code>, <code>Sync:InstanceName</code> e <code>Sync:ReportDirectory</code>.</li>
         <li>Cada execução usa a versão vigente no momento em que começa e registra o número dela em <code>solidesdp.runs.config_versao</code>.</li>
         <li>Uma versão inválida não chega à API: a execução é registrada como falha com <code>config_invalid</code> e o motivo.</li>
         <li><strong>Cada empresa é uma conta do Sólides DP</strong>, com o seu token. Cada execução roda as empresas habilitadas uma depois da outra, e cada empresa vira uma linha em <code>solidesdp.runs</code>. Uma empresa com problema (sem token, go-live faltando) falha sozinha; as outras seguem.</li>
         <li>Empresa inativa no RHSenso (<code>temp1.flativo</code>) e filial inativa (<code>test1.flativofilial</code>) ficam fora do escopo: nada é enviado e ninguém é desligado por isso.</li>
-        <li>Enquanto nenhuma empresa foi configurada na Web, vale uma empresa só: a de <code>Sync:EmpresasIncluidas</code>, com o <code>SolidesDP:Token</code>.</li>
+        <li>Só as empresas <strong>habilitadas</strong> na tela Empresas são sincronizadas. Sem nenhuma habilitada, nada é sincronizado (a execução fica como não realizada).</li>
         <li>Com a integração <strong>desativada</strong> na Web, o serviço não faz execuções reais (agendadas, pedidas ou de linha de comando). A simulação continua permitida.</li>
     </ul>
-    <p>A explicação de cada regra está na Web, em Ajuda › Configuração. Com a gestão desligada, as mesmas chaves valem direto do <code>appsettings.json</code> (veja o <code>README.md</code>).</p>
+    <p>A explicação de cada regra está na Web, em Ajuda › Regras gerais e Ajuda › Empresas. Com a gestão desligada, as mesmas chaves valem direto do <code>appsettings.json</code> (veja o <code>README.md</code>).</p>
 
     <h3>2.4 Segredos</h3>
     <ul>
@@ -422,7 +430,7 @@
         <tbody>
             <tr><td><em>(sem argumento)</em></td><td class="quebra">Roda como serviço, no agendamento de <code>Execution</code>. É o que o serviço Windows/systemd chama.</td><td>—</td></tr>
             <tr><td><code>--check-config</code></td><td class="quebra">Valida a configuração, conecta no banco, cria/atualiza o schema <code>solidesdp</code>, mostra a versão da configuração em vigor e, para cada empresa habilitada, o modo, as filiais e o teste do token no Sólides DP. Cada linha sai com <code>[OK]</code> ou <code>[ERRO]</code>. Os scripts de instalação rodam este comando antes de iniciar o serviço.</td><td>Verificar configuração</td></tr>
-            <tr><td><code>--discover</code></td><td class="quebra">Lista empresas (com CNPJ), escalas, regras de ponto e motivos de ajuste cadastrados na conta do Sólides DP da empresa, com os ids usados na Configuração.</td><td>Consultar o Sólides DP</td></tr>
+            <tr><td><code>--discover</code></td><td class="quebra">Lista empresas (com CNPJ), escalas, regras de ponto e motivos de ajuste cadastrados na conta do Sólides DP da empresa, com os ids usados na tela da empresa.</td><td>Consultar o Sólides DP</td></tr>
             <tr><td><code>--dry-run</code></td><td class="quebra">Uma execução simulada que grava o relatório e <strong>nunca grava nada no Sólides DP</strong>. Se a empresa tiver token, só consulta quem já está lá, para mostrar quem seria <em>vinculado pelo CPF</em> e quem seria <em>criado</em>. Força a simulação mesmo que a configuração esteja em envio real.</td><td>Simular (dry-run)</td></tr>
             <tr><td><code>--run-once</code></td><td class="quebra">Uma execução com a configuração em vigor. Se o modo simulação estiver desligado, <strong>envia de verdade</strong>. Respeita a integração desativada.</td><td>Executar agora</td></tr>
             <tr><td><code>--reconcile</code></td><td class="quebra">Confere no Sólides DP, pelo id, cada colaborador vinculado da empresa. Lista os que não existem mais (<code>[AUSENTE]</code>) e os que não puderam ser conferidos (<code>[?]</code>). Não altera nada.</td><td>Conferir enviados</td></tr>
@@ -447,7 +455,7 @@
     <h3>5.4 Passar configuração na linha de comando</h3>
     <p>Qualquer chave pode ir como argumento <code>--Secao:Chave=valor</code>, só para aquele comando, sem mexer no arquivo:</p>
 <pre><code>.\IntegracaoSolidesDP.exe --check-config --ConnectionStrings:Rhu="Server=sql02;Database=bd_rhu_adn;Integrated Security=True;TrustServerCertificate=True"</code></pre>
-    <div class="nota"><p>Com a gestão ligada, as regras da seção <code>Sync</code> vêm do banco, e argumentos como <code>--Sync:DryRun=false</code> são ignorados. Para mudar regra, use a tela Configuração da Web. A exceção é o próprio <code>--dry-run</code>, que sempre força a simulação.</p></div>
+    <div class="nota"><p>Com a gestão ligada, as regras da seção <code>Sync</code> vêm do banco, e argumentos como <code>--Sync:DryRun=false</code> são ignorados. Para mudar regra, use as telas Regras gerais e Empresas da Web. A exceção é o próprio <code>--dry-run</code>, que sempre força a simulação.</p></div>
 
     <h3>5.5 Exemplos</h3>
 <pre><code><span class="c"># Conferir tudo depois de trocar o token ou a senha do banco</span>
@@ -555,7 +563,7 @@ WHERE instance_name = 'default' ORDER BY versao DESC;</code></pre>
             <tr><td class="quebra">Falha de conexão/timeout com o Sólides DP</td>
                 <td class="quebra">Saída HTTPS bloqueada, proxy ou certificado. Teste no servidor: <code>Test-NetConnection employer.tangerino.com.br -Port 443</code>.</td></tr>
             <tr><td class="quebra"><code>source_empty</code>: nenhum colaborador lido</td>
-                <td class="quebra">Connection string apontando para outro banco, ou filtros da Configuração (piloto, empresas) que não casam com nada. A trava impede que um banco vazio leve a desligamentos em massa.</td></tr>
+                <td class="quebra">Connection string apontando para outro banco, ou filtros da empresa (piloto, filiais) que não casam com nada. A trava impede que um banco vazio leve a desligamentos em massa.</td></tr>
             <tr><td class="quebra">"tabelas ausentes em dbo" no <code>--check-config</code></td>
                 <td class="quebra">O login não tem leitura no <code>dbo</code> ou o banco não é o do RHSenso. Revise o <code>db_datareader</code> do login.</td></tr>
             <tr><td class="quebra">Erro de permissão ao criar tabelas <code>solidesdp</code></td>
@@ -584,7 +592,7 @@ WHERE instance_name = 'default' ORDER BY versao DESC;</code></pre>
 <pre><code>powershell -ExecutionPolicy Bypass -File scripts\gerar-manual-tecnico.ps1</code></pre>
     <ul>
         <li>Faça commit do HTML e do PDF juntos e publique a Web de novo.</li>
-        <li>O manual de uso das telas não fica aqui: está na própria Web (<code>Views/Ajuda</code>), junto do código que ele descreve. Testes automatizados conferem se todo status, campo da Configuração e ação de auditoria está documentado ali.</li>
+        <li>O manual de uso das telas não fica aqui: está na própria Web (<code>Views/Ajuda</code>), junto do código que ele descreve. Testes automatizados conferem se todo status, campo das Regras gerais e ação de auditoria está documentado ali.</li>
     </ul>
 </section>
 

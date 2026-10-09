@@ -38,13 +38,26 @@
                     <i class="bi @(ativa ? "bi-play-circle" : "bi-pause-circle")"></i> @(ativa ? "Ativa" : "Desativada")
                 </div>
                 <div class="small">
-                    @if (Model.DryRunConfigurado == true)
-                    {
-                        <span class="badge text-bg-info">Modo simulação (dry-run)</span>
+                    @{
+                        var habilitadas = Model.Configuracao?.Empresas.Where(e => e.Habilitada).ToList() ?? [];
+                        var reais = habilitadas.Count(e => !e.DryRun);
                     }
-                    else if (Model.DryRunConfigurado == false)
+                    @if (habilitadas.Count == 0)
                     {
-                        <span class="badge text-bg-primary">Envio real</span>
+                        <a asp-controller="Empresas" asp-action="Index" class="badge text-bg-warning text-decoration-none">Nenhuma empresa habilitada</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Empresas" asp-action="Index" class="text-decoration-none">
+                            @if (reais > 0)
+                            {
+                                <span class="badge text-bg-primary">@reais em envio real</span>
+                            }
+                            @if (habilitadas.Count - reais > 0)
+                            {
+                                <span class="badge text-bg-info">@(habilitadas.Count - reais) em simulação</span>
+                            }
+                        </a>
                     }
                     @if (Model.Configuracao is { } config)
                     {

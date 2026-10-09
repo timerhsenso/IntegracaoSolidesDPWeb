@@ -7,22 +7,19 @@
     (<code>temp1.flativo = 'S'</code>). Para usar uma empresa que não está na lista, ative-a no RHSenso.
 </p>
 
-@if (Model.ModoUmaEmpresa)
+@if (Model.Desativada)
 {
     <div class="alert alert-warning small">
-        <i class="bi bi-info-circle"></i>
-        Nenhuma empresa foi configurada nesta tela ainda. Enquanto isso, o serviço sincroniza só a empresa do campo
-        <em>Empresa usada antes da tela Empresas</em> da tela Configuração (@(Model.EmpresasIncluidas.Count == 0 ? "vazio" : string.Join(", ", Model.EmpresasIncluidas)))
-        com o token do servidor. <strong>Ao salvar a primeira empresa aqui, passa a valer só o que estiver nesta tela</strong>:
-        cadastre também o token dela.
+        <i class="bi bi-pause-circle"></i> A integração está <strong>desativada</strong> no Painel: nenhuma empresa envia ao Sólides DP
+        até ativar de novo (a simulação continua permitida).
     </div>
 }
 
-@if (Model.DryRunGeral)
+@if (Model.NenhumaHabilitada)
 {
     <div class="alert alert-info small">
-        <i class="bi bi-shield-check"></i> O <strong>modo simulação geral</strong> (tela Configuração) está ligado: nenhuma empresa envia de verdade,
-        mesmo com a simulação dela desligada.
+        <i class="bi bi-info-circle"></i> Nenhuma empresa está habilitada: o serviço não sincroniza nada. Clique em
+        <em>Configurar</em> numa empresa, marque as filiais, deixe a <strong>simulação ligada</strong> e cadastre o token.
     </div>
 }
 
@@ -62,17 +59,25 @@
                                 {
                                     <span class="text-body-secondary">—</span>
                                 }
-                                else if (linha.Config.DryRun || Model.DryRunGeral)
+                                else if (linha.Config.DryRun)
                                 {
                                     <span class="badge text-bg-info">Simulação</span>
                                 }
                                 else
                                 {
                                     <span class="badge text-bg-primary">Real</span>
+                                    @if (linha.Config.GoLiveDate is { } goLive)
+                                    {
+                                        <div class="small text-body-secondary">desde @goLive.ToString("dd/MM/yyyy")</div>
+                                    }
                                 }
                             </td>
                             <td class="small">
                                 @(linha.Config is null ? "—" : linha.Config.Filiais.Count == 0 ? "todas" : string.Join(", ", linha.Config.Filiais))
+                                @if (linha.Config is { Piloto.Count: > 0 } piloto)
+                                {
+                                    <div><span class="badge text-bg-warning">piloto: @piloto.Piloto.Count</span></div>
+                                }
                             </td>
                             <td class="small">
                                 @if (linha.TemToken)

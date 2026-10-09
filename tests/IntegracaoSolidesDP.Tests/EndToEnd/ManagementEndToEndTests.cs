@@ -26,21 +26,35 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
     public async ValueTask DisposeAsync() => await _harness.DisposeAsync();
 
     [Fact]
-    public async Task First_run_creates_version_1_from_appsettings_and_records_it()
+    public async Task First_run_creates_version_1_from_appsettings_and_without_companies_syncs_nothing()
     {
+        var summary = await _harness.RunAsync(Ct);
+
+        summary.Status.Should().Be(RunStatuses.SkippedDisabled);
+        summary.Error.Should().Contain("Nenhuma empresa habilitada");
+        var current = await _store.GetCurrentConfigurationAsync("default", Ct);
+        current!.Version.Should().Be(1);
+        current.Empresas.Should().BeEmpty();
+        (await _harness.Fake.GetRequestsAsync(Ct)).Should().BeEmpty("com a gestão ligada, só as empresas da tela Empresas são sincronizadas");
+    }
+
+    [Fact]
+    public async Task Run_records_the_configuration_version()
+    {
+        await HabilitarEmpresa1Async();
+
         var summary = await _harness.RunAsync(Ct);
 
         summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
         var current = await _store.GetCurrentConfigurationAsync("default", Ct);
-        current!.Version.Should().Be(1);
-        SyncOptionsJson.Deserialize(current.SyncJson).GoLiveDate.Should().Be(new DateOnly(2026, 1, 1));
         var version = await db.QueryAsync<int>("SELECT config_versao FROM solidesdp.runs WHERE run_id = @RunId", new { summary.RunId });
-        version.Should().Equal(1);
+        version.Should().Equal(current!.Version);
     }
 
     [Fact]
     public async Task Disabled_integration_does_not_run_but_still_allows_a_dry_run()
     {
+        await HabilitarEmpresa1Async();
         await _harness.RunAsync(Ct);
         var current = await _store.GetCurrentConfigurationAsync("default", Ct);
         await _store.AddConfigurationVersionAsync("default", active: false, current!.SyncJson, "pausa", "carlos", Ct);
@@ -52,40 +66,71 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
 
         real.Status.Should().Be(RunStatuses.SkippedDisabled);
         dryRun.Status.Should().Be(CommandStatuses.Done, dryRun.Result);
-        (await _harness.WritesAsync(Ct)).Should().BeEmpty("a integração está desativada e o dry-run não chama a API");
+        (await _harness.WritesAsync(Ct)).Should().BeEmpty("a integração está desativada e a simulação não grava no Sólides DP");
     }
 
     [Fact]
-    public async Task Rules_come_from_the_database_not_from_appsettings()
+    public async Task Simulation_comes_from_the_company_not_from_appsettings()
     {
-        await _harness.RunAsync(Ct);
-        var current = await _store.GetCurrentConfigurationAsync("default", Ct);
-        var rules = SyncOptionsJson.Deserialize(current!.SyncJson);
-        rules.DryRun = true;
-        await _store.AddConfigurationVersionAsync("default", active: true, SyncOptionsJson.Serialize(rules), "volta ao dry-run", "carlos", Ct);
+        await HabilitarEmpresa1Async(dryRun: true);
+        await _harness.Fake.ClearRequestsAsync(Ct);
 
         var summary = await _harness.RunAsync(Ct);
 
-        summary.DryRun.Should().BeTrue("a versão 2 do banco liga o dry-run, embora o appsettings diga false");
+        summary.DryRun.Should().BeTrue("a empresa está em simulação, embora o appsettings diga DryRun=false");
+        (await _harness.WritesAsync(Ct)).Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Invalid_configuration_is_recorded_as_a_failed_run_without_calling_the_api()
+    public async Task Invalid_general_rules_are_recorded_as_a_failed_run_without_calling_the_api()
     {
         await EnsureSchemasAsync();
-        await _store.AddConfigurationVersionAsync("default", active: true, """{ "DryRun": false, "GoLiveDate": null, "EmpresasIncluidas": [1] }""", null, "carlos", Ct);
+        await _store.AddConfigurationVersionAsync("default", active: true, """{ "TiposColaborador": [] }""",
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = E2EHarness.GoLive }], null, "carlos", Ct);
         await _harness.Fake.ClearRequestsAsync(Ct);
 
         var summary = await _harness.RunAsync(Ct);
 
         summary.Status.Should().Be(RunStatuses.Failed);
-        summary.Error.Should().Contain("config_invalid").And.Contain("GoLiveDate");
+        summary.Error.Should().Contain("config_invalid").And.Contain("TiposColaborador");
         (await _harness.WritesAsync(Ct)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Company_without_go_live_fails_its_real_run_without_calling_the_api()
+    {
+        await _harness.ConfigurarEmpresasAsync(
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false }],
+            new Dictionary<int, string> { [1] = E2EHarness.Token },
+            Ct);
+        await _harness.Fake.ClearRequestsAsync(Ct);
+
+        var summary = await _harness.RunAsync(Ct);
+
+        summary.Status.Should().Be(RunStatuses.Failed);
+        summary.Error.Should().Contain("config_invalid").And.Contain("go-live");
+        (await _harness.Fake.GetRequestsAsync(Ct)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Company_pilot_limits_the_run_to_the_listed_people()
+    {
+        await _seed.FuncionarioAsync(matric: "00000002", cpf: TestData.Cpf2, nome: "JOAO SANTOS");
+        await _harness.ConfigurarEmpresasAsync(
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = E2EHarness.GoLive, Piloto = ["00000002"] }],
+            new Dictionary<int, string> { [1] = E2EHarness.Token },
+            Ct);
+
+        var summary = await _harness.RunAsync(Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        (await _harness.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle().Which.ExternalId.Should().Be("00000002");
     }
 
     [Fact]
     public async Task Run_command_executes_the_sync_on_behalf_of_the_user()
     {
+        await HabilitarEmpresa1Async();
         var command = await RunCommandAsync(CommandTypes.Run);
 
         command.Status.Should().Be(CommandStatuses.Done, command.Result);
@@ -99,6 +144,7 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
     [Fact]
     public async Task Check_config_command_stores_the_console_output()
     {
+        await HabilitarEmpresa1Async();
         var command = await RunCommandAsync(CommandTypes.CheckConfig);
 
         command.Status.Should().Be(CommandStatuses.Done, command.Result);
@@ -108,6 +154,7 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
     [Fact]
     public async Task Unchanged_items_are_counted_but_not_stored()
     {
+        await HabilitarEmpresa1Async();
         await _harness.RunAsync(Ct);
 
         var second = await _harness.RunAsync(Ct);
@@ -122,7 +169,7 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
     public async Task Company_without_a_token_fails_its_real_run_without_calling_the_api()
     {
         await _harness.ConfigurarEmpresasAsync(
-            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false }],
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = E2EHarness.GoLive }],
             new Dictionary<int, string>(),
             Ct);
         await _harness.Fake.ClearRequestsAsync(Ct);
@@ -141,8 +188,8 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
         await _seed.FuncionarioAsync(matric: "00000002", empresa: 2, filial: 8, cpf: TestData.Cpf2);
         await _harness.ConfigurarEmpresasAsync(
             [
-                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false },
-                new EmpresaConfiguracao { Cdempresa = 2, Habilitada = true, DryRun = false },
+                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, GoLiveDate = E2EHarness.GoLive },
+                new EmpresaConfiguracao { Cdempresa = 2, Habilitada = true, DryRun = false, GoLiveDate = E2EHarness.GoLive },
             ],
             new Dictionary<int, string> { [1] = E2EHarness.Token, [2] = E2EHarness.Token2 },
             Ct);
@@ -155,6 +202,13 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
         (await _harness.Fake.GetStateAsync(E2EHarness.Token, Ct)).Employees.Should().BeEmpty("só a empresa 2 foi pedida");
         (await _harness.Fake.GetStateAsync(E2EHarness.Token2, Ct)).Employees.Should().ContainSingle(e => e.ExternalId == "00000002");
     }
+
+    /// <summary>Empresa 1 habilitada na tela Empresas, com o token da conta padrão do fake.</summary>
+    private Task HabilitarEmpresa1Async(bool dryRun = false) =>
+        _harness.ConfigurarEmpresasAsync(
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = dryRun, GoLiveDate = E2EHarness.GoLive }],
+            new Dictionary<int, string> { [1] = E2EHarness.Token },
+            Ct);
 
     private async Task EnsureSchemasAsync()
     {

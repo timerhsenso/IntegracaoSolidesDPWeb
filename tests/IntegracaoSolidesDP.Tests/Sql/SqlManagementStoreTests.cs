@@ -66,7 +66,7 @@ public sealed class SqlManagementStoreTests(SqlServerFixture db) : IAsyncLifetim
         await _store.SeedConfigurationAsync("adn", "{}", Ct);
         EmpresaConfiguracao[] empresas =
         [
-            new() { Cdempresa = 15, Habilitada = true, DryRun = false, GoLiveDate = new DateOnly(2026, 11, 1), ModoEmpresa = ModosEmpresa.Nenhuma, Filiais = [10, 12] },
+            new() { Cdempresa = 15, Habilitada = true, DryRun = false, GoLiveDate = new DateOnly(2026, 11, 1), ModoEmpresa = ModosEmpresa.Nenhuma, CriarEmpresasFaltantes = true, Filiais = [10, 12], Piloto = ["15-00007811", "12345678901"] },
             new() { Cdempresa = 1, Habilitada = false },
         ];
         await _store.AddConfigurationVersionAsync("adn", active: true, "{}", empresas, "empresas", "carlos", Ct);

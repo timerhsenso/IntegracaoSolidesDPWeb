@@ -80,21 +80,10 @@ public sealed class GestaoService(
             return ResultadoGestao.Falha("Ainda não existe configuração: rode o serviço uma vez (ele cria a versão 1) ou salve a tela Configuração.");
         }
 
-        SyncOptions geral;
-        try
+        // Envio real só com go-live, como no serviço.
+        if (empresa.Habilitada && !empresa.DryRun && empresa.GoLiveDate is null)
         {
-            geral = SyncOptionsJson.Deserialize(atual.SyncJson);
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return ResultadoGestao.Falha($"A versão {atual.Version} da configuração não pôde ser lida; salve a tela Configuração primeiro.");
-        }
-
-        // A empresa vai em envio real só com go-live (dela ou o geral), como no serviço.
-        var efetiva = EmpresaOptions.Mesclar(geral, empresa);
-        if (empresa.Habilitada && !efetiva.DryRun && efetiva.GoLiveDate is null)
-        {
-            return ResultadoGestao.Falha("Para o envio real, informe a data de go-live da empresa (ou a geral, na tela Configuração).");
+            return ResultadoGestao.Falha("Para o envio real (simulação desligada), informe a data de go-live da empresa.");
         }
 
         var empresas = atual.Empresas.Where(e => e.Cdempresa != empresa.Cdempresa).Append(empresa).OrderBy(e => e.Cdempresa).ToList();
@@ -175,6 +164,7 @@ public sealed class GestaoService(
             e.Habilitada ? "habilitada" : "desabilitada",
             e.DryRun ? "simulação" : "envio real",
             e.Filiais.Count == 0 ? "todas as filiais" : $"filiais {string.Join(", ", e.Filiais.Order())}",
+            e.Piloto.Count == 0 ? "sem piloto" : $"piloto com {e.Piloto.Count} pessoa(s)",
         };
         if (e.GoLiveDate is { } goLive)
         {

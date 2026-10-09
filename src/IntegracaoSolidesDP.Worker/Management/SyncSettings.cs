@@ -41,9 +41,9 @@ public sealed class SyncOptionsAccessor(IOptions<SyncOptions> configured)
 /// Decide a configuração de cada execução.
 /// <list type="bullet">
 /// <item>Gestão desligada: appsettings.json. Uma só empresa (Sync:EmpresasIncluidas), com o SolidesDP:Token.</item>
-/// <item>Gestão ligada: versão vigente de solidesdp.configuracao (criando a versão 1 a partir do appsettings.json na
-/// primeira vez) e as empresas habilitadas na tela Empresas, cada uma com o seu token cifrado. Enquanto nenhuma
-/// empresa foi configurada na Web, vale a regra da gestão desligada (uma empresa, token do appsettings).</item>
+/// <item>Gestão ligada: regras gerais da versão vigente de solidesdp.configuracao (criando a versão 1 a partir do
+/// appsettings.json na primeira vez) e as empresas habilitadas na tela Empresas, cada uma com o seu token cifrado e as
+/// suas regras (simulação, go-live, piloto, filiais, conta). Sem empresa habilitada, nada é sincronizado.</item>
 /// </list>
 /// </summary>
 public sealed class SyncSettingsLoader(
@@ -96,11 +96,6 @@ public sealed class SyncSettingsLoader(
             throw new SyncAbortedException($"config_invalid: versão {current.Version} de solidesdp.configuracao: {validation.FailureMessage}");
         }
 
-        if (current.Empresas.Count == 0)
-        {
-            return new SyncSettings(options, current.Active, current.Version, [SingleAccount(options)]);
-        }
-
         var stored = await store.GetEmpresaTokensAsync(ct);
         var empresas = current.Empresas
             .Where(e => e.Habilitada)
@@ -137,7 +132,12 @@ public sealed class SyncSettingsLoader(
 
         if (!options.DryRun)
         {
-            var validation = new SyncOptionsValidator().Validate(null, options);
+            if (options.GoLiveDate is null)
+            {
+                problemas.Add("a empresa não tem data de go-live (obrigatória para o envio real); informe na tela Empresas");
+            }
+
+            var validation = new SyncOptionsValidator().Validate(null, EmpresaOptions.Copiar(options, dryRun: true));
             if (validation.Failed)
             {
                 problemas.Add(validation.FailureMessage);
