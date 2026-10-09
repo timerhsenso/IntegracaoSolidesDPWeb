@@ -60,7 +60,8 @@ public sealed class EmployeeMapper(EpochDates dates)
 
         var payload = new EmployeeRequest
         {
-            ExternalId = row.ExternalId,
+            // Na criação o Código Externo é a matrícula; na atualização o EmployeeStep aplica a regra do CodigoExterno.
+            ExternalId = row.Nomatric.Trim(),
             Name = name,
             Matricula = row.Nomatric.Trim(),
             Cpf = cpf,

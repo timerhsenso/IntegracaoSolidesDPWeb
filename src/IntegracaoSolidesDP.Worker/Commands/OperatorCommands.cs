@@ -2,16 +2,22 @@ using Dapper;
 using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Options;
+using IntegracaoSolidesDP.Worker.Pipeline;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
 using Microsoft.Extensions.Options;
 
 namespace IntegracaoSolidesDP.Worker.Commands;
 
-/// <summary>Comandos de operação (instalação, piloto, suporte). Escrevem no console.</summary>
+/// <summary>
+/// Comandos de operação (instalação, piloto, suporte). Escrevem no console. Cada empresa é uma conta do
+/// Sólides DP: discover e reconcile são de uma empresa (--empresa N, ou a única habilitada).
+/// </summary>
 public sealed class OperatorCommands(
     ConnectionFactory connections,
     ISolidesDpClient api,
+    SolidesDpAccount account,
+    SyncSettingsLoader settingsLoader,
     IStateStore state,
     IOptions<SolidesDpOptions> solidesOptions,
     IOptions<SyncOptions> syncOptions,
@@ -20,7 +26,7 @@ public sealed class OperatorCommands(
     IManagementStore management,
     TextWriter output)
 {
-    private static readonly string[] RequiredTables = ["func1", "cargo1", "test1", "tcus1", "tsitu1", "feria2"];
+    private static readonly string[] RequiredTables = ["func1", "cargo1", "temp1", "test1", "tcus1", "tsitu1", "feria2"];
 
     public async Task<int> CheckConfigAsync(CancellationToken ct)
     {
@@ -33,7 +39,6 @@ public sealed class OperatorCommands(
             .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion.Split('+')[0];
         await output.WriteLineAsync($"IntegracaoSolidesDP {version}");
         await output.WriteLineAsync($"Execução: {(execution.Interval is { } i ? $"a cada {i}" : $"às {string.Join(", ", execution.TimesOfDay ?? [])}")} ({execution.TimeZone})");
-        await output.WriteLineAsync($"Modo: {(sync.DryRun ? "DRY-RUN (nada é enviado)" : "REAL")}; tipos de colaborador: {string.Join(",", sync.TiposColaborador)}; go-live: {sync.GoLiveDate?.ToString("yyyy-MM-dd") ?? "-"}");
         await output.WriteLineAsync($"Sólides DP: {solidesOptions.Value.BaseUrl}");
 
         try
@@ -63,39 +68,77 @@ public sealed class OperatorCommands(
                 await output.WriteLineAsync(current is null
                     ? "[--] Gestão pela Web ligada: a configuração será criada a partir do appsettings.json na primeira execução"
                     : $"[OK] Gestão pela Web ligada: valem as regras da versão {current.Version} ({(current.Active ? "ativa" : "DESATIVADA")}), " +
-                      $"gravada por {current.CreatedBy} em {current.CreatedAt:yyyy-MM-dd HH:mm}; o modo e os filtros acima são os do appsettings.json");
+                      $"gravada por {current.CreatedBy} em {current.CreatedAt:yyyy-MM-dd HH:mm}");
             }
         }
         catch (Exception ex) when (ex is Microsoft.Data.SqlClient.SqlException or InvalidOperationException)
         {
-            ok = false;
             await output.WriteLineAsync($"[ERRO] Banco: {ex.Message}");
-        }
-
-        if (string.IsNullOrWhiteSpace(solidesOptions.Value.Token))
-        {
-            await output.WriteLineAsync("[--] Sólides DP: sem token configurado (ok para dry-run)");
-        }
-        else
-        {
-            var test = await api.TestAsync(ct);
-            ok &= test.IsSuccess;
-            await output.WriteLineAsync(test.IsSuccess
-                ? $"[OK] Sólides DP: token aceito ({test.Value})"
-                : $"[ERRO] Sólides DP: {test.Outcome} HTTP {test.HttpStatus} {test.Message}");
-        }
-
-        return ok ? 0 : 1;
-    }
-
-    public async Task<int> DiscoverAsync(CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(solidesOptions.Value.Token))
-        {
-            await output.WriteLineAsync("Configure SolidesDP:Token para consultar o Sólides DP.");
             return 1;
         }
 
+        SyncSettings settings;
+        try
+        {
+            settings = await settingsLoader.LoadAsync(ct);
+        }
+        catch (SyncAbortedException ex)
+        {
+            await output.WriteLineAsync($"[ERRO] Configuração: {ex.Message}");
+            return 1;
+        }
+
+        if (settings.Empresas.Count == 0)
+        {
+            await output.WriteLineAsync("[--] Nenhuma empresa habilitada: nada será sincronizado (habilite na tela Empresas da Web)");
+        }
+
+        foreach (var empresa in settings.Empresas)
+        {
+            var options = empresa.Options;
+            var filiais = empresa.Filiais.Count == 0 ? "todas as filiais ativas" : $"filiais {string.Join(", ", empresa.Filiais.Order())}";
+            await output.WriteLineAsync(FormattableString.Invariant(
+                $"Empresa {empresa.Cdempresa}: {(options.DryRun ? "DRY-RUN (nada é enviado)" : "REAL")}; {filiais}; tipos de colaborador: {string.Join(",", options.TiposColaborador)}; go-live: {options.GoLiveDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "-"}"));
+
+            if (empresa.Problema is { } problema && !options.DryRun)
+            {
+                ok = false;
+                await output.WriteLineAsync($"[ERRO] {problema}");
+            }
+
+            if (empresa.Token is null)
+            {
+                await output.WriteLineAsync(FormattableString.Invariant($"[--] Empresa {empresa.Cdempresa}: sem token do Sólides DP (ok para dry-run)"));
+                continue;
+            }
+
+            account.Use(empresa.Cdempresa, empresa.Token);
+            var test = await api.TestAsync(ct);
+            ok &= test.IsSuccess;
+            await output.WriteLineAsync(test.IsSuccess
+                ? FormattableString.Invariant($"[OK] Empresa {empresa.Cdempresa}: token aceito pelo Sólides DP ({test.Value})")
+                : FormattableString.Invariant($"[ERRO] Empresa {empresa.Cdempresa}: Sólides DP {test.Outcome} HTTP {test.HttpStatus} {test.Message}"));
+        }
+
+        account.Clear();
+        return ok ? 0 : 1;
+    }
+
+    public async Task<int> DiscoverAsync(int? cdempresa, CancellationToken ct)
+    {
+        var empresa = await SingleEmpresaAsync(cdempresa, ct);
+        if (empresa is null)
+        {
+            return 1;
+        }
+
+        if (empresa.Token is null)
+        {
+            await output.WriteLineAsync(FormattableString.Invariant($"A empresa {empresa.Cdempresa} não tem token do Sólides DP; cadastre o token para consultar."));
+            return 1;
+        }
+
+        account.Use(empresa.Cdempresa, empresa.Token);
         var test = await api.TestAsync(ct);
         if (!test.IsSuccess)
         {
@@ -103,50 +146,103 @@ public sealed class OperatorCommands(
             return 1;
         }
 
-        await Section("Empresas (Sync:CompanyMode=ResolveByCnpj casa pelo CNPJ)", await api.GetCompaniesAsync(ct),
+        await output.WriteLineAsync(FormattableString.Invariant($"Conta do Sólides DP da empresa {empresa.Cdempresa}"));
+        await Section("Empresas (modo PorCnpj casa pelo CNPJ)", await api.GetCompaniesAsync(ct),
             c => $"{c.Id,8}  {c.Cnpj,-18} {c.ExternalId,-12} {c.FantasyName ?? c.SocialReason}");
-        await Section("Escalas (Sync:WorkScheduleExternalId)", await api.GetWorkSchedulesAsync(ct),
+        await Section("Escalas (WorkScheduleExternalId)", await api.GetWorkSchedulesAsync(ct),
             s => $"{s.Id,8}  {s.ExternalId,-20} {(s.Standard == true ? "[padrão] " : string.Empty)}{s.Name}");
-        await Section("Regras de ponto (Sync:PunchRuleExternalId)", await api.GetPunchRulesAsync(ct),
+        await Section("Regras de ponto (PunchRuleExternalId)", await api.GetPunchRulesAsync(ct),
             r => $"{r.Id,8}  {r.ExternalId,-20} {(r.Standard == true ? "[padrão] " : string.Empty)}{r.Description}");
-        await Section("Motivos de ajuste (Sync:FeriasMotivoId)", await api.GetAdjustmentReasonsAsync(ct),
+        await Section("Motivos de ajuste (FeriasMotivoId)", await api.GetAdjustmentReasonsAsync(ct),
             r => $"{r.Id,8}  {r.Description}{(r.Active == false ? " (inativo)" : string.Empty)}");
         return 0;
     }
 
-    public async Task<int> ReconcileAsync(bool repair, CancellationToken ct)
+    /// <summary>Confere no DP, pelo id, os colaboradores vinculados da empresa. Com repair, os ausentes voltam a ser procurados pelo CPF.</summary>
+    public async Task<int> ReconcileAsync(int? cdempresa, bool repair, CancellationToken ct)
     {
+        var empresa = await SingleEmpresaAsync(cdempresa, ct);
+        if (empresa is null)
+        {
+            return 1;
+        }
+
+        if (empresa.Token is null)
+        {
+            await output.WriteLineAsync(FormattableString.Invariant($"A empresa {empresa.Cdempresa} não tem token do Sólides DP."));
+            return 1;
+        }
+
+        account.Use(empresa.Cdempresa, empresa.Token);
         await state.EnsureSchemaAsync(ct);
-        var employees = await state.LoadEntityStatesAsync(EntityTypes.Employee, ct);
+        var employees = await state.LoadEntityStatesAsync(empresa.Cdempresa, EntityTypes.Employee, ct);
         var missing = 0;
         var unverifiable = 0;
 
         foreach (var employee in employees.Values.Where(e => e.RemoteId is not null && e.Status == EntityStatuses.Synced))
         {
-            var result = await api.FindEmployeeAsync(employee.ExternalId, ct);
+            var label = EmployeeKey.Rotulo(empresa.Cdempresa, employee.Matricula ?? "?");
+            var result = await api.FindEmployeeByIdAsync(employee.RemoteId!.Value, ct);
             switch (result.Outcome)
             {
                 case ApiOutcome.Success:
                     continue;
                 case ApiOutcome.NotFound:
                     missing++;
-                    await output.WriteLineAsync($"[AUSENTE] {employee.ExternalId} (id {employee.RemoteId})");
+                    await output.WriteLineAsync($"[AUSENTE] {label} (id {employee.RemoteId})");
                     if (repair)
                     {
-                        // Limpa o hash local: a próxima execução reenvia (e o register recria pelo externalId).
-                        await state.UpsertEntityStateAsync(employee with { PayloadHash = null, RemoteId = null }, ct);
+                        // Sem id: a próxima execução procura o CPF no DP e vincula, ou cria.
+                        await state.UpsertEntityStateAsync(empresa.Cdempresa, employee with { PayloadHash = null, RemoteId = null }, ct);
                     }
 
                     break;
                 default:
                     unverifiable++;
-                    await output.WriteLineAsync($"[?] {employee.ExternalId}: {result.Outcome} {result.Message}");
+                    await output.WriteLineAsync($"[?] {label}: {result.Outcome} {result.Message}");
                     break;
             }
         }
 
-        await output.WriteLineAsync($"Conferidos {employees.Count}; ausentes no DP: {missing}; não verificáveis: {unverifiable}{(repair && missing > 0 ? " (marcados para reenvio)" : string.Empty)}");
+        await output.WriteLineAsync(FormattableString.Invariant(
+            $"Empresa {empresa.Cdempresa}: conferidos {employees.Count}; ausentes no DP: {missing}; não verificáveis: {unverifiable}{(repair && missing > 0 ? " (marcados para nova busca pelo CPF)" : string.Empty)}"));
         return missing == 0 && unverifiable == 0 ? 0 : 2;
+    }
+
+    /// <summary>A empresa pedida, ou a única habilitada. Escreve o motivo e devolve null quando não dá para escolher.</summary>
+    private async Task<EmpresaSettings?> SingleEmpresaAsync(int? cdempresa, CancellationToken ct)
+    {
+        SyncSettings settings;
+        try
+        {
+            settings = await settingsLoader.LoadAsync(ct);
+        }
+        catch (SyncAbortedException ex)
+        {
+            await output.WriteLineAsync($"Configuração inválida: {ex.Message}");
+            return null;
+        }
+
+        if (cdempresa is { } pedida)
+        {
+            var found = settings.Empresas.FirstOrDefault(e => e.Cdempresa == pedida);
+            if (found is null)
+            {
+                await output.WriteLineAsync(FormattableString.Invariant($"A empresa {pedida} não está habilitada na integração."));
+            }
+
+            return found;
+        }
+
+        if (settings.Empresas.Count == 1)
+        {
+            return settings.Empresas[0];
+        }
+
+        await output.WriteLineAsync(settings.Empresas.Count == 0
+            ? "Nenhuma empresa habilitada na integração."
+            : $"Cada empresa é uma conta do Sólides DP: informe --empresa N ({string.Join(", ", settings.Empresas.Select(e => e.Cdempresa))}).");
+        return null;
     }
 
     private async Task Section<T>(string title, ApiResult<IReadOnlyList<T>> result, Func<T, string> line)

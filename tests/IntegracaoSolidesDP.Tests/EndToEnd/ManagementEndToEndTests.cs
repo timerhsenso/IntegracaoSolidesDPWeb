@@ -73,7 +73,7 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
     public async Task Invalid_configuration_is_recorded_as_a_failed_run_without_calling_the_api()
     {
         await EnsureSchemasAsync();
-        await _store.AddConfigurationVersionAsync("default", active: true, """{ "DryRun": false, "GoLiveDate": null }""", null, "carlos", Ct);
+        await _store.AddConfigurationVersionAsync("default", active: true, """{ "DryRun": false, "GoLiveDate": null, "EmpresasIncluidas": [1] }""", null, "carlos", Ct);
         await _harness.Fake.ClearRequestsAsync(Ct);
 
         var summary = await _harness.RunAsync(Ct);
@@ -93,7 +93,7 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
         var run = await db.QueryAsync<(string, string)>(
             "SELECT triggered_by, solicitado_por FROM solidesdp.runs WHERE run_id = @RunId", new { command.RunId });
         run.Should().Equal(("web", "carlos"));
-        (await _harness.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle(e => e.ExternalId == "1-00000001");
+        (await _harness.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle(e => e.ExternalId == "00000001");
     }
 
     [Fact]
@@ -116,6 +116,44 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
         var stored = await db.QueryAsync<int>(
             "SELECT COUNT(*) FROM solidesdp.run_items WHERE run_id = @RunId AND status = 'unchanged'", new { second.RunId });
         stored.Should().Equal(0);
+    }
+
+    [Fact]
+    public async Task Company_without_a_token_fails_its_real_run_without_calling_the_api()
+    {
+        await _harness.ConfigurarEmpresasAsync(
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false }],
+            new Dictionary<int, string>(),
+            Ct);
+        await _harness.Fake.ClearRequestsAsync(Ct);
+
+        var summary = await _harness.RunAsync(Ct);
+
+        summary.Status.Should().Be(RunStatuses.Failed);
+        summary.Error.Should().Contain("config_invalid").And.Contain("token");
+        (await _harness.Fake.GetRequestsAsync(Ct)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Run_command_can_target_one_company()
+    {
+        await _seed.FilialAsync(empresa: 2, filial: 8, nome: "GTI ABC", cnpj: "00594807000361");
+        await _seed.FuncionarioAsync(matric: "00000002", empresa: 2, filial: 8, cpf: TestData.Cpf2);
+        await _harness.ConfigurarEmpresasAsync(
+            [
+                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false },
+                new EmpresaConfiguracao { Cdempresa = 2, Habilitada = true, DryRun = false },
+            ],
+            new Dictionary<int, string> { [1] = E2EHarness.Token, [2] = E2EHarness.Token2 },
+            Ct);
+
+        var id = await _store.EnqueueCommandAsync("default", CommandTypes.Run, "carlos", 2, Ct);
+        await _harness.ProcessCommandsAsync(Ct);
+
+        var status = await db.QueryAsync<string>("SELECT status FROM solidesdp.comando WHERE id = @id", new { id });
+        status.Should().Equal(CommandStatuses.Done);
+        (await _harness.Fake.GetStateAsync(E2EHarness.Token, Ct)).Employees.Should().BeEmpty("só a empresa 2 foi pedida");
+        (await _harness.Fake.GetStateAsync(E2EHarness.Token2, Ct)).Employees.Should().ContainSingle(e => e.ExternalId == "00000002");
     }
 
     private async Task EnsureSchemasAsync()

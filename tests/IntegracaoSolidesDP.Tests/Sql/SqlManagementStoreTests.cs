@@ -61,6 +61,48 @@ public sealed class SqlManagementStoreTests(SqlServerFixture db) : IAsyncLifetim
     }
 
     [Fact]
+    public async Task Companies_belong_to_a_version_and_are_carried_to_the_next_one()
+    {
+        await _store.SeedConfigurationAsync("adn", "{}", Ct);
+        EmpresaConfiguracao[] empresas =
+        [
+            new() { Cdempresa = 15, Habilitada = true, DryRun = false, GoLiveDate = new DateOnly(2026, 11, 1), ModoEmpresa = ModosEmpresa.Nenhuma, Filiais = [10, 12] },
+            new() { Cdempresa = 1, Habilitada = false },
+        ];
+        await _store.AddConfigurationVersionAsync("adn", active: true, "{}", empresas, "empresas", "carlos", Ct);
+        await _store.AddConfigurationVersionAsync("adn", active: false, "{}", "pausa", "carlos", Ct);
+
+        var current = await _store.GetCurrentConfigurationAsync("adn", Ct);
+
+        current!.Version.Should().Be(3);
+        current.Empresas.Should().BeEquivalentTo(empresas);
+    }
+
+    [Fact]
+    public async Task The_latest_token_of_each_company_wins_and_null_removes_it()
+    {
+        await _store.AddEmpresaTokenAsync(15, [1, 2, 3], "carlos", Ct);
+        await _store.AddEmpresaTokenAsync(15, [4, 5], "carlos", Ct);
+        await _store.AddEmpresaTokenAsync(1, [9], "carlos", Ct);
+        await _store.AddEmpresaTokenAsync(1, null, "carlos", Ct);
+
+        var tokens = await _store.GetEmpresaTokensAsync(Ct);
+
+        tokens[15].TokenCifrado.Should().Equal(4, 5);
+        tokens[1].TokenCifrado.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Commands_can_target_one_company()
+    {
+        await _store.EnqueueCommandAsync("adn", CommandTypes.DryRun, "carlos", 15, Ct);
+
+        var claimed = await _store.ClaimNextCommandAsync("adn", Ct);
+
+        claimed!.Cdempresa.Should().Be(15);
+    }
+
+    [Fact]
     public async Task Commands_are_claimed_in_order_once_and_completed()
     {
         var first = await _store.EnqueueCommandAsync("adn", CommandTypes.DryRun, "carlos", Ct);
@@ -90,10 +132,10 @@ public sealed class SqlManagementStoreTests(SqlServerFixture db) : IAsyncLifetim
     {
         await _store.EnqueueCommandAsync("adn", CommandTypes.Run, "carlos", Ct);
         await _store.ClaimNextCommandAsync("adn", Ct);
-        var runId = await _state.StartRunAsync("adn", dryRun: false, "web", Ct);
+        var runId = await _state.StartRunAsync("adn", 1, dryRun: false, trigger: "web", Ct);
 
         (await _store.FailInterruptedCommandsAsync("adn", Ct)).Should().Be(1);
-        (await _state.FailInterruptedRunsAsync("adn", Ct)).Should().Be(1);
+        (await _state.FailInterruptedRunsAsync("adn", 1, Ct)).Should().Be(1);
 
         (await db.QueryAsync<string>("SELECT status FROM solidesdp.comando")).Should().Equal(CommandStatuses.Failed);
         (await db.QueryAsync<string>("SELECT status FROM solidesdp.runs WHERE run_id = @runId", new { runId })).Should().Equal(RunStatuses.Failed);
@@ -102,7 +144,7 @@ public sealed class SqlManagementStoreTests(SqlServerFixture db) : IAsyncLifetim
     [Fact]
     public async Task Run_is_tagged_with_user_and_configuration_version()
     {
-        var runId = await _state.StartRunAsync("adn", dryRun: true, "web", Ct);
+        var runId = await _state.StartRunAsync("adn", 1, dryRun: true, trigger: "web", Ct);
 
         await _store.TagRunAsync(runId, "carlos", 3, Ct);
 

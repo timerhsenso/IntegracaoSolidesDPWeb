@@ -81,7 +81,7 @@ public sealed class SolidesDpClientTests : IDisposable
         _server.Given(Request.Create().WithPath("/adjustment/register/1.1").UsingPost())
             .RespondWith(Response.Create().WithStatusCode(503));
 
-        var result = await _client.RegisterAdjustmentAsync(new AdjustmentRegisterRequest { EmployeeExternalId = "1-1" }, Ct);
+        var result = await _client.RegisterAdjustmentAsync(new AdjustmentRegisterRequest { EmployeeId = 1 }, Ct);
 
         result.Outcome.Should().Be(ApiOutcome.TransportError);
         _server.LogEntries.Should().ContainSingle();
@@ -152,7 +152,7 @@ public sealed class SolidesDpClientTests : IDisposable
         _server.Given(Request.Create().WithPath("/adjustment/register/1.1").UsingPost())
             .RespondWith(Response.Create().WithBodyAsJson(new { registered = true, message = "ok", entity = new { id = 991, observation = "RHSenso:x" } }));
 
-        var result = await _client.RegisterAdjustmentAsync(new AdjustmentRegisterRequest { EmployeeExternalId = "1-1" }, Ct);
+        var result = await _client.RegisterAdjustmentAsync(new AdjustmentRegisterRequest { EmployeeId = 1 }, Ct);
 
         result.Value!.Id.Should().Be(991);
     }

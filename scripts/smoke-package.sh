@@ -58,13 +58,13 @@ worker() {
     docker run --rm --network "$NET" \
       -e ConnectionStrings__Rhu="Server=$SQL,1433;Database=bd_rhu_adn;User Id=sa;Password=$PASSWORD;Encrypt=True;TrustServerCertificate=True" \
       -e SolidesDP__BaseUrl="http://$FAKE:8080" -e SolidesDP__Token=fake-token \
-      -e Sync__DryRun=false -e Sync__GoLiveDate=2026-01-01 -e Sync__ReportDirectory=/tmp/reports \
+      -e Sync__DryRun=false -e Sync__EmpresasIncluidas__0=1 -e Sync__GoLiveDate=2026-01-01 -e Sync__ReportDirectory=/tmp/reports \
       "$TARGET" "$@"
   else
     (cd "$TARGET" && \
       ConnectionStrings__Rhu="Server=127.0.0.1,$SQL_PORT;Database=bd_rhu_adn;User Id=sa;Password=$PASSWORD;Encrypt=True;TrustServerCertificate=True" \
       SolidesDP__BaseUrl="http://127.0.0.1:$FAKE_PORT" SolidesDP__Token=fake-token \
-      Sync__DryRun=false Sync__GoLiveDate=2026-01-01 Sync__ReportDirectory="$WORK/reports" \
+      Sync__DryRun=false Sync__EmpresasIncluidas__0=1 Sync__GoLiveDate=2026-01-01 Sync__ReportDirectory="$WORK/reports" \
       ./IntegracaoSolidesDP "$@")
   fi
 }
@@ -89,7 +89,7 @@ STATE="$WORK/state.json" python3 - <<'EOF' || fail "estado do fake diferente do 
 import json, os
 s = json.load(open(os.environ["STATE"]))
 employees = sorted(e["externalId"] for e in s["employees"])
-assert employees == ["1-00000001", "1-00000002"], employees          # nem o demitido antigo nem o autônomo
+assert employees == ["00000001", "00000002"], employees              # Código Externo = matrícula; nem o demitido antigo nem o autônomo
 assert not any(e["fired"] for e in s["employees"])
 assert sorted(j["externalId"] for j in s["jobRoles"]) == ["00100", "00200"], s["jobRoles"]
 assert [w["externalId"] for w in s["workplaces"]] == ["1-1"], s["workplaces"]

@@ -2,7 +2,8 @@
 -- 1 desligado histórico (não deve ser enviado), 1 autônomo (fora do escopo) e 1 férias liberada.
 -- O CNPJ é um dos semeados no fake, então a empresa é resolvida.
 INSERT INTO dbo.cargo1 (cdcargo, dccargo, cdcbo6) VALUES ('00100', 'ANALISTA DE SISTEMAS', '212405'), ('00200', 'ESTAGIARIO TI', NULL);
-INSERT INTO dbo.test1 (cdempresa, cdfilial, nmfantasia, dcestab, cdcgc) VALUES (1, 1, 'ADN MATRIZ', 'ADN TECNOLOGIA DE SISTEMAS SALVADOR', '00594807000108');
+INSERT INTO dbo.temp1 (cdempresa, nmempresa, flativo) VALUES (1, 'ADN TECNOLOGIA DE SISTEMAS', 'S');
+INSERT INTO dbo.test1 (cdempresa, cdfilial, nmfantasia, dcestab, cdcgc, flativofilial) VALUES (1, 1, 'ADN MATRIZ', 'ADN TECNOLOGIA DE SISTEMAS SALVADOR', '00594807000108', 1);
 INSERT INTO dbo.tcus1 (cdccusto, dcccusto) VALUES ('00080', 'Despesas Corporativas');
 
 INSERT INTO dbo.func1 (id, nomatric, nmcolab, cdempresa, cdfilial, cdccusto, tpcolab, dtadmissao, nocpf, nopis, dtnasc, cdsexo, cdestcivil, cdinstruc, cod_raca, dcemail, cdcargo, cdsituacao, dtdemissao, cdcausres)

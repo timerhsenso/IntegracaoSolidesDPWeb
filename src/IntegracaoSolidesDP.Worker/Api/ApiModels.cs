@@ -18,6 +18,9 @@ public static class SolidesDpJson
 /// <summary>EmployeeDTO (POST /employee/register).</summary>
 public sealed record EmployeeRequest
 {
+    /// <summary>Id do colaborador no DP: com ele o register atualiza aquele cadastro (inclusive o externalId).</summary>
+    public long? TangerinoId { get; init; }
+
     public string? ExternalId { get; init; }
     public string? Name { get; init; }
     public string? Matricula { get; init; }
@@ -58,8 +61,8 @@ public sealed record JobRoleRequest(string Description, string ExternalId, strin
 /// <summary>WorkplaceDTO (POST /workplace/register).</summary>
 public sealed record WorkplaceRequest(string Name, string ExternalId);
 
-/// <summary>DismissDTO (POST /employee/dismiss).</summary>
-public sealed record DismissRequest(string ExternalId, long ResignationDate, string ResignationReason);
+/// <summary>DismissDTO (POST /employee/dismiss). O colaborador é identificado pelo id do DP (o externalId pode ser de outro sistema).</summary>
+public sealed record DismissRequest(long TangerinoId, long ResignationDate, string ResignationReason);
 
 /// <summary>CompanyCNPJDTO (POST /companies).</summary>
 public sealed record CompanyRequest(string Cnpj, string? FantasyName, string? SocialReason);
@@ -68,7 +71,10 @@ public sealed record CompanyRequest(string Cnpj, string? FantasyName, string? So
 public sealed record AdjustmentRegisterRequest
 {
     public long AdjustmentReasonId { get; init; }
-    public string EmployeeExternalId { get; init; } = string.Empty;
+
+    /// <summary>Id do colaborador no DP.</summary>
+    public long EmployeeId { get; init; }
+
     public long StartDate { get; init; }
     public long EndDate { get; init; }
     public bool FullDay { get; init; } = true;
@@ -157,6 +163,7 @@ public sealed record EmployeeDto
 {
     public long Id { get; init; }
     public string? ExternalId { get; init; }
+    public string? Cpf { get; init; }
     public string? Name { get; init; }
     public bool? Fired { get; init; }
     public WorkScheduleDto? CurrentWorkSchedule { get; init; }

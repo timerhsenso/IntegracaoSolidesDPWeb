@@ -30,7 +30,8 @@ public sealed class SqlSourceReaderTests(SqlServerFixture db) : IAsyncLifetime
         joao.CentroCustoDescricao.Should().Be("Despesas Corporativas");
         joao.Cnpj.Should().Be("00594807000108");
         joao.SituacaoDeDesligamento.Should().BeFalse();
-        joao.ExternalId.Should().Be("1-00001234");
+        joao.Rotulo.Should().Be("1-00001234");
+        joao.Chave.Should().Be(TestData.Cpf1);
         rows.Single(r => r.Nomatric == "00009999").SituacaoDeDesligamento.Should().BeTrue();
     }
 

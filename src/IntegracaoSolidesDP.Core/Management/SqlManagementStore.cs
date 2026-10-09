@@ -17,11 +17,28 @@ public interface IManagementStore
     /// <summary>Grava a versão 1 se a instância ainda não tiver configuração. Concorrência segura.</summary>
     Task SeedConfigurationAsync(string instanceName, string syncJson, CancellationToken ct);
 
-    /// <summary>Acrescenta uma versão (nunca altera as anteriores). Devolve o número da nova versão.</summary>
+    /// <summary>
+    /// Acrescenta uma versão (nunca altera as anteriores) com as mesmas empresas da versão anterior.
+    /// Devolve o número da nova versão.
+    /// </summary>
     Task<int> AddConfigurationVersionAsync(
         string instanceName, bool active, string syncJson, string? note, string createdBy, CancellationToken ct);
 
+    /// <summary>Acrescenta uma versão com estas empresas (substituem as da versão anterior). Devolve o número da nova versão.</summary>
+    Task<int> AddConfigurationVersionAsync(
+        string instanceName, bool active, string syncJson, IReadOnlyList<EmpresaConfiguracao> empresas, string? note, string createdBy,
+        CancellationToken ct);
+
+    /// <summary>Grava um token novo para a empresa (só INSERT). <paramref name="tokenCifrado"/> nulo remove o token.</summary>
+    Task AddEmpresaTokenAsync(int cdempresa, byte[]? tokenCifrado, string createdBy, CancellationToken ct);
+
+    /// <summary>Token vigente (linha mais recente) de cada empresa que já teve token.</summary>
+    Task<IReadOnlyDictionary<int, EmpresaToken>> GetEmpresaTokensAsync(CancellationToken ct);
+
     Task<long> EnqueueCommandAsync(string instanceName, string type, string requestedBy, CancellationToken ct);
+
+    /// <summary>Pedido para uma empresa (<paramref name="cdempresa"/> nulo = todas as habilitadas).</summary>
+    Task<long> EnqueueCommandAsync(string instanceName, string type, string requestedBy, int? cdempresa, CancellationToken ct);
 
     /// <summary>Retira o comando pendente mais antigo da instância (pendente → executando). Null se não houver.</summary>
     Task<ClaimedCommand?> ClaimNextCommandAsync(string instanceName, CancellationToken ct);
@@ -56,6 +73,43 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             criado_em      datetimeoffset(7) NOT NULL,
             CONSTRAINT uq_solidesdp_configuracao UNIQUE (instance_name, versao)
         );
+
+        IF OBJECT_ID(N'solidesdp.configuracao_empresa', N'U') IS NULL
+        CREATE TABLE solidesdp.configuracao_empresa (
+            configuracao_id   int           NOT NULL,
+            cdempresa         int           NOT NULL,
+            habilitada        bit           NOT NULL,
+            dry_run           bit           NOT NULL,
+            go_live           date          NULL,
+            escala_externa    nvarchar(64)  NULL,
+            regra_externa     nvarchar(64)  NULL,
+            motivo_ferias_id  bigint        NULL,
+            modo_empresa      varchar(16)   NULL,
+            CONSTRAINT pk_solidesdp_configuracao_empresa PRIMARY KEY (configuracao_id, cdempresa),
+            CONSTRAINT fk_solidesdp_configuracao_empresa_versao FOREIGN KEY (configuracao_id) REFERENCES solidesdp.configuracao (id)
+        );
+
+        IF OBJECT_ID(N'solidesdp.configuracao_filial', N'U') IS NULL
+        CREATE TABLE solidesdp.configuracao_filial (
+            configuracao_id   int  NOT NULL,
+            cdempresa         int  NOT NULL,
+            cdfilial          int  NOT NULL,
+            CONSTRAINT pk_solidesdp_configuracao_filial PRIMARY KEY (configuracao_id, cdempresa, cdfilial),
+            CONSTRAINT fk_solidesdp_configuracao_filial_empresa FOREIGN KEY (configuracao_id, cdempresa)
+                REFERENCES solidesdp.configuracao_empresa (configuracao_id, cdempresa)
+        );
+
+        IF OBJECT_ID(N'solidesdp.empresa_token', N'U') IS NULL
+        BEGIN
+            CREATE TABLE solidesdp.empresa_token (
+                id              int IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_empresa_token PRIMARY KEY,
+                cdempresa       int               NOT NULL,
+                token_cifrado   varbinary(max)    NULL,
+                criado_por      nvarchar(64)      NOT NULL,
+                criado_em       datetimeoffset(7) NOT NULL
+            );
+            CREATE INDEX ix_solidesdp_empresa_token_empresa ON solidesdp.empresa_token (cdempresa, id DESC);
+        END;
 
         IF OBJECT_ID(N'solidesdp.comando', N'U') IS NULL
         BEGIN
@@ -92,6 +146,12 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
 
         IF OBJECT_ID(N'solidesdp.runs', N'U') IS NOT NULL AND COL_LENGTH(N'solidesdp.runs', N'config_versao') IS NULL
             ALTER TABLE solidesdp.runs ADD config_versao int NULL;
+
+        IF OBJECT_ID(N'solidesdp.runs', N'U') IS NOT NULL AND COL_LENGTH(N'solidesdp.runs', N'cdempresa') IS NULL
+            ALTER TABLE solidesdp.runs ADD cdempresa int NULL;
+
+        IF COL_LENGTH(N'solidesdp.comando', N'cdempresa') IS NULL
+            ALTER TABLE solidesdp.comando ADD cdempresa int NULL;
         """;
 
     private const int UniqueKeyViolation = 2627;
@@ -101,18 +161,48 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
     {
         await using var connection = await connections.OpenAsync(ct);
         await connection.ExecuteAsync(new CommandDefinition(SchemaSql, cancellationToken: ct));
+        await connection.ExecuteAsync(new CommandDefinition(Descricoes, cancellationToken: ct));
     }
 
     public async Task<ConfigurationVersion?> GetCurrentConfigurationAsync(string instanceName, CancellationToken ct)
     {
         await using var connection = await connections.OpenAsync(ct);
-        return await connection.QuerySingleOrDefaultAsync<ConfigurationVersion>(new CommandDefinition("""
-            SELECT TOP (1) versao AS Version, ativo AS Active, sync_json AS SyncJson, observacao AS Note,
+        var version = await connection.QuerySingleOrDefaultAsync<ConfigurationVersion>(new CommandDefinition("""
+            SELECT TOP (1) id AS Id, versao AS Version, ativo AS Active, sync_json AS SyncJson, observacao AS Note,
                    criado_por AS CreatedBy, criado_em AS CreatedAt
             FROM solidesdp.configuracao
             WHERE instance_name = @InstanceName
             ORDER BY versao DESC
             """, new { InstanceName = instanceName }, cancellationToken: ct));
+        return version is null ? null : version with { Empresas = await LoadEmpresasAsync(connection, version.Id, ct) };
+    }
+
+    private static async Task<IReadOnlyList<EmpresaConfiguracao>> LoadEmpresasAsync(SqlConnection connection, int configuracaoId, CancellationToken ct)
+    {
+        var empresas = await connection.QueryAsync<EmpresaRow>(new CommandDefinition("""
+            SELECT cdempresa AS Cdempresa, habilitada AS Habilitada, dry_run AS DryRun, go_live AS GoLive,
+                   escala_externa AS Escala, regra_externa AS Regra, motivo_ferias_id AS MotivoFerias, modo_empresa AS ModoEmpresa
+            FROM solidesdp.configuracao_empresa
+            WHERE configuracao_id = @Id
+            ORDER BY cdempresa
+            """, new { Id = configuracaoId }, cancellationToken: ct));
+        var filiais = (await connection.QueryAsync<(int Cdempresa, int Cdfilial)>(new CommandDefinition("""
+            SELECT cdempresa, cdfilial FROM solidesdp.configuracao_filial WHERE configuracao_id = @Id ORDER BY cdempresa, cdfilial
+            """, new { Id = configuracaoId }, cancellationToken: ct)))
+            .ToLookup(f => f.Cdempresa, f => f.Cdfilial);
+
+        return empresas.Select(e => new EmpresaConfiguracao
+        {
+            Cdempresa = e.Cdempresa,
+            Habilitada = e.Habilitada,
+            DryRun = e.DryRun,
+            GoLiveDate = e.GoLive is { } d ? DateOnly.FromDateTime(d) : null,
+            WorkScheduleExternalId = e.Escala,
+            PunchRuleExternalId = e.Regra,
+            FeriasMotivoId = e.MotivoFerias,
+            ModoEmpresa = e.ModoEmpresa,
+            Filiais = filiais[e.Cdempresa].ToList(),
+        }).ToList();
     }
 
     public async Task SeedConfigurationAsync(string instanceName, string syncJson, CancellationToken ct)
@@ -135,14 +225,25 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         }
     }
 
-    public async Task<int> AddConfigurationVersionAsync(
-        string instanceName, bool active, string syncJson, string? note, string createdBy, CancellationToken ct)
+    public Task<int> AddConfigurationVersionAsync(
+        string instanceName, bool active, string syncJson, string? note, string createdBy, CancellationToken ct) =>
+        AddVersionAsync(instanceName, active, syncJson, empresas: null, note, createdBy, ct);
+
+    public Task<int> AddConfigurationVersionAsync(
+        string instanceName, bool active, string syncJson, IReadOnlyList<EmpresaConfiguracao> empresas, string? note, string createdBy,
+        CancellationToken ct) =>
+        AddVersionAsync(instanceName, active, syncJson, empresas ?? throw new ArgumentNullException(nameof(empresas)), note, createdBy, ct);
+
+    /// <summary>Nova versão; <paramref name="empresas"/> nulo copia as empresas (e filiais) da versão anterior.</summary>
+    private async Task<int> AddVersionAsync(
+        string instanceName, bool active, string syncJson, IReadOnlyList<EmpresaConfiguracao>? empresas, string? note, string createdBy,
+        CancellationToken ct)
     {
         await using var connection = await connections.OpenAsync(ct);
         await using var transaction = await connection.BeginTransactionAsync(ct);
-        var version = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
+        var inserted = await connection.QuerySingleAsync<(int Id, int Versao)>(new CommandDefinition("""
             INSERT INTO solidesdp.configuracao (instance_name, versao, ativo, sync_json, observacao, criado_por, criado_em)
-            OUTPUT inserted.versao
+            OUTPUT inserted.id, inserted.versao
             SELECT @InstanceName, ISNULL(MAX(versao), 0) + 1, @Active, @SyncJson, @Note, @CreatedBy, @Now
             FROM solidesdp.configuracao WITH (UPDLOCK, HOLDLOCK)
             WHERE instance_name = @InstanceName;
@@ -150,11 +251,90 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             new { InstanceName = instanceName, Active = active, SyncJson = syncJson, Note = note, CreatedBy = createdBy, Now = clock.GetUtcNow() },
             transaction,
             cancellationToken: ct));
+
+        if (empresas is null)
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                DECLARE @Anterior int = (
+                    SELECT TOP (1) id FROM solidesdp.configuracao
+                    WHERE instance_name = @InstanceName AND versao < @Versao
+                    ORDER BY versao DESC);
+
+                INSERT INTO solidesdp.configuracao_empresa
+                    (configuracao_id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa)
+                SELECT @Id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa
+                FROM solidesdp.configuracao_empresa
+                WHERE configuracao_id = @Anterior;
+
+                INSERT INTO solidesdp.configuracao_filial (configuracao_id, cdempresa, cdfilial)
+                SELECT @Id, cdempresa, cdfilial
+                FROM solidesdp.configuracao_filial
+                WHERE configuracao_id = @Anterior;
+                """,
+                new { InstanceName = instanceName, inserted.Id, inserted.Versao },
+                transaction,
+                cancellationToken: ct));
+        }
+        else
+        {
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO solidesdp.configuracao_empresa
+                    (configuracao_id, cdempresa, habilitada, dry_run, go_live, escala_externa, regra_externa, motivo_ferias_id, modo_empresa)
+                VALUES (@Id, @Cdempresa, @Habilitada, @DryRun, @GoLive, @Escala, @Regra, @MotivoFerias, @ModoEmpresa);
+                """,
+                empresas.Select(e => new
+                {
+                    inserted.Id,
+                    e.Cdempresa,
+                    e.Habilitada,
+                    e.DryRun,
+                    GoLive = e.GoLiveDate?.ToDateTime(TimeOnly.MinValue),
+                    Escala = Vazio(e.WorkScheduleExternalId),
+                    Regra = Vazio(e.PunchRuleExternalId),
+                    MotivoFerias = e.FeriasMotivoId,
+                    ModoEmpresa = Vazio(e.ModoEmpresa),
+                }),
+                transaction,
+                cancellationToken: ct));
+
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO solidesdp.configuracao_filial (configuracao_id, cdempresa, cdfilial) VALUES (@Id, @Cdempresa, @Cdfilial);
+                """,
+                empresas.SelectMany(e => e.Filiais.Distinct().Select(f => new { inserted.Id, e.Cdempresa, Cdfilial = f })),
+                transaction,
+                cancellationToken: ct));
+        }
+
         await transaction.CommitAsync(ct);
-        return version;
+        return inserted.Versao;
     }
 
-    public async Task<long> EnqueueCommandAsync(string instanceName, string type, string requestedBy, CancellationToken ct)
+    public async Task AddEmpresaTokenAsync(int cdempresa, byte[]? tokenCifrado, string createdBy, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        await connection.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO solidesdp.empresa_token (cdempresa, token_cifrado, criado_por, criado_em)
+            VALUES (@Cdempresa, @Token, @CreatedBy, @Now);
+            """,
+            new { Cdempresa = cdempresa, Token = tokenCifrado, CreatedBy = createdBy, Now = clock.GetUtcNow() },
+            cancellationToken: ct));
+    }
+
+    public async Task<IReadOnlyDictionary<int, EmpresaToken>> GetEmpresaTokensAsync(CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        var rows = await connection.QueryAsync<EmpresaToken>(new CommandDefinition("""
+            SELECT t.cdempresa AS Cdempresa, t.token_cifrado AS TokenCifrado, t.criado_por AS CriadoPor, t.criado_em AS CriadoEm
+            FROM solidesdp.empresa_token t
+            WHERE t.id = (SELECT MAX(x.id) FROM solidesdp.empresa_token x WHERE x.cdempresa = t.cdempresa)
+            """, cancellationToken: ct));
+        return rows.ToDictionary(r => r.Cdempresa);
+    }
+
+    public Task<long> EnqueueCommandAsync(string instanceName, string type, string requestedBy, CancellationToken ct) =>
+        EnqueueCommandAsync(instanceName, type, requestedBy, cdempresa: null, ct);
+
+    public async Task<long> EnqueueCommandAsync(string instanceName, string type, string requestedBy, int? cdempresa, CancellationToken ct)
     {
         if (!CommandTypes.All.Contains(type, StringComparer.Ordinal))
         {
@@ -163,11 +343,15 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
 
         await using var connection = await connections.OpenAsync(ct);
         return await connection.ExecuteScalarAsync<long>(new CommandDefinition("""
-            INSERT INTO solidesdp.comando (instance_name, tipo, status, solicitado_por, solicitado_em)
+            INSERT INTO solidesdp.comando (instance_name, tipo, status, solicitado_por, solicitado_em, cdempresa)
             OUTPUT inserted.id
-            VALUES (@InstanceName, @Type, @Status, @RequestedBy, @Now);
+            VALUES (@InstanceName, @Type, @Status, @RequestedBy, @Now, @Cdempresa);
             """,
-            new { InstanceName = instanceName, Type = type, Status = CommandStatuses.Pending, RequestedBy = requestedBy, Now = clock.GetUtcNow() },
+            new
+            {
+                InstanceName = instanceName, Type = type, Status = CommandStatuses.Pending, RequestedBy = requestedBy, Now = clock.GetUtcNow(),
+                Cdempresa = cdempresa,
+            },
             cancellationToken: ct));
     }
 
@@ -176,13 +360,13 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         await using var connection = await connections.OpenAsync(ct);
         return await connection.QuerySingleOrDefaultAsync<ClaimedCommand>(new CommandDefinition("""
             WITH proximo AS (
-                SELECT TOP (1) status, iniciado_em, id, tipo, solicitado_por
+                SELECT TOP (1) status, iniciado_em, id, tipo, solicitado_por, cdempresa
                 FROM solidesdp.comando WITH (ROWLOCK, UPDLOCK, READPAST)
                 WHERE instance_name = @InstanceName AND status = @Pending
                 ORDER BY id
             )
             UPDATE proximo SET status = @Running, iniciado_em = @Now
-            OUTPUT inserted.id AS Id, inserted.tipo AS Type, inserted.solicitado_por AS RequestedBy;
+            OUTPUT inserted.id AS Id, inserted.tipo AS Type, inserted.solicitado_por AS RequestedBy, inserted.cdempresa AS Cdempresa;
             """,
             new { InstanceName = instanceName, Pending = CommandStatuses.Pending, Running = CommandStatuses.Running, Now = clock.GetUtcNow() },
             cancellationToken: ct));
@@ -221,4 +405,43 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             new { RunId = runId, RequestedBy = requestedBy, ConfigVersion = configVersion },
             cancellationToken: ct));
     }
+
+    private static string? Vazio(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+    /// <summary>Linha de solidesdp.configuracao_empresa (date chega como DateTime pelo Dapper).</summary>
+    private sealed record EmpresaRow
+    {
+        public int Cdempresa { get; init; }
+        public bool Habilitada { get; init; }
+        public bool DryRun { get; init; }
+        public DateTime? GoLive { get; init; }
+        public string? Escala { get; init; }
+        public string? Regra { get; init; }
+        public long? MotivoFerias { get; init; }
+        public string? ModoEmpresa { get; init; }
+    }
+
+    /// <summary>MS_Description das tabelas da gestão (idempotente).</summary>
+    private static readonly string Descricoes = DescricoesSql.Gerar(
+    [
+        ("configuracao", null, "Versões da configuração da integração (só INSERT). A vigente é a de maior versão da instância."),
+        ("configuracao_empresa", null, "Empresas do RHSenso (dbo.temp1) em cada versão da configuração. Cada empresa é uma conta do Sólides DP."),
+        ("configuracao_empresa", "configuracao_id", "Versão (solidesdp.configuracao.id)."),
+        ("configuracao_empresa", "cdempresa", "Empresa do RHSenso (dbo.temp1.cdempresa)."),
+        ("configuracao_empresa", "habilitada", "1 = a integração sincroniza esta empresa."),
+        ("configuracao_empresa", "dry_run", "1 = só simula esta empresa (não envia ao Sólides DP)."),
+        ("configuracao_empresa", "go_live", "Início do uso do Sólides DP nesta empresa; vazio = data geral da configuração."),
+        ("configuracao_empresa", "escala_externa", "externalId da escala dos novos colaboradores; vazio = padrão da conta."),
+        ("configuracao_empresa", "regra_externa", "externalId da regra de ponto dos novos colaboradores; vazio = padrão da conta."),
+        ("configuracao_empresa", "motivo_ferias_id", "Id do motivo de ajuste FÉRIAS na conta; vazio = descobrir pela descrição."),
+        ("configuracao_empresa", "modo_empresa", "Nenhuma (conta com uma só empresa) ou PorCnpj; vazio = regra geral."),
+        ("configuracao_filial", null, "Filiais (dbo.test1) que entram na empresa naquela versão. Nenhuma linha = todas as filiais."),
+        ("configuracao_filial", "cdfilial", "Filial do RHSenso (dbo.test1.cdfilial)."),
+        ("empresa_token", null, "Token do Sólides DP de cada empresa (só INSERT; vale a linha mais recente). Cifrado: a chave fica fora do banco."),
+        ("empresa_token", "token_cifrado", "Token cifrado (DPAPI da máquina ou AES-256-GCM com a chave configurada). NULL = token removido."),
+        ("empresa_token", "criado_por", "Usuário da Web que gravou o token."),
+        ("comando", null, "Fila de pedidos da Web ao serviço e o resultado de cada um."),
+        ("comando", "cdempresa", "Empresa do pedido; NULL = todas as empresas habilitadas."),
+        ("auditoria", null, "Tudo o que foi feito na Web (só INSERT)."),
+    ]);
 }

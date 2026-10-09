@@ -40,9 +40,16 @@ public sealed class SqlServerFixture : IAsyncLifetime
     {
         await using var connection = new SqlConnection(ConnectionString);
         await connection.ExecuteAsync("""
-            DELETE FROM dbo.feria2; DELETE FROM dbo.func1; DELETE FROM dbo.test1; DELETE FROM dbo.cargo1; DELETE FROM dbo.tcus1;
+            DELETE FROM dbo.feria2; DELETE FROM dbo.func1; DELETE FROM dbo.test1; DELETE FROM dbo.temp1; DELETE FROM dbo.cargo1; DELETE FROM dbo.tcus1;
             IF OBJECT_ID('solidesdp.comando') IS NOT NULL DROP TABLE solidesdp.comando;
+            IF OBJECT_ID('solidesdp.empresa_token') IS NOT NULL DROP TABLE solidesdp.empresa_token;
+            IF OBJECT_ID('solidesdp.configuracao_filial') IS NOT NULL DROP TABLE solidesdp.configuracao_filial;
+            IF OBJECT_ID('solidesdp.configuracao_empresa') IS NOT NULL DROP TABLE solidesdp.configuracao_empresa;
             IF OBJECT_ID('solidesdp.configuracao') IS NOT NULL DROP TABLE solidesdp.configuracao;
+            IF OBJECT_ID('solidesdp.colaborador_vinculo') IS NOT NULL DROP TABLE solidesdp.colaborador_vinculo;
+            IF OBJECT_ID('solidesdp.cargo_vinculo') IS NOT NULL DROP TABLE solidesdp.cargo_vinculo;
+            IF OBJECT_ID('solidesdp.local_vinculo') IS NOT NULL DROP TABLE solidesdp.local_vinculo;
+            IF OBJECT_ID('solidesdp.ferias_vinculo') IS NOT NULL DROP TABLE solidesdp.ferias_vinculo;
             IF OBJECT_ID('solidesdp.auditoria') IS NOT NULL DROP TABLE solidesdp.auditoria;
             IF OBJECT_ID('solidesdp.run_items') IS NOT NULL DROP TABLE solidesdp.run_items;
             IF OBJECT_ID('solidesdp.runs') IS NOT NULL DROP TABLE solidesdp.runs;

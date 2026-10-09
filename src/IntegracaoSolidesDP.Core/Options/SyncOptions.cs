@@ -17,7 +17,9 @@ public sealed class SyncOptions
     /// <summary>Restringe a empresas (func1.cdempresa). Vazio = todas.</summary>
     public IList<int> EmpresasIncluidas { get; set; } = [];
 
-    /// <summary>Restringe a colaboradores específicos (externalId "{empresa}-{matricula}"). Vazio = todos. Usado no piloto.</summary>
+    /// <summary>
+    /// Restringe a colaboradores específicos (CPF, matrícula ou "{empresa}-{matrícula}"). Vazio = todos. Usado no piloto.
+    /// </summary>
     public IList<string> ExternalIdAllowList { get; set; } = [];
 
     /// <summary>func1.cdsituacao de transferência (a pessoa continua em outra empresa/filial).</summary>
@@ -25,6 +27,13 @@ public sealed class SyncOptions
 
     /// <summary>func1.cdsituacao ignorados por completo (ex.: 99 = pré-cadastro).</summary>
     public IList<string> SituacoesIgnoradas { get; set; } = ["99"];
+
+    /// <summary>
+    /// func1.cdsituacao que desligam o colaborador no Sólides DP (08 demitido; 11, 12 e 14 aposentado).
+    /// Também desliga a situação marcada como demissão na tsitu1 (fldemissao = 'S'). As demais
+    /// situações (afastamentos, licenças) continuam ativas no Sólides DP.
+    /// </summary>
+    public IList<string> SituacoesDesligamento { get; set; } = ["08", "11", "12", "14"];
 
     /// <summary>
     /// Data de início do uso do Sólides DP. Vira o <c>effectiveDate</c> (e as datas de escala/regra)
@@ -44,7 +53,10 @@ public sealed class SyncOptions
     /// <summary>Cria no DP a empresa cujo CNPJ não existir. Desligado: empresa é entidade legal/eSocial.</summary>
     public bool CreateMissingCompanies { get; set; }
 
-    /// <summary>Envia colaboradores com CPF repetido entre os ativos (duplo vínculo). Desligado: ficam de fora no relatório.</summary>
+    /// <summary>
+    /// Sem efeito desde a identidade por CPF: o mesmo CPF ativo em duas filiais da mesma empresa é sempre
+    /// pendência (no Sólides DP só existe um CPF ativo por conta). Mantido para ler versões antigas da configuração.
+    /// </summary>
     public bool AllowDoubleBind { get; set; }
 
     /// <summary>func1.cdcausres → resignationReason do DP. Código ausente vira OUTROS.</summary>

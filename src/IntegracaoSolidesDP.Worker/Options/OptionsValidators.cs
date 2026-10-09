@@ -48,7 +48,7 @@ internal sealed class ExecutionOptionsValidator : IValidateOptions<ExecutionOpti
     }
 }
 
-internal sealed class SolidesDpOptionsValidator(IHostEnvironment environment, IOptions<SyncOptions> sync)
+internal sealed class SolidesDpOptionsValidator(IHostEnvironment environment, IOptions<SyncOptions> sync, IOptions<ManagementOptions> management)
     : IValidateOptions<SolidesDpOptions>
 {
     public ValidateOptionsResult Validate(string? name, SolidesDpOptions options)
@@ -76,7 +76,8 @@ internal sealed class SolidesDpOptionsValidator(IHostEnvironment environment, IO
             errors.Add("SolidesDP:TimeoutSeconds deve estar entre 1 e 300.");
         }
 
-        if (!sync.Value.DryRun && string.IsNullOrWhiteSpace(options.Token))
+        // Com a gestão ligada, cada empresa tem o seu token (tela Empresas); a falta dele é conferida por empresa.
+        if (!management.Value.Habilitada && !sync.Value.DryRun && string.IsNullOrWhiteSpace(options.Token))
         {
             errors.Add("SolidesDP:Token é obrigatório fora do dry-run.");
         }

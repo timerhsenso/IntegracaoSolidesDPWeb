@@ -17,4 +17,11 @@ public sealed class ManagementOptions
 
     /// <summary>De quanto em quanto tempo o serviço procura comandos pendentes (ex.: "Executar agora").</summary>
     public TimeSpan IntervaloComandos { get; set; } = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// Chave (32 bytes em base64) que cifra os tokens do Sólides DP das empresas (AES-256-GCM). Tem de ser a
+    /// mesma do Web:ChaveTokens. Vazia, no Windows, os tokens são protegidos pela máquina (DPAPI): Web e serviço
+    /// precisam estar no mesmo servidor. Guardar em variável de ambiente ou user-secrets, nunca no repositório.
+    /// </summary>
+    public string? ChaveTokens { get; set; }
 }

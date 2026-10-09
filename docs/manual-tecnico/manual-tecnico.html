@@ -269,18 +269,22 @@
     <table>
         <thead><tr><th>Tabela</th><th>Conteúdo</th><th>Quem grava</th></tr></thead>
         <tbody>
-            <tr><td><code>solidesdp.runs</code></td><td class="quebra">Uma linha por execução: início, fim, status, real/simulação, origem, quem pediu, versão da configuração, contagens.</td><td>Serviço</td></tr>
-            <tr><td><code>solidesdp.run_items</code></td><td class="quebra">Itens de cada execução (exceto os sem alteração, que ficam só na contagem).</td><td>Serviço</td></tr>
-            <tr><td><code>solidesdp.entity_state</code></td><td class="quebra">Estado de cada colaborador, cargo, local e empresa no Sólides DP: id remoto, hash do último envio, status.</td><td>Serviço</td></tr>
-            <tr><td><code>solidesdp.vacation_state</code></td><td class="quebra">Estado de cada período de férias: id do lançamento, tentativas, último erro.</td><td>Serviço</td></tr>
-            <tr><td><code>solidesdp.meta</code></td><td class="quebra">Metadados, como o esquema da chave do colaborador (<code>empresa-matricula-v1</code>).</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.runs</code></td><td class="quebra">Uma linha por execução <strong>de cada empresa</strong> (<code>cdempresa</code>): início, fim, status, real/simulação, origem, quem pediu, versão da configuração, contagens.</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.run_items</code></td><td class="quebra">Itens de cada execução (exceto os sem alteração, que ficam só na contagem). O colaborador aparece como <code>empresa-matrícula</code>, nunca pelo CPF.</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.colaborador_vinculo</code></td><td class="quebra">Vínculo de cada colaborador (CPF, dentro da empresa) com o cadastro dele no Sólides DP: id, Código Externo, matrícula, filial, origem (<code>criado</code> ou <code>vinculado_cpf</code>), hash do último envio, status.</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.cargo_vinculo</code>, <code>local_vinculo</code></td><td class="quebra">Cargos e filiais do RHSenso criados na conta do Sólides DP de cada empresa.</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.ferias_vinculo</code></td><td class="quebra">Cada período de férias e o lançamento correspondente: id, tentativas, último erro.</td><td>Serviço</td></tr>
+            <tr><td><code>solidesdp.entity_state</code>, <code>vacation_state</code></td><td class="quebra">Obsoletas (chave da versão 1.0). Mantidas só para consulta; não são mais gravadas.</td><td>—</td></tr>
+            <tr><td><code>solidesdp.meta</code></td><td class="quebra">Metadados, como o esquema da chave do colaborador (<code>cpf-por-empresa-v2</code>).</td><td>Serviço</td></tr>
             <tr><td><code>solidesdp.configuracao</code></td><td class="quebra">Versões da seção Sync e a situação ativa/desativada. A vigente é a de maior versão da instância.</td><td>Web (e o serviço cria a versão 1)</td></tr>
+            <tr><td><code>solidesdp.configuracao_empresa</code>, <code>configuracao_filial</code></td><td class="quebra">Empresas de cada versão da configuração (habilitada, simulação, go-live, escala...) e as filiais marcadas.</td><td>Web</td></tr>
+            <tr><td><code>solidesdp.empresa_token</code></td><td class="quebra">Token do Sólides DP de cada empresa, <strong>cifrado</strong>. Só recebe <code>INSERT</code>: vale a linha mais recente.</td><td>Web</td></tr>
             <tr><td><code>solidesdp.comando</code></td><td class="quebra">Fila de pedidos da Web e o resultado de cada um.</td><td>Web e serviço</td></tr>
             <tr><td><code>solidesdp.auditoria</code></td><td class="quebra">Tudo o que foi feito na Web.</td><td>Web</td></tr>
             <tr><td><code>solidesdp_auth.*</code></td><td class="quebra">Usuários, perfis e chaves de proteção do cookie (ASP.NET Core Identity).</td><td>Web</td></tr>
         </tbody>
     </table>
-    <div class="nota"><p>As tabelas <code>solidesdp.*</code> são criadas pelo próprio serviço na primeira execução (ou no <code>--check-config</code>). As de <code>solidesdp_auth</code> são criadas pela Web ao iniciar (migrations). Configuração, fila, execuções e auditoria só recebem <code>INSERT</code>: nada é apagado pela aplicação.</p></div>
+    <div class="nota"><p>Tabelas e colunas do schema <code>solidesdp</code> são documentadas no próprio banco (extended property <code>MS_Description</code>, visível no SSMS). As tabelas <code>solidesdp.*</code> são criadas pelo próprio serviço na primeira execução (ou no <code>--check-config</code>). As de <code>solidesdp_auth</code> são criadas pela Web ao iniciar (migrations). Configuração, fila, execuções e auditoria só recebem <code>INSERT</code>: nada é apagado pela aplicação.</p></div>
 </section>
 
 <!-- ============================== 2 ============================== -->
@@ -302,13 +306,14 @@
         <thead><tr><th>Chave</th><th>Padrão</th><th>Para que serve</th></tr></thead>
         <tbody>
             <tr><td><code>ConnectionStrings:Rhu</code></td><td>—</td><td class="quebra">Obrigatória. Conexão com o <code>bd_rhu_adn</code>. Login com leitura no <code>dbo</code> e DDL/DML no schema <code>solidesdp</code>.</td></tr>
-            <tr><td><code>SolidesDP:Token</code></td><td>—</td><td class="quebra">Token de integração, gerado no Sólides DP em Empregador › Integrações. Obrigatório fora do modo simulação.</td></tr>
+            <tr><td><code>SolidesDP:Token</code></td><td>—</td><td class="quebra">Token de integração, gerado no Sólides DP em Empregador › Integrações. Usado só enquanto nenhuma empresa foi configurada na Web: aí vale para a única empresa de <code>Sync:EmpresasIncluidas</code>. Com empresas configuradas, cada uma usa o seu token, cadastrado na Web.</td></tr>
             <tr><td><code>SolidesDP:BaseUrl</code></td><td><code>https://employer.tangerino.com.br</code></td><td class="quebra">Endereço da API. Só muda em desenvolvimento (fake local).</td></tr>
             <tr><td><code>SolidesDP:TimeoutSeconds</code></td><td><code>30</code></td><td class="quebra">Tempo limite de cada tentativa (1 a 300). Com as novas tentativas automáticas, o total pode chegar a 4 vezes este valor.</td></tr>
             <tr><td><code>SolidesDP:SkipUnifiedSync</code></td><td><code>true</code></td><td class="quebra">Não propaga os cadastros para a base unificada (CUC) da Sólides. Confirmar com a Sólides antes de mudar.</td></tr>
             <tr><td><code>SolidesDP:AllowProductionApiOutsideProduction</code></td><td><code>false</code></td><td class="quebra">Trava: fora do ambiente Production, a API real só é usada com esta chave ligada.</td></tr>
             <tr><td><code>Gestao:Habilitada</code></td><td><code>false</code></td><td class="quebra">Liga a gestão pela Web: regras vindas do banco, ativar/desativar e fila de pedidos. <strong>Precisa estar <code>true</code> para usar a Web.</strong></td></tr>
             <tr><td><code>Gestao:IntervaloComandos</code></td><td><code>00:00:15</code></td><td class="quebra">De quanto em quanto tempo o serviço procura pedidos da Web (de 1 segundo a 10 minutos).</td></tr>
+            <tr><td><code>Gestao:ChaveTokens</code></td><td>—</td><td class="quebra">Chave (32 bytes em base64) que cifra os tokens das empresas. Tem de ser <strong>a mesma</strong> de <code>Web:ChaveTokens</code>. Vazia, no Windows, os tokens ficam protegidos pela própria máquina (DPAPI) e Web e serviço precisam estar no mesmo servidor. Trocar a chave obriga a cadastrar os tokens de novo.</td></tr>
             <tr><td><code>Execution:Interval</code></td><td><code>00:30:00</code></td><td class="quebra">Frequência das execuções automáticas (mínimo 1 minuto). Use esta <strong>ou</strong> <code>TimesOfDay</code>.</td></tr>
             <tr><td><code>Execution:TimesOfDay</code></td><td>—</td><td class="quebra">Horários fixos, ex.: <code>["07:00", "13:00"]</code>.</td></tr>
             <tr><td><code>Execution:TimeZone</code></td><td><code>America/Bahia</code></td><td class="quebra">Fuso (IANA) dos horários e das datas do RHSenso. Define o "hoje" de desligamentos e férias.</td></tr>
@@ -327,6 +332,9 @@
         <li>Continuam vindo do servidor: <code>ConnectionStrings</code>, <code>SolidesDP</code>, <code>Gestao</code>, <code>Execution</code>, <code>Sync:InstanceName</code> e <code>Sync:ReportDirectory</code>.</li>
         <li>Cada execução usa a versão vigente no momento em que começa e registra o número dela em <code>solidesdp.runs.config_versao</code>.</li>
         <li>Uma versão inválida não chega à API: a execução é registrada como falha com <code>config_invalid</code> e o motivo.</li>
+        <li><strong>Cada empresa é uma conta do Sólides DP</strong>, com o seu token. Cada execução roda as empresas habilitadas uma depois da outra, e cada empresa vira uma linha em <code>solidesdp.runs</code>. Uma empresa com problema (sem token, go-live faltando) falha sozinha; as outras seguem.</li>
+        <li>Empresa inativa no RHSenso (<code>temp1.flativo</code>) e filial inativa (<code>test1.flativofilial</code>) ficam fora do escopo: nada é enviado e ninguém é desligado por isso.</li>
+        <li>Enquanto nenhuma empresa foi configurada na Web, vale uma empresa só: a de <code>Sync:EmpresasIncluidas</code>, com o <code>SolidesDP:Token</code>.</li>
         <li>Com a integração <strong>desativada</strong> na Web, o serviço não faz execuções reais (agendadas, pedidas ou de linha de comando). A simulação continua permitida.</li>
     </ul>
     <p>A explicação de cada regra está na Web, em Ajuda › Configuração. Com a gestão desligada, as mesmas chaves valem direto do <code>appsettings.json</code> (veja o <code>README.md</code>).</p>
@@ -336,7 +344,8 @@
         <li>Prefira variáveis de ambiente para a senha do banco e o token: <code>ConnectionStrings__Rhu</code> e <code>SolidesDP__Token</code>.</li>
         <li>Windows: variáveis de ambiente do <strong>sistema</strong> (o serviço roda como LocalSystem) ou, com autenticação integrada, <code>Integrated Security=True</code> na connection string e a conta do serviço trocada em <code>services.msc</code>.</li>
         <li>Linux: arquivo <code>/etc/integracao-solidesdp.env</code> com permissão 600. Docker: <code>-e</code> ou secrets do orquestrador.</li>
-        <li>O token só é necessário no servidor do serviço. A Web não o conhece.</li>
+        <li>O token de cada empresa é cadastrado na Web e gravado cifrado no banco; nunca aparece de volta na tela. Guarde a <code>Gestao:ChaveTokens</code>/<code>Web:ChaveTokens</code> como segredo (variável de ambiente <code>Gestao__ChaveTokens</code> e <code>Web__ChaveTokens</code>), nunca no repositório.</li>
+        <li>Nunca mande token por chat, e-mail ou commit. Se isso acontecer, gere um token novo no Sólides DP (Empregador › Integrações) e revogue o antigo.</li>
     </ul>
 </section>
 
@@ -403,19 +412,20 @@
             <tr><td>Docker</td><td class="quebra"><code>docker run --rm -e ... ghcr.io/rhsenso/integracaosolidesdp:&lt;versão&gt; &lt;comando&gt;</code> (as mesmas variáveis do container do serviço)</td></tr>
         </tbody>
     </table>
-    <div class="nota"><p>Pode rodar com o serviço ligado. Se uma execução do serviço estiver em andamento, um <code>--run-once</code> ou <code>--dry-run</code> é descartado pelo lock ("Outra execução em andamento"). Tente de novo em seguida.</p></div>
+    <div class="nota"><p>Pode rodar com o serviço ligado. Se uma execução do serviço estiver em andamento na mesma empresa, um <code>--run-once</code> ou <code>--dry-run</code> é descartado pelo lock ("Outra execução em andamento"). Tente de novo em seguida.</p></div>
+    <div class="nota"><p><strong><code>--empresa N</code></strong> restringe qualquer comando à empresa N (cada empresa é uma conta do Sólides DP). Sem ele, <code>--run-once</code>, <code>--dry-run</code> e <code>--check-config</code> passam por todas as empresas habilitadas; <code>--discover</code> e <code>--reconcile</code> exigem a empresa quando há mais de uma.</p></div>
 
     <h3>5.2 Lista de comandos</h3>
     <table>
         <thead><tr><th>Comando</th><th>O que faz</th><th>Equivalente na Web</th></tr></thead>
         <tbody>
             <tr><td><em>(sem argumento)</em></td><td class="quebra">Roda como serviço, no agendamento de <code>Execution</code>. É o que o serviço Windows/systemd chama.</td><td>—</td></tr>
-            <tr><td><code>--check-config</code></td><td class="quebra">Valida a configuração, conecta no banco, cria/atualiza o schema <code>solidesdp</code>, mostra a versão da configuração em vigor e testa o token no Sólides DP. Cada linha sai com <code>[OK]</code> ou <code>[ERRO]</code>. Os scripts de instalação rodam este comando antes de iniciar o serviço.</td><td>Verificar configuração</td></tr>
-            <tr><td><code>--discover</code></td><td class="quebra">Lista empresas (com CNPJ), escalas, regras de ponto e motivos de ajuste cadastrados no Sólides DP, com os ids usados na Configuração.</td><td>Consultar o Sólides DP</td></tr>
-            <tr><td><code>--dry-run</code></td><td class="quebra">Uma execução simulada, sem chamar a API, e grava o relatório. Força a simulação mesmo que a configuração esteja em envio real.</td><td>Simular (dry-run)</td></tr>
+            <tr><td><code>--check-config</code></td><td class="quebra">Valida a configuração, conecta no banco, cria/atualiza o schema <code>solidesdp</code>, mostra a versão da configuração em vigor e, para cada empresa habilitada, o modo, as filiais e o teste do token no Sólides DP. Cada linha sai com <code>[OK]</code> ou <code>[ERRO]</code>. Os scripts de instalação rodam este comando antes de iniciar o serviço.</td><td>Verificar configuração</td></tr>
+            <tr><td><code>--discover</code></td><td class="quebra">Lista empresas (com CNPJ), escalas, regras de ponto e motivos de ajuste cadastrados na conta do Sólides DP da empresa, com os ids usados na Configuração.</td><td>Consultar o Sólides DP</td></tr>
+            <tr><td><code>--dry-run</code></td><td class="quebra">Uma execução simulada que grava o relatório e <strong>nunca grava nada no Sólides DP</strong>. Se a empresa tiver token, só consulta quem já está lá, para mostrar quem seria <em>vinculado pelo CPF</em> e quem seria <em>criado</em>. Força a simulação mesmo que a configuração esteja em envio real.</td><td>Simular (dry-run)</td></tr>
             <tr><td><code>--run-once</code></td><td class="quebra">Uma execução com a configuração em vigor. Se o modo simulação estiver desligado, <strong>envia de verdade</strong>. Respeita a integração desativada.</td><td>Executar agora</td></tr>
-            <tr><td><code>--reconcile</code></td><td class="quebra">Confere no Sólides DP cada colaborador já enviado. Lista os que não existem mais (<code>[AUSENTE]</code>) e os que não puderam ser conferidos (<code>[?]</code>). Não altera nada.</td><td>Conferir enviados</td></tr>
-            <tr><td><code>--reconcile --repair</code></td><td class="quebra"><strong>Só pela linha de comando.</strong> Além de conferir, marca os ausentes para reenvio: a próxima execução real os recria no Sólides DP.</td><td>—</td></tr>
+            <tr><td><code>--reconcile</code></td><td class="quebra">Confere no Sólides DP, pelo id, cada colaborador vinculado da empresa. Lista os que não existem mais (<code>[AUSENTE]</code>) e os que não puderam ser conferidos (<code>[?]</code>). Não altera nada.</td><td>Conferir enviados</td></tr>
+            <tr><td><code>--reconcile --repair</code></td><td class="quebra"><strong>Só pela linha de comando.</strong> Além de conferir, desfaz o vínculo dos ausentes: a próxima execução real procura o CPF no Sólides DP de novo e vincula, ou cria se não achar.</td><td>—</td></tr>
             <tr><td><code>--version</code></td><td class="quebra">Mostra a versão instalada.</td><td>—</td></tr>
             <tr><td><code>--help</code></td><td class="quebra">Mostra a ajuda resumida dos comandos (também <code>-h</code> ou <code>/?</code>).</td><td>—</td></tr>
         </tbody>
@@ -442,17 +452,17 @@
 <pre><code><span class="c"># Conferir tudo depois de trocar o token ou a senha do banco</span>
 .\IntegracaoSolidesDP.exe --check-config
 
-<span class="c"># Ids de escala e regra de ponto para preencher na Configuração</span>
-.\IntegracaoSolidesDP.exe --discover
+<span class="c"># Ids de escala e regra de ponto da conta da empresa 15</span>
+.\IntegracaoSolidesDP.exe --discover --empresa 15
 
-<span class="c"># Simular e abrir o relatório no Excel</span>
-.\IntegracaoSolidesDP.exe --dry-run
+<span class="c"># Simular só a empresa 15 e abrir o relatório no Excel</span>
+.\IntegracaoSolidesDP.exe --dry-run --empresa 15
 Invoke-Item (Get-ChildItem .\reports\run-*.csv | Sort-Object LastWriteTime | Select-Object -Last 1).FullName
 
-<span class="c"># Conferência semanal e, se confirmado com o RH, reenvio dos ausentes</span>
-.\IntegracaoSolidesDP.exe --reconcile
-.\IntegracaoSolidesDP.exe --reconcile --repair
-.\IntegracaoSolidesDP.exe --run-once</code></pre>
+<span class="c"># Conferência semanal e, se confirmado com o RH, nova busca dos ausentes pelo CPF</span>
+.\IntegracaoSolidesDP.exe --reconcile --empresa 15
+.\IntegracaoSolidesDP.exe --reconcile --repair --empresa 15
+.\IntegracaoSolidesDP.exe --run-once --empresa 15</code></pre>
 </section>
 
 <!-- ============================== 6 ============================== -->
@@ -494,9 +504,14 @@ Get-Content C:\Services\IntegracaoSolidesDP\logs\*.log -Tail 50</code></pre>
 
     <h3>6.4 Consultas úteis no banco</h3>
 <pre><code><span class="c">-- Últimas execuções</span>
-SELECT TOP 20 started_at, finished_at, status, dry_run, triggered_by,
+SELECT TOP 20 started_at, finished_at, cdempresa, status, dry_run, triggered_by,
        solicitado_por, config_versao, error_message
 FROM solidesdp.runs ORDER BY started_at DESC;
+
+<span class="c">-- Colaboradores vinculados da empresa 15: criados x vinculados pelo CPF</span>
+SELECT origem, status, COUNT(*) AS qtd
+FROM solidesdp.colaborador_vinculo WHERE cdempresa = 15
+GROUP BY origem, status;
 
 <span class="c">-- Pedidos da Web que ainda esperam o serviço</span>
 SELECT id, tipo, solicitado_por, solicitado_em

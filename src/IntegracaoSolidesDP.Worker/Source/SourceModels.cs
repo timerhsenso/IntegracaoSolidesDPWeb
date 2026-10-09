@@ -1,3 +1,5 @@
+using IntegracaoSolidesDP.Worker.Mapping;
+
 namespace IntegracaoSolidesDP.Worker.Source;
 
 /// <summary>Uma linha de dbo.func1 (com centro de custo e CNPJ da filial). Colunas char vêm sem espaços à direita.</summary>
@@ -38,16 +40,22 @@ public sealed record EmployeeRow
     public string? CentroCustoDescricao { get; init; }
     public string? Cnpj { get; init; }
 
-    /// <summary>Identidade no DP: "{cdempresa}-{matrícula}". A filial fica de fora porque na ADN ela é o posto/cliente e muda em transferências.</summary>
-    public string ExternalId => EmployeeKey.For(Cdempresa, Nomatric);
+    /// <summary>
+    /// Identidade no Sólides DP: o CPF (só dígitos, com os zeros à esquerda), dentro da conta da empresa.
+    /// Nulo quando o CPF está vazio ou não fecha o dígito verificador: o colaborador vira pendência.
+    /// </summary>
+    public string? Chave => Documents.NormalizeCpf(Cpf).Value;
+
+    /// <summary>Como o colaborador aparece no relatório e na Web: "{cdempresa}-{matrícula}" (sem expor o CPF).</summary>
+    public string Rotulo => EmployeeKey.Rotulo(Cdempresa, Nomatric);
 }
 
 public static class EmployeeKey
 {
     /// <summary>Gravado no estado; o worker recusa iniciar se o esquema mudar depois do go-live.</summary>
-    public const string Scheme = "empresa-matricula-v1";
+    public const string Scheme = "cpf-por-empresa-v2";
 
-    public static string For(int cdempresa, string nomatric) =>
+    public static string Rotulo(int cdempresa, string nomatric) =>
         FormattableString.Invariant($"{cdempresa}-{nomatric.Trim()}");
 }
 
@@ -68,7 +76,17 @@ public sealed record WorkplaceRow
     public string? Descricao { get; init; }
     public string? Cnpj { get; init; }
 
+    /// <summary>test1.flativofilial = 1. Filial inativa fica fora do escopo: nada é enviado nem desligado.</summary>
+    public bool Ativa { get; init; }
+
     public string ExternalId => WorkplaceKey.For(Cdempresa, Cdfilial);
+}
+
+/// <summary>dbo.temp1: empresa do RHSenso (cada uma é uma conta do Sólides DP).</summary>
+public sealed record EmpresaRow
+{
+    public int Cdempresa { get; init; }
+    public string? Nome { get; init; }
 }
 
 public static class WorkplaceKey
@@ -92,5 +110,6 @@ public sealed record VacationRow
     /// <summary>feria2.flconfirm (taux2 tabela 42): 1 Programada, 2 Liberada, 3 Enviada p/ Folha, 4 Calculada, 6 Confirmada, 7 Reprogramada.</summary>
     public int Situacao { get; init; }
 
-    public string EmployeeExternalId => EmployeeKey.For(Cdempresa, Nomatric);
+    /// <summary>Rótulo do colaborador ("{cdempresa}-{matrícula}"); o CPF vem do cadastro em func1.</summary>
+    public string Rotulo => EmployeeKey.Rotulo(Cdempresa, Nomatric);
 }

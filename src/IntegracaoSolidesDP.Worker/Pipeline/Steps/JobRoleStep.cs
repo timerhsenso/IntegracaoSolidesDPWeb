@@ -6,7 +6,7 @@ using IntegracaoSolidesDP.Worker.State;
 namespace IntegracaoSolidesDP.Worker.Pipeline.Steps;
 
 /// <summary>
-/// Cargos (cargo1) usados por colaboradores em escopo. O cadastro de cargo do DP não tem
+/// Cargos (cargo1) usados por colaboradores em escopo, na conta da empresa (sempre os do RHSenso, pelo código). O cadastro de cargo do DP não tem
 /// allowUpdate: antes de criar, procura pelo externalId; cargo já existente com descrição
 /// diferente fica como aviso (não há endpoint de atualização).
 /// </summary>
@@ -19,7 +19,7 @@ public sealed class JobRoleStep(ISolidesDpClient api, ISourceReader source, ISta
             .OfType<string>()
             .ToHashSet(StringComparer.Ordinal);
         var rows = await source.ReadJobRolesAsync(needed, ct);
-        var states = await state.LoadEntityStatesAsync(EntityTypes.JobRole, ct);
+        var states = await state.LoadEntityStatesAsync(context.Cdempresa, EntityTypes.JobRole, ct);
 
         foreach (var missing in needed.Except(rows.Select(r => r.Cdcargo), StringComparer.Ordinal))
         {
@@ -57,7 +57,7 @@ public sealed class JobRoleStep(ISolidesDpClient api, ISourceReader source, ISta
             if (current?.RemoteId is { } remoteId)
             {
                 // Sem endpoint de atualização: registra o novo hash para avisar uma vez só.
-                await state.UpsertEntityStateAsync(current with { PayloadHash = hash, Status = EntityStatuses.Synced }, ct);
+                await state.UpsertEntityStateAsync(context.Cdempresa, current with { PayloadHash = hash, Status = EntityStatuses.Synced }, ct);
                 context.AvailableJobRoles.Add(row.Cdcargo);
                 context.Add(new RunItem(EntityTypes.JobRole, row.Cdcargo, ItemActions.Update, ItemStatuses.Warning,
                     Message: $"update_unsupported: descrição mudou para '{payload.Description}'; ajustar manualmente no DP (id {remoteId})"));
@@ -75,7 +75,7 @@ public sealed class JobRoleStep(ISolidesDpClient api, ISourceReader source, ISta
         ReferenceResolver.ThrowIfUnauthorized(found);
         if (found is { IsSuccess: true, Value.Id: > 0 })
         {
-            await SaveAsync(code, found.Value.Id, hash, ct);
+            await SaveAsync(context.Cdempresa, code, found.Value.Id, hash, ct);
             context.AvailableJobRoles.Add(code);
             context.Add(new RunItem(EntityTypes.JobRole, code, ItemActions.Create, ItemStatuses.Adopted, found.HttpStatus,
                 Message: $"já existia no DP (id {found.Value.Id})"));
@@ -92,7 +92,7 @@ public sealed class JobRoleStep(ISolidesDpClient api, ISourceReader source, ISta
         ReferenceResolver.ThrowIfUnauthorized(created);
         if (created is { IsSuccess: true, Value.Id: > 0 })
         {
-            await SaveAsync(code, created.Value.Id, hash, ct);
+            await SaveAsync(context.Cdempresa, code, created.Value.Id, hash, ct);
             context.AvailableJobRoles.Add(code);
             context.Add(new RunItem(EntityTypes.JobRole, code, ItemActions.Create, ItemStatuses.Created, created.HttpStatus));
             return;
@@ -101,8 +101,8 @@ public sealed class JobRoleStep(ISolidesDpClient api, ISourceReader source, ISta
         context.Add(new RunItem(EntityTypes.JobRole, code, ItemActions.Create, ItemStatuses.Failed, created.HttpStatus, created.Message));
     }
 
-    private Task SaveAsync(string code, long remoteId, string hash, CancellationToken ct) =>
-        state.UpsertEntityStateAsync(new EntityState
+    private Task SaveAsync(int cdempresa, string code, long remoteId, string hash, CancellationToken ct) =>
+        state.UpsertEntityStateAsync(cdempresa, new EntityState
         {
             EntityType = EntityTypes.JobRole,
             ExternalId = code,

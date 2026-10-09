@@ -21,6 +21,10 @@ public sealed class FakeAdminClient(HttpClient http)
     public async Task<FakeState> GetStateAsync(CancellationToken cancellationToken = default) =>
         await Get<FakeState>("/_fake/state", cancellationToken);
 
+    /// <summary>Estado de uma conta (token) quando o fake isola as contas por token.</summary>
+    public async Task<FakeState> GetStateAsync(string conta, CancellationToken cancellationToken = default) =>
+        await Get<FakeState>($"/_fake/state?conta={Uri.EscapeDataString(conta)}", cancellationToken);
+
     /// <summary>Estado completo como JSON cru (util para inspecionar <c>fields</c> e historicos livremente).</summary>
     public async Task<JsonDocument> GetStateDocumentAsync(CancellationToken cancellationToken = default)
     {

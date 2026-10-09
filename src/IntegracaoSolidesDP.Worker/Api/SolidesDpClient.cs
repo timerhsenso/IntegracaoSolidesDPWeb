@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Polly.CircuitBreaker;
@@ -32,6 +33,9 @@ public interface ISolidesDpClient
 
     Task<ApiResult<EmployeeDto>> FindEmployeeByIdAsync(long tangerinoId, CancellationToken ct);
 
+    /// <summary>Colaboradores ativos (não demitidos) da conta, todas as páginas.</summary>
+    Task<ApiResult<IReadOnlyList<EmployeeDto>>> FindAllEmployeesAsync(CancellationToken ct);
+
     Task<ApiResult<EmployeeDto>> RegisterEmployeeAsync(EmployeeRequest request, CancellationToken ct);
 
     Task<ApiResult<JsonElement?>> DismissEmployeeAsync(DismissRequest request, CancellationToken ct);
@@ -51,7 +55,7 @@ public interface ISolidesDpClient
 /// um timeout poderia duplicar o registro; o chamador reconcilia em vez de reenviar.</item>
 /// </list>
 /// </summary>
-public sealed class SolidesDpClient(IHttpClientFactory factory, SolidesDpClientSettings settings) : ISolidesDpClient
+public sealed class SolidesDpClient(IHttpClientFactory factory, SolidesDpClientSettings settings, SolidesDpAccount? account = null) : ISolidesDpClient
 {
     public const string RetryClientName = "SolidesDP";
     public const string NoRetryClientName = "SolidesDP.NoRetry";
@@ -103,6 +107,9 @@ public sealed class SolidesDpClient(IHttpClientFactory factory, SolidesDpClientS
 
     public Task<ApiResult<EmployeeDto>> FindEmployeeByIdAsync(long tangerinoId, CancellationToken ct) =>
         SendAsync<EmployeeDto>(RetryClientName, HttpMethod.Get, FormattableString.Invariant($"employee/find?tangerinoId={tangerinoId}"), null, ct);
+
+    public Task<ApiResult<IReadOnlyList<EmployeeDto>>> FindAllEmployeesAsync(CancellationToken ct) =>
+        GetAllPagesAsync<EmployeeDto>("employee/find-all?showFired=0", "page", "size", static e => e, ct);
 
     public Task<ApiResult<EmployeeDto>> RegisterEmployeeAsync(EmployeeRequest request, CancellationToken ct) =>
         // allowUpdate=true torna o POST um upsert por externalId: o retry é seguro.
@@ -175,6 +182,16 @@ public sealed class SolidesDpClient(IHttpClientFactory factory, SolidesDpClientS
     {
         var client = factory.CreateClient(clientName);
         using var request = new HttpRequestMessage(method, path);
+        if (account?.Token is { } token)
+        {
+            // Conta da empresa em execução: vale sobre o token do appsettings.
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", token);
+        }
+        else if (account?.Cdempresa is { } cdempresa)
+        {
+            throw new InvalidOperationException(FormattableString.Invariant($"Empresa {cdempresa} sem token do Sólides DP."));
+        }
+
         if (body is not null)
         {
             request.Content = JsonContent.Create(body, body.GetType(), options: SolidesDpJson.Options);

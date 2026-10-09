@@ -32,7 +32,8 @@ public sealed class OptionsValidationTests
     {
         var validator = new SolidesDpOptionsValidator(
             new HostingEnvironment { EnvironmentName = environment },
-            Microsoft.Extensions.Options.Options.Create(new SyncOptions { DryRun = true }));
+            Microsoft.Extensions.Options.Options.Create(new SyncOptions { DryRun = true }),
+            Microsoft.Extensions.Options.Options.Create(new ManagementOptions()));
 
         var result = validator.Validate(null, new SolidesDpOptions
         {
@@ -47,9 +48,18 @@ public sealed class OptionsValidationTests
     public void Real_runs_need_a_token_and_a_go_live_date()
     {
         var sync = new SyncOptions { DryRun = false };
-        var api = new SolidesDpOptionsValidator(new HostingEnvironment { EnvironmentName = "Production" }, Microsoft.Extensions.Options.Options.Create(sync));
+        var api = new SolidesDpOptionsValidator(
+            new HostingEnvironment { EnvironmentName = "Production" },
+            Microsoft.Extensions.Options.Options.Create(sync),
+            Microsoft.Extensions.Options.Options.Create(new ManagementOptions()));
+        var managed = new SolidesDpOptionsValidator(
+            new HostingEnvironment { EnvironmentName = "Production" },
+            Microsoft.Extensions.Options.Options.Create(sync),
+            Microsoft.Extensions.Options.Options.Create(new ManagementOptions { Habilitada = true }));
 
         api.Validate(null, new SolidesDpOptions { Token = "" }).Failed.Should().BeTrue();
+        // Com a gestão ligada, o token é de cada empresa (tela Empresas): o do appsettings deixa de ser obrigatório.
+        managed.Validate(null, new SolidesDpOptions { Token = "" }).Succeeded.Should().BeTrue();
         new SyncOptionsValidator().Validate(null, sync).Failed.Should().BeTrue();
         new SyncOptionsValidator().Validate(null, new SyncOptions { DryRun = false, GoLiveDate = new DateOnly(2026, 11, 1) }).Succeeded.Should().BeTrue();
     }

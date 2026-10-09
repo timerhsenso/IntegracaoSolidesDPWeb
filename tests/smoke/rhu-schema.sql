@@ -3,8 +3,9 @@
 CREATE TABLE dbo.tsitu1 (cdsituacao char(2) NOT NULL PRIMARY KEY, dcsituacao varchar(40) NULL, fldemissao char(1) NULL);
 CREATE TABLE dbo.tcus1 (cdccusto char(5) NOT NULL PRIMARY KEY, dcccusto varchar(100) NOT NULL);
 CREATE TABLE dbo.cargo1 (cdcargo char(5) NOT NULL PRIMARY KEY, dccargo varchar(40) NOT NULL, cdcbo6 char(6) NULL);
+CREATE TABLE dbo.temp1 (cdempresa int NOT NULL PRIMARY KEY, nmempresa varchar(60) NULL, flativo char(1) NULL);
 CREATE TABLE dbo.test1 (cdempresa int NOT NULL, cdfilial int NOT NULL, nmfantasia varchar(30) NULL, dcestab varchar(60) NULL, cdcgc char(15) NULL,
-                        PRIMARY KEY (cdempresa, cdfilial));
+                        flativofilial int NULL, PRIMARY KEY (cdempresa, cdfilial));
 CREATE TABLE dbo.func1 (
     id uniqueidentifier NOT NULL PRIMARY KEY, nomatric char(8) NOT NULL, nmcolab char(60) NULL, cdempresa int NOT NULL, cdfilial int NOT NULL,
     cdccusto char(5) NULL, tpcolab int NULL, dtdemissao datetime NULL, dtadmissao datetime NOT NULL, dttransf datetime NULL,

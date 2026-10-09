@@ -10,6 +10,9 @@ public interface ISourceReader
 
     Task<IReadOnlyList<WorkplaceRow>> ReadWorkplacesAsync(CancellationToken ct);
 
+    /// <summary>Empresas ativas na folha (dbo.temp1.flativo = 'S'). Só elas podem ser usadas na integração.</summary>
+    Task<IReadOnlyList<EmpresaRow>> ReadEmpresasAtivasAsync(CancellationToken ct);
+
     Task<IReadOnlyList<VacationRow>> ReadVacationsEndingFromAsync(DateOnly desde, CancellationToken ct);
 
     /// <summary>Quais destes feria2.id ainda existem (para distinguir linha apagada de linha fora da janela).</summary>
@@ -68,8 +71,16 @@ public sealed class SqlSourceReader(ConnectionFactory connections) : ISourceRead
 
     private const string WorkplacesSql = """
         SELECT cdempresa AS Cdempresa, cdfilial AS Cdfilial, RTRIM(nmfantasia) AS NomeFantasia,
-               RTRIM(dcestab) AS Descricao, RTRIM(cdcgc) AS Cnpj
+               RTRIM(dcestab) AS Descricao, RTRIM(cdcgc) AS Cnpj,
+               CAST(CASE WHEN flativofilial = 1 THEN 1 ELSE 0 END AS bit) AS Ativa
         FROM dbo.test1
+        """;
+
+    private const string EmpresasAtivasSql = """
+        SELECT cdempresa AS Cdempresa, RTRIM(nmempresa) AS Nome
+        FROM dbo.temp1
+        WHERE flativo = 'S'
+        ORDER BY cdempresa
         """;
 
     private const string VacationsSql = """
@@ -106,6 +117,13 @@ public sealed class SqlSourceReader(ConnectionFactory connections) : ISourceRead
     {
         await using var connection = await connections.OpenAsync(ct);
         var rows = await connection.QueryAsync<WorkplaceRow>(new CommandDefinition(WorkplacesSql, cancellationToken: ct));
+        return rows.AsList();
+    }
+
+    public async Task<IReadOnlyList<EmpresaRow>> ReadEmpresasAtivasAsync(CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        var rows = await connection.QueryAsync<EmpresaRow>(new CommandDefinition(EmpresasAtivasSql, cancellationToken: ct));
         return rows.AsList();
     }
 

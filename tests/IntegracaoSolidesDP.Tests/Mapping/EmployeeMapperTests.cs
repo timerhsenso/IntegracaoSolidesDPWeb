@@ -13,7 +13,7 @@ public sealed class EmployeeMapperTests
 
         var payload = _mapper.Map(row, goLiveDate: null, companyId: 3011).Payload!;
 
-        payload.ExternalId.Should().Be("14-00001234");
+        payload.ExternalId.Should().Be("00001234", "na criação o Código Externo é só a matrícula");
         payload.Matricula.Should().Be("00001234");
         payload.Name.Should().Be("MARIA DA SILVA");
         payload.Cpf.Should().Be(TestData.Cpf1);

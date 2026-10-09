@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using IntegracaoSolidesDP.Tests.Sql;
+using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.State;
 using SolidesDP.Fake.Configuration;
 
@@ -35,8 +36,9 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
         var state = await _harness.Fake.GetStateAsync(Ct);
         state.JobRoles.Should().ContainSingle(j => j.ExternalId == "00100" && j.Description == "ANALISTA DE SISTEMAS");
         state.Workplaces.Should().ContainSingle(w => w.ExternalId == "1-1" && w.Name == "ADN MATRIZ (1-1)");
-        state.Employees.Select(e => e.ExternalId).Should().BeEquivalentTo(["1-00000001", "1-00000002"]);
-        var maria = state.Employees.Single(e => e.ExternalId == "1-00000001");
+        // Código Externo = matrícula (sem empresa nem filial): o cliente usa esse campo em outro sistema.
+        state.Employees.Select(e => e.ExternalId).Should().BeEquivalentTo(["00000001", "00000002"]);
+        var maria = state.Employees.Single(e => e.ExternalId == "00000001");
         maria.CompanyId.Should().Be(state.Companies.Single(c => c.Cnpj == "00594807000108").Id);
         maria.WorkScheduleId.Should().Be(state.WorkSchedules.Single(s => s.Standard).Id);
         maria.WorkScheduleDateInMillis.Should().Be(TestData.Dates.StartOfDay(new DateOnly(2026, 1, 1)), "admitida antes do go-live");
@@ -74,9 +76,16 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Transfer_to_another_company_dismisses_the_old_bond_before_creating_the_new_one()
+    public async Task Transfer_to_another_company_dismisses_in_the_old_account_and_creates_in_the_new_one()
     {
         await _seed.FilialAsync(empresa: 2, filial: 8, nome: "GTI ABC", cnpj: "00594807000361");
+        await _harness.ConfigurarEmpresasAsync(
+            [
+                new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false },
+                new EmpresaConfiguracao { Cdempresa = 2, Habilitada = true, DryRun = false },
+            ],
+            new Dictionary<int, string> { [1] = E2EHarness.Token, [2] = E2EHarness.Token2 },
+            Ct);
         var original = await _seed.FuncionarioAsync(matric: "00002127", cpf: TestData.Cpf3);
         await _harness.RunAsync(Ct);
         await _harness.Fake.ClearRequestsAsync(Ct);
@@ -85,19 +94,88 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
         await _seed.FuncionarioAsync(matric: "00002127", empresa: 2, filial: 8, cpf: TestData.Cpf3);
         var summary = await _harness.RunAsync(Ct);
 
-        // O fake recusa CPF repetido entre ativos: só passa se o desligamento vier antes.
         summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
-        var state = await _harness.Fake.GetStateAsync(Ct);
-        var old = state.Employees.Single(e => e.ExternalId == "1-00002127");
+        summary.Empresas.Select(e => e.Cdempresa).Should().Equal(1, 2);
+        var old = (await _harness.Fake.GetStateAsync(E2EHarness.Token, Ct)).Employees.Should().ContainSingle().Subject;
         old.Fired.Should().BeTrue();
         old.ResignationReason.Should().Be("TRANSFERENCIA_GRUPO_EMPRESARIAL");
         old.ResignationDate.Should().Be(TestData.Dates.StartOfDay(new DateOnly(2026, 10, 1)));
-        state.Employees.Single(e => e.ExternalId == "2-00002127").Fired.Should().BeFalse();
+        var created = (await _harness.Fake.GetStateAsync(E2EHarness.Token2, Ct)).Employees.Should().ContainSingle().Subject;
+        created.ExternalId.Should().Be("00002127");
+        created.Fired.Should().BeFalse();
+    }
 
-        var writes = await _harness.WritesAsync(Ct);
-        var dismiss = writes.Single(w => w.Path == "/employee/dismiss");
-        var create = writes.Single(w => w.Path == "/employee/register" && w.Body!["externalId"]!.GetValue<string>() == "2-00002127");
-        dismiss.Seq.Should().BeLessThan(create.Seq);
+    [Theory]
+    [InlineData("00000001", "00000001")]
+    [InlineData("00000024", "00000001")]
+    [InlineData("CONTAB-55", "CONTAB-55")]
+    public async Task Employee_already_registered_by_hr_is_linked_by_cpf_and_not_duplicated(string codigoNoDp, string esperado)
+    {
+        await _seed.FuncionarioAsync(matric: "00000001", cpf: TestData.Cpf1, nome: "MARIA");
+
+        // O RH já cadastrou a pessoa à mão no Sólides DP.
+        using var hr = _harness.DpAsHr();
+        var effective = TestData.Dates.StartOfDay(new DateOnly(2026, 1, 1));
+        var manual = await hr.PostAsJsonAsync("/employee/register", new
+        {
+            externalId = codigoNoDp,
+            name = "MARIA (CADASTRO MANUAL)",
+            cpf = TestData.Cpf1,
+            admissionDate = TestData.Dates.StartOfDay(new DateOnly(2020, 3, 2)),
+            effectiveDate = effective,
+            workScheduleDateInMillis = effective,
+            punchRuleDateInMillis = effective,
+        }, Ct);
+        manual.IsSuccessStatusCode.Should().BeTrue(await manual.Content.ReadAsStringAsync(Ct));
+        var before = (await _harness.Fake.GetStateAsync(Ct)).Employees.Single();
+
+        var summary = await _harness.RunAsync(Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        summary.Counts["employee"]["adopted"].Should().Be(1);
+        var after = (await _harness.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle().Subject;
+        after.Id.Should().Be(before.Id);
+        after.Name.Should().Be("MARIA", "o cadastro passa a seguir o RHSenso");
+        after.ExternalId.Should().Be(esperado);
+        var vinculo = await db.QueryAsync<(long, string, string)>(
+            "SELECT tangerino_id, origem, codigo_externo FROM solidesdp.colaborador_vinculo WHERE cdempresa = 1 AND cpf = @cpf", new { cpf = TestData.Cpf1 });
+        vinculo.Should().Equal((before.Id, "vinculado_cpf", esperado));
+    }
+
+    [Fact]
+    public async Task Active_in_an_unselected_branch_is_neither_sent_nor_dismissed()
+    {
+        await _seed.FilialAsync(empresa: 1, filial: 2, nome: "OUTRA FILIAL");
+        await _harness.ConfigurarEmpresasAsync(
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = false, Filiais = [1] }],
+            new Dictionary<int, string> { [1] = E2EHarness.Token },
+            Ct);
+        var original = await _seed.FuncionarioAsync(matric: "00000001");
+        await _harness.RunAsync(Ct);
+
+        await db.ExecuteAsync("UPDATE dbo.func1 SET cdsituacao = '09', dttransf = '2026-10-01' WHERE id = @original", new { original });
+        await _seed.FuncionarioAsync(matric: "00000001", filial: 2, transferencia: new DateTime(2026, 10, 1));
+        await _harness.Fake.ClearRequestsAsync(Ct);
+        var summary = await _harness.RunAsync(Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        (await _harness.WritesAsync(Ct)).Should().BeEmpty("filial fora do escopo: nem envia nem desliga");
+        (await _harness.Fake.GetStateAsync(Ct)).Employees.Single().Fired.Should().BeFalse();
+        var item = await db.QueryAsync<string>("SELECT message FROM solidesdp.run_items WHERE run_id = @RunId", new { summary.RunId });
+        item.Should().ContainSingle().Which.Should().StartWith("fora_do_escopo");
+    }
+
+    [Fact]
+    public async Task Inactive_company_in_the_payroll_sends_nothing()
+    {
+        await _seed.FuncionarioAsync(matric: "00000001");
+        await _seed.EmpresaAsync(1, ativa: false);
+
+        var summary = await _harness.RunAsync(Ct);
+
+        summary.Status.Should().Be(RunStatuses.SkippedDisabled);
+        summary.Error.Should().Contain("inativa");
+        (await _harness.Fake.GetRequestsAsync(Ct)).Should().BeEmpty();
     }
 
     [Fact]
@@ -119,17 +197,17 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Employee_whose_company_cnpj_is_not_in_dp_is_blocked_and_others_go_through()
+    public async Task Employee_whose_branch_cnpj_is_not_in_dp_is_blocked_and_others_go_through()
     {
-        await _seed.FilialAsync(empresa: 99, filial: 1, nome: "SEM CNPJ NO DP", cnpj: "11222333000181");
+        await _seed.FilialAsync(empresa: 1, filial: 2, nome: "SEM CNPJ NO DP", cnpj: "11222333000181");
         await _seed.FuncionarioAsync(matric: "00000001");
-        await _seed.FuncionarioAsync(matric: "00000002", empresa: 99, cpf: TestData.Cpf2);
+        await _seed.FuncionarioAsync(matric: "00000002", filial: 2, cpf: TestData.Cpf2);
 
         var summary = await _harness.RunAsync(Ct);
 
         summary.Status.Should().Be(RunStatuses.CompletedWithErrors);
         summary.Counts["employee"]["blocked"].Should().Be(1);
-        (await _harness.Fake.GetStateAsync(Ct)).Employees.Select(e => e.ExternalId).Should().Equal("1-00000001");
+        (await _harness.Fake.GetStateAsync(Ct)).Employees.Select(e => e.ExternalId).Should().Equal("00000001");
     }
 
     [Fact]
@@ -165,7 +243,7 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
         using var hr = _harness.DpAsHr();
         var change = await hr.PostAsJsonAsync("/employee/register?allowUpdate=true", new
         {
-            externalId = "1-00000001",
+            externalId = "00000001",
             name = "MARIA",
             admissionDate = TestData.Dates.StartOfDay(new DateOnly(2020, 3, 2)),
             effectiveDate = effective,
@@ -224,7 +302,7 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Dry_run_calls_nothing_on_the_api()
+    public async Task Dry_run_with_a_token_only_reads_from_the_api()
     {
         await _seed.FuncionarioAsync();
         await _seed.FeriasAsync("00000001", new DateTime(2026, 10, 19), new DateTime(2026, 10, 30), situacao: 2);
@@ -235,6 +313,22 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
         summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
         summary.Counts["employee"]["dry_run"].Should().Be(1);
         summary.Counts["vacation"]["dry_run"].Should().Be(1);
+        // Só consulta quem já está no DP (para mostrar quem seria vinculado pelo CPF); nunca grava.
+        (await _harness.Fake.GetRequestsAsync(Ct)).Should().OnlyContain(r => r.Method == "GET");
+        (await _harness.WritesAsync(Ct)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Dry_run_without_a_token_calls_nothing_on_the_api()
+    {
+        await _seed.FuncionarioAsync();
+        _harness.Settings["Sync:DryRun"] = "true";
+        _harness.Settings["SolidesDP:Token"] = "";
+
+        var summary = await _harness.RunAsync(Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        summary.Counts["employee"]["dry_run"].Should().Be(1);
         (await _harness.Fake.GetRequestsAsync(Ct)).Should().BeEmpty();
     }
 }

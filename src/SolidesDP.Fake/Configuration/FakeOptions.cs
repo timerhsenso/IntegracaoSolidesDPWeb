@@ -21,6 +21,12 @@ public sealed class FakeOptions
     /// <summary>Perfil de comportamento inicial (restaurado por <c>POST /_fake/reset</c>).</summary>
     public FakeBehavior Behavior { get; set; } = new();
 
+    /// <summary>
+    /// Cada token e uma conta separada, com os seus proprios dados (como no Solides DP real, onde cada CNPJ do
+    /// cliente tem um login e um token). Desligado, todos os tokens enxergam os mesmos dados.
+    /// </summary>
+    public bool IsolarContasPorToken { get; set; }
+
     /// <summary>Tokens efetivos, aplicando o padrao.</summary>
     public IReadOnlyList<string> EffectiveTokens => Tokens is { Length: > 0 } ? Tokens : [DefaultToken];
 }

@@ -5,7 +5,7 @@ using IntegracaoSolidesDP.Worker.State;
 
 namespace IntegracaoSolidesDP.Worker.Pipeline.Steps;
 
-/// <summary>Locais de trabalho = filiais (test1) com colaboradores em escopo. Upsert por externalId (allowUpdate=true).</summary>
+/// <summary>Locais de trabalho = filiais (test1) com colaboradores em escopo, na conta da empresa. Upsert por externalId (allowUpdate=true).</summary>
 public sealed class WorkplaceStep(ISolidesDpClient api, ISourceReader source, IStateStore state)
 {
     public async Task ExecuteAsync(SyncContext context, EmployeePlan plan, CancellationToken ct)
@@ -13,8 +13,8 @@ public sealed class WorkplaceStep(ISolidesDpClient api, ISourceReader source, IS
         var needed = plan.Active
             .Select(r => WorkplaceKey.For(r.Cdempresa, r.Cdfilial))
             .ToHashSet(StringComparer.Ordinal);
-        var rows = (await source.ReadWorkplacesAsync(ct)).Where(w => needed.Contains(w.ExternalId)).ToList();
-        var states = await state.LoadEntityStatesAsync(EntityTypes.Workplace, ct);
+        var rows = (await source.ReadWorkplacesAsync(ct)).Where(w => w.Cdempresa == context.Cdempresa && needed.Contains(w.ExternalId)).ToList();
+        var states = await state.LoadEntityStatesAsync(context.Cdempresa, EntityTypes.Workplace, ct);
 
         foreach (var missing in needed.Except(rows.Select(r => r.ExternalId), StringComparer.Ordinal))
         {
@@ -47,10 +47,11 @@ public sealed class WorkplaceStep(ISolidesDpClient api, ISourceReader source, IS
             ReferenceResolver.ThrowIfUnauthorized(result);
             if (result is { IsSuccess: true, Value.Id: > 0 })
             {
-                await state.UpsertEntityStateAsync(new EntityState
+                await state.UpsertEntityStateAsync(context.Cdempresa, new EntityState
                 {
                     EntityType = EntityTypes.Workplace,
                     ExternalId = row.ExternalId,
+                    Cdfilial = row.Cdfilial,
                     RemoteId = result.Value.Id,
                     PayloadHash = hash,
                     Status = EntityStatuses.Synced,

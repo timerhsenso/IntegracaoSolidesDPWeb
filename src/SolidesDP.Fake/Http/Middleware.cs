@@ -68,8 +68,17 @@ internal sealed class AuthMiddleware(RequestDelegate next, FakeStore store)
 
     public async Task InvokeAsync(HttpContext http)
     {
-        if (FakePaths.IsAdmin(http.Request.Path) || IsAuthorized(http.Request.Headers.Authorization.ToString(), store.Behavior.RequireBasicPrefix))
+        if (FakePaths.IsAdmin(http.Request.Path))
         {
+            // ?conta=<token> le/escreve os dados daquela conta quando as contas sao isoladas.
+            FakeStore.ContaAtual = http.Request.Query["conta"].FirstOrDefault();
+            await next(http);
+            return;
+        }
+
+        if (TokenOf(http.Request.Headers.Authorization.ToString(), store.Behavior.RequireBasicPrefix) is { } token && store.Tokens.Contains(token))
+        {
+            FakeStore.ContaAtual = token;
             await next(http);
             return;
         }
@@ -78,7 +87,7 @@ internal sealed class AuthMiddleware(RequestDelegate next, FakeStore store)
         await ApiResults.WriteSpringAsync(http, StatusCodes.Status401Unauthorized, "Full authentication is required to access this resource");
     }
 
-    private bool IsAuthorized(string header, bool requireBasicPrefix)
+    private static string? TokenOf(string header, bool requireBasicPrefix)
     {
         header = header.Trim();
         string token;
@@ -92,10 +101,10 @@ internal sealed class AuthMiddleware(RequestDelegate next, FakeStore store)
         }
         else
         {
-            return false;
+            return null;
         }
 
-        return token.Length > 0 && store.Tokens.Contains(token);
+        return token.Length > 0 ? token : null;
     }
 }
 

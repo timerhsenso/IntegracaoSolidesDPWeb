@@ -7,7 +7,10 @@ using Microsoft.Extensions.Options;
 
 namespace IntegracaoSolidesDP.Worker.Pipeline;
 
-/// <summary>Resumo de uma execução: contagem por entidade e status.</summary>
+/// <summary>
+/// Resumo de uma execução: contagem por entidade e status. Cada empresa é uma execução própria
+/// (solidesdp.runs); um pedido que roda várias empresas devolve o resumo combinado, com as partes em <see cref="Empresas"/>.
+/// </summary>
 public sealed record RunSummary(
     Guid RunId,
     string Status,
@@ -16,8 +19,52 @@ public sealed record RunSummary(
     DateTimeOffset FinishedAt,
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> Counts,
     string? Error,
-    string? ReportPath)
+    string? ReportPath,
+    int? Cdempresa = null)
 {
+    /// <summary>Resumo de cada empresa (vazio quando o resumo já é de uma empresa só).</summary>
+    public IReadOnlyList<RunSummary> Empresas { get; init; } = [];
+
+    /// <summary>Junta os resumos das empresas de um pedido. Com uma empresa só, devolve o resumo dela.</summary>
+    public static RunSummary Combine(IReadOnlyList<RunSummary> parts, bool dryRun, DateTimeOffset startedAt, DateTimeOffset finishedAt)
+    {
+        if (parts.Count == 1)
+        {
+            return parts[0];
+        }
+
+        var statuses = parts.Select(p => p.Status).ToList();
+        var status = statuses switch
+        {
+            [] => RunStatuses.SkippedDisabled,
+            _ when statuses.All(s => s == RunStatuses.Failed) => RunStatuses.Failed,
+            _ when statuses.Any(s => s is RunStatuses.Failed or RunStatuses.CompletedWithErrors) => RunStatuses.CompletedWithErrors,
+            _ when statuses.All(s => s == RunStatuses.SkippedLocked) => RunStatuses.SkippedLocked,
+            _ when statuses.All(s => s is RunStatuses.SkippedLocked or RunStatuses.SkippedDisabled) => RunStatuses.SkippedDisabled,
+            _ => RunStatuses.Completed,
+        };
+
+        var counts = parts
+            .SelectMany(p => p.Counts.SelectMany(e => e.Value.Select(s => (Entity: e.Key, Status: s.Key, Count: s.Value))))
+            .GroupBy(x => x.Entity, StringComparer.Ordinal)
+            .OrderBy(g => g.Key, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyDictionary<string, int>)g.GroupBy(x => x.Status, StringComparer.Ordinal)
+                    .OrderBy(s => s.Key, StringComparer.Ordinal)
+                    .ToDictionary(s => s.Key, s => s.Sum(x => x.Count), StringComparer.Ordinal),
+                StringComparer.Ordinal);
+
+        var errors = parts.Where(p => p.Error is not null).Select(p => p.Cdempresa is { } e ? FormattableString.Invariant($"empresa {e}: {p.Error}") : p.Error!).ToList();
+        var reports = parts.Select(p => p.ReportPath).OfType<string>().ToList();
+        var error = parts.Count == 0 ? "nenhuma empresa habilitada para a execução" : errors.Count == 0 ? null : string.Join(" | ", errors);
+        return new RunSummary(Guid.Empty, status, dryRun, startedAt, finishedAt, counts, error,
+            reports.Count == 0 ? null : string.Join(" | ", reports))
+        {
+            Empresas = parts,
+        };
+    }
+
     public static IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> CountItems(IEnumerable<RunItem> items) =>
         items.GroupBy(i => i.EntityType, StringComparer.Ordinal)
             .OrderBy(g => g.Key, StringComparer.Ordinal)
@@ -44,7 +91,7 @@ public sealed class RunReportWriter(IOptions<SyncOptions> options, ILogger<RunRe
             Directory.CreateDirectory(directory);
 
             var stamp = summary.StartedAt.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-            var prefix = Path.Combine(directory, $"run-{stamp}-{(summary.DryRun ? "dryrun" : "real")}-{summary.RunId:N}");
+            var prefix = Path.Combine(directory, $"run-{stamp}-empresa{summary.Cdempresa}-{(summary.DryRun ? "dryrun" : "real")}-{summary.RunId:N}");
 
             var csv = new StringBuilder("entidade;id_externo;acao;status;http;mensagem\n");
             foreach (var item in items)

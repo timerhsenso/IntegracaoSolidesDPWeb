@@ -15,7 +15,12 @@ public static class SolidesDpClientRegistration
         Action<HttpStandardResilienceOptions>? configureRetry = null)
     {
         services.AddSingleton(sp => new SolidesDpClientSettings(sp.GetRequiredService<IOptions<SolidesDpOptions>>().Value.SkipUnifiedSync));
-        services.AddSingleton<ISolidesDpClient, SolidesDpClient>();
+        // Escopo: cada execução (e cada pedido da Web) usa a conta da empresa em processamento.
+        services.AddScoped<SolidesDpAccount>();
+        services.AddScoped<ISolidesDpClient>(sp => new SolidesDpClient(
+            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<SolidesDpClientSettings>(),
+            sp.GetRequiredService<SolidesDpAccount>()));
 
         var retry = services.AddHttpClient(SolidesDpClient.RetryClientName, ConfigureClient);
         retry.AddStandardResilienceHandler();
@@ -55,10 +60,10 @@ public static class SolidesDpClientRegistration
         // O timeout é do pipeline de resiliência; o do HttpClient atrapalharia os retries.
         client.Timeout = Timeout.InfiniteTimeSpan;
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        if (!string.IsNullOrWhiteSpace(options.Token))
+        if (SolidesDpToken.Normalize(options.Token) is { } token)
         {
             // Documentação do DP: "Authorization: Basic seu_token" (o token já vem pronto, sem codificar).
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", options.Token);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", token);
         }
     }
 }

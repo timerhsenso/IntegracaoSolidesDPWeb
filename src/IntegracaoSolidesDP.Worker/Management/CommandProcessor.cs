@@ -40,7 +40,8 @@ public sealed class CommandProcessor(
         while (!ct.IsCancellationRequested && await store.ClaimNextCommandAsync(InstanceName, ct) is { } command)
         {
             processed++;
-            logger.LogInformation("Comando {Id} {Type} pedido por {User}", command.Id, command.Type, command.RequestedBy);
+            logger.LogInformation("Comando {Id} {Type} pedido por {User} (empresa {Empresa})",
+                command.Id, command.Type, command.RequestedBy, command.Cdempresa?.ToString(CultureInfo.InvariantCulture) ?? "todas");
             var (status, runId, result) = await ExecuteAsync(command, ct);
             // Mesmo com o serviço parando, o desfecho do comando fica registrado.
             await store.CompleteCommandAsync(command.Id, status, runId, result, CancellationToken.None);
@@ -62,7 +63,7 @@ public sealed class CommandProcessor(
                 case CommandTypes.Run or CommandTypes.DryRun:
                 {
                     var summary = await services.GetRequiredService<SyncPipeline>().RunAsync(
-                        new RunRequest("web", command.Type == CommandTypes.DryRun ? true : null, command.RequestedBy), ct);
+                        new RunRequest("web", command.Type == CommandTypes.DryRun ? true : null, command.RequestedBy, command.Cdempresa), ct);
                     var ok = summary.Status is RunStatuses.Completed or RunStatuses.CompletedWithErrors;
                     return (ok ? CommandStatuses.Done : CommandStatuses.Failed,
                         summary.RunId == Guid.Empty ? (Guid?)null : summary.RunId,
@@ -76,9 +77,9 @@ public sealed class CommandProcessor(
                     var exitCode = command.Type switch
                     {
                         CommandTypes.CheckConfig => await operations.CheckConfigAsync(ct),
-                        CommandTypes.Discover => await operations.DiscoverAsync(ct),
+                        CommandTypes.Discover => await operations.DiscoverAsync(command.Cdempresa, ct),
                         // Pela Web só a conferência; o --repair continua sendo decisão de quem opera o servidor.
-                        _ => await operations.ReconcileAsync(repair: false, ct),
+                        _ => await operations.ReconcileAsync(command.Cdempresa, repair: false, ct),
                     };
                     return (exitCode == 0 ? CommandStatuses.Done : CommandStatuses.Failed, null, output.ToString());
                 }
@@ -99,6 +100,17 @@ public sealed class CommandProcessor(
     }
 
     private static string Describe(RunSummary summary)
+    {
+        if (summary.Empresas.Count == 0)
+        {
+            return DescribeOne(summary);
+        }
+
+        return string.Join(Environment.NewLine, summary.Empresas.Select(p =>
+            $"empresa {p.Cdempresa?.ToString(CultureInfo.InvariantCulture) ?? "-"}: {DescribeOne(p)}"));
+    }
+
+    private static string DescribeOne(RunSummary summary)
     {
         var counts = JsonSerializer.Serialize(summary.Counts);
         return summary.Error is null ? $"{summary.Status} {counts}" : $"{summary.Status}: {summary.Error} {counts}";

@@ -34,23 +34,23 @@ public sealed class VacationStep(
         var mapper = new VacationMapper(dates, Options);
         var reasonId = context.FeriasReasonId ?? 0;
         var desde = context.Today.AddDays(-Options.FeriasJanelaDias);
-        var rows = await source.ReadVacationsEndingFromAsync(desde, ct);
-        var employees = await state.LoadEntityStatesAsync(EntityTypes.Employee, ct);
-        var vacations = await state.LoadVacationStatesAsync(ct);
-        var allowList = Options.ExternalIdAllowList.Count == 0 ? null : Options.ExternalIdAllowList.ToHashSet(StringComparer.Ordinal);
+        var rows = (await source.ReadVacationsEndingFromAsync(desde, ct)).Where(r => r.Cdempresa == context.Cdempresa).ToList();
+        var employees = await state.LoadEntityStatesAsync(context.Cdempresa, EntityTypes.Employee, ct);
+        var vacations = await state.LoadVacationStatesAsync(context.Cdempresa, ct);
         var cancellations = new List<(VacationState State, string Reason)>();
 
         foreach (var row in rows.OrderBy(r => r.Inicio))
         {
-            var key = row.EmployeeExternalId;
-            if (allowList is not null && !allowList.Contains(key))
+            // As férias vêm por matrícula; o colaborador no DP é o CPF do cadastro em func1.
+            if (!plan.KeyByMatricula.TryGetValue(row.Nomatric, out var key)
+                || !EmployeeClassifier.InAllowList(Options, key, row.Nomatric, row.Rotulo))
             {
                 continue;
             }
 
             employees.TryGetValue(key, out var employee);
             vacations.TryGetValue(row.Id, out var current);
-            var itemKey = $"{key}:{row.Id:D}";
+            var itemKey = $"{row.Rotulo}:{row.Id:D}";
 
             if (Options.GoLiveDate is { } goLive && DateOnly.FromDateTime(row.Fim) < goLive)
             {
@@ -117,23 +117,23 @@ public sealed class VacationStep(
                 continue;
             }
 
-            await SendAsync(context, row, mapping, hash, reasonId, employee!.RemoteId!.Value, current, itemKey, warnings, ct);
+            await SendAsync(context, row, key, mapping, hash, reasonId, employee!.RemoteId!.Value, current, itemKey, warnings, ct);
         }
 
         await CollectDeletedAsync(rows, vacations, cancellations, ct);
-        await CancelAsync(context, reasonId, employees, cancellations, ct);
+        await CancelAsync(context, plan, reasonId, employees, cancellations, ct);
     }
 
     private async Task SendAsync(
-        SyncContext context, VacationRow row, VacationMapping mapping, string hash, long reasonId, long employeeId,
+        SyncContext context, VacationRow row, string key, VacationMapping mapping, string hash, long reasonId, long employeeId,
         VacationState? current, string itemKey, string? warnings, CancellationToken ct)
     {
-        var baseState = current ?? new VacationState
+        var baseState = (current ?? new VacationState
         {
             Feria2Id = row.Id,
-            EmployeeExternalId = row.EmployeeExternalId,
+            EmployeeExternalId = key,
             Status = VacationStatuses.Pending,
-        };
+        }) with { EmployeeExternalId = key };
         var attempts = current?.PayloadHash == hash ? current.Attempts : 0;
 
         // Resposta perdida numa execução anterior: o lançamento pode existir no DP.
@@ -155,7 +155,7 @@ public sealed class VacationStep(
                 baseState = baseState with { RemoteAdjustmentId = match.Id, Status = VacationStatuses.Synced };
                 if (match.StartDate == mapping.StartDate && match.EndDate == mapping.EndDate && match.Status == mapping.Status)
                 {
-                    await state.UpsertVacationStateAsync(baseState with
+                    await state.UpsertVacationStateAsync(context.Cdempresa, baseState with
                     {
                         PayloadHash = hash, Attempts = 0, LastError = null, StartDate = mapping.StartDate, EndDate = mapping.EndDate,
                     }, ct);
@@ -174,7 +174,7 @@ public sealed class VacationStep(
             return;
         }
 
-        await state.UpsertVacationStateAsync(baseState with
+        await state.UpsertVacationStateAsync(context.Cdempresa, baseState with
         {
             Status = VacationStatuses.Pending, PayloadHash = hash, Attempts = attempts + 1, StartDate = mapping.StartDate, EndDate = mapping.EndDate,
         }, ct);
@@ -182,7 +182,7 @@ public sealed class VacationStep(
         var created = await api.RegisterAdjustmentAsync(new AdjustmentRegisterRequest
         {
             AdjustmentReasonId = reasonId,
-            EmployeeExternalId = row.EmployeeExternalId,
+            EmployeeId = employeeId,
             StartDate = mapping.StartDate,
             EndDate = mapping.EndDate,
             FullDay = true,
@@ -209,7 +209,7 @@ public sealed class VacationStep(
     {
         if (result.IsSuccess)
         {
-            await state.UpsertVacationStateAsync(baseState with
+            await state.UpsertVacationStateAsync(context.Cdempresa, baseState with
             {
                 RemoteAdjustmentId = result.Value!.Id,
                 Status = VacationStatuses.Synced,
@@ -225,7 +225,7 @@ public sealed class VacationStep(
         }
 
         var permanent = attempts >= Options.FeriasMaxTentativas;
-        await state.UpsertVacationStateAsync(baseState with
+        await state.UpsertVacationStateAsync(context.Cdempresa, baseState with
         {
             Status = permanent ? VacationStatuses.FailedPermanent : VacationStatuses.Failed,
             PayloadHash = hash,
@@ -256,7 +256,7 @@ public sealed class VacationStep(
     }
 
     private async Task CancelAsync(
-        SyncContext context, long reasonId, Dictionary<string, EntityState> employees,
+        SyncContext context, EmployeePlan plan, long reasonId, Dictionary<string, EntityState> employees,
         List<(VacationState State, string Reason)> cancellations, CancellationToken ct)
     {
         if (cancellations.Count == 0)
@@ -273,7 +273,7 @@ public sealed class VacationStep(
 
         foreach (var (vacation, reason) in cancellations)
         {
-            var itemKey = $"{vacation.EmployeeExternalId}:{vacation.Feria2Id:D}";
+            var itemKey = $"{plan.LabelFor(vacation.EmployeeExternalId)}:{vacation.Feria2Id:D}";
             if (context.DryRun)
             {
                 context.Add(new RunItem(EntityTypes.Vacation, itemKey, ItemActions.Cancel, ItemStatuses.DryRun, Message: reason));
@@ -304,7 +304,7 @@ public sealed class VacationStep(
             ReferenceResolver.ThrowIfUnauthorized(result);
             if (result.IsSuccess)
             {
-                await state.UpsertVacationStateAsync(vacation with { Status = VacationStatuses.Cancelled, LastError = null }, ct);
+                await state.UpsertVacationStateAsync(context.Cdempresa, vacation with { Status = VacationStatuses.Cancelled, LastError = null }, ct);
                 context.Add(new RunItem(EntityTypes.Vacation, itemKey, ItemActions.Cancel, ItemStatuses.Cancelled, result.HttpStatus, reason));
             }
             else

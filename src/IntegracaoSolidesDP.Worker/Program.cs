@@ -11,7 +11,17 @@ using Serilog.Settings.Configuration;
 // passam a ser relativos ao executável, em qualquer forma de execução.
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
-var command = CliCommand.Parse(args);
+CliCommand command;
+try
+{
+    command = CliCommand.Parse(args);
+}
+catch (ArgumentException ex)
+{
+    await Console.Error.WriteLineAsync(ex.Message);
+    return 2;
+}
+
 if (command.Mode == CliMode.Version)
 {
     Console.WriteLine(ProductVersion());
@@ -84,13 +94,20 @@ switch (command.Mode)
     case CliMode.CheckConfig:
         return await services.GetRequiredService<OperatorCommands>().CheckConfigAsync(ct);
     case CliMode.Discover:
-        return await services.GetRequiredService<OperatorCommands>().DiscoverAsync(ct);
+        return await services.GetRequiredService<OperatorCommands>().DiscoverAsync(command.Empresa, ct);
     case CliMode.Reconcile:
-        return await services.GetRequiredService<OperatorCommands>().ReconcileAsync(command.Repair, ct);
+        return await services.GetRequiredService<OperatorCommands>().ReconcileAsync(command.Empresa, command.Repair, ct);
     default:
         var summary = await services.GetRequiredService<SyncPipeline>().RunAsync(
-            command.Mode == CliMode.DryRun ? "cli-dry-run" : "cli", command.Mode == CliMode.DryRun ? true : null, ct);
-        Console.WriteLine($"{summary.Status} — relatório: {summary.ReportPath}");
+            new RunRequest(command.Mode == CliMode.DryRun ? "cli-dry-run" : "cli", command.Mode == CliMode.DryRun ? true : null, Cdempresa: command.Empresa), ct);
+        IReadOnlyList<RunSummary> parts = summary.Empresas.Count == 0 ? [summary] : summary.Empresas;
+        foreach (var part in parts)
+        {
+            Console.WriteLine($"empresa {part.Cdempresa?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}: {part.Status}" +
+                              (part.Error is null ? string.Empty : $" ({part.Error})") +
+                              (part.ReportPath is null ? string.Empty : $" — relatório: {part.ReportPath}"));
+        }
+
         return summary.Status is "completed" ? 0 : 1;
 }
 

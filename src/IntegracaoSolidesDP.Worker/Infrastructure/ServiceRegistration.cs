@@ -50,6 +50,10 @@ public static class ServiceRegistration
         services.AddSingleton<ISourceReader, SqlSourceReader>();
         services.AddSingleton<IStateStore, SqlStateStore>();
         services.AddSingleton<IManagementStore, SqlManagementStore>();
+        services.AddSingleton<ITokenProtector>(sp => new TokenProtector(new TokenProtectionOptions
+        {
+            ChaveBase64 = sp.GetRequiredService<IOptions<ManagementOptions>>().Value.ChaveTokens,
+        }));
         services.AddSingleton<EmployeeMapper>();
         services.AddSolidesDpClient();
 

@@ -28,7 +28,10 @@ public static class VacationStatuses
     public const string Cancelled = "cancelled";
 }
 
-/// <summary>O que já existe no DP para um cadastro (cargo, local, colaborador, empresa).</summary>
+/// <summary>
+/// O que já existe no DP para um cadastro de uma empresa (conta). <see cref="ExternalId"/> é a chave na integração:
+/// o CPF do colaborador, o código do cargo ou "{empresa}-{filial}" do local de trabalho.
+/// </summary>
 public sealed record EntityState
 {
     public required string EntityType { get; init; }
@@ -40,13 +43,34 @@ public sealed record EntityState
     /// <summary>JSON livre por tipo (ex.: escala e regra de ponto enviadas na criação do colaborador).</summary>
     public string? ExtraJson { get; init; }
 
+    /// <summary>Colaborador: o "Código Externo" que está no Sólides DP (pode não ser a matrícula; ver a regra no EmployeeStep).</summary>
+    public string? CodigoExterno { get; init; }
+
+    /// <summary>Colaborador: matrícula no RHSenso.</summary>
+    public string? Matricula { get; init; }
+
+    /// <summary>Colaborador: filial atual; local de trabalho: a própria filial.</summary>
+    public int? Cdfilial { get; init; }
+
+    /// <summary>Colaborador: "criado" pela integração ou "vinculado_cpf" (já existia no DP).</summary>
+    public string? Origem { get; init; }
+
     public DateTimeOffset UpdatedAt { get; init; }
+}
+
+/// <summary>Valores de <see cref="EntityState.Origem"/>.</summary>
+public static class OrigensVinculo
+{
+    public const string Criado = "criado";
+    public const string VinculadoCpf = "vinculado_cpf";
 }
 
 /// <summary>O que já existe no DP para um período de férias (feria2.id).</summary>
 public sealed record VacationState
 {
     public required Guid Feria2Id { get; init; }
+
+    /// <summary>CPF do colaborador (chave em solidesdp.colaborador_vinculo).</summary>
     public required string EmployeeExternalId { get; init; }
     public long? RemoteAdjustmentId { get; init; }
     public string? PayloadHash { get; init; }

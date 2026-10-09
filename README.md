@@ -20,21 +20,29 @@ Fora do escopo:
 
 ## Como funciona
 
-Cada execução segue esta ordem de dependência:
+**Cada empresa do RHSenso é uma conta do Sólides DP**, com o seu token. Cada execução passa pelas empresas
+habilitadas, uma depois da outra (uma linha em `solidesdp.runs` por empresa), e em cada uma segue esta ordem:
 
 ```
 referências no DP (token, escala, regra de ponto, empresas por CNPJ, motivo FÉRIAS)
   → cargos → locais → desligamentos/transferências → colaboradores → férias
 ```
 
+Tudo o que é incluído ou alterado no RHSenso vai, num sentido só, para o Sólides DP.
+
 - **Idempotência.** Cada payload tem um hash SHA-256 gravado no estado. Um registro sem mudança não gera nenhuma chamada à API, então a segunda execução seguida não escreve nada.
-- **Identidade do colaborador: `{cdempresa}-{nomatric}`.**
-  - A filial fica de fora da chave. Na ADN a filial é o cliente onde a pessoa está alocada, e uma transferência entre filiais cria outra linha no `func1` com a mesma matrícula (a antiga fica 09). Com a chave sem filial, essa transferência vira um update de local e o histórico de ponto não se divide.
-  - Uma transferência para **outra empresa** é um vínculo novo: primeiro o vínculo antigo é desligado no DP (`TRANSFERENCIA_GRUPO_EMPRESARIAL`), depois o novo é criado.
-  - O esquema da chave fica gravado no estado. O worker recusa iniciar se ele mudar.
-- **Quem entra.** `tpcolab` 1 (Empregado) e 2 (Estagiário), configurável. Afastados continuam ativos. Pré-cadastro (99) é ignorado.
-- **Desligados históricos nunca são enviados.** Só é desligado no DP quem a própria integração criou lá.
-- **CPF repetido entre ativos.** Fica fora e aparece no relatório (`skipped_duplicate_cpf`), a menos que `Sync:AllowDoubleBind=true`.
+- **Identidade do colaborador: o CPF, dentro da conta da empresa** (`solidesdp.colaborador_vinculo`, chave `cdempresa + cpf`).
+  - Já vinculado → atualiza pelo id do DP (`tangerinoId`).
+  - Sem vínculo, mas o CPF já está ativo no DP (cadastro manual do RH) → **vincula** (`vinculado_cpf`) e atualiza. Não duplica.
+  - CPF ausente no DP → cria.
+  - Uma transferência entre filiais da mesma empresa (linha antiga 09, nova linha com a mesma matrícula) vira update de local. Uma transferência para **outra empresa** desliga o cadastro na conta antiga (`TRANSFERENCIA_GRUPO_EMPRESARIAL`) e cria (ou vincula) na conta nova.
+  - Nos relatórios o colaborador aparece como `{cdempresa}-{matrícula}`, nunca pelo CPF.
+  - O esquema da chave (`cpf-por-empresa-v2`) fica gravado no estado. O worker recusa iniciar se ele mudar.
+- **Código Externo (`externalId`)** — o cliente usa esse campo em outro sistema. Na criação vai a matrícula. Em quem já existe: vazio/zerado → matrícula; igual à matrícula → nada muda; 8 dígitos diferentes → corrige para a matrícula; qualquer outra coisa → não mexe. O campo Matrícula é sempre a matrícula.
+- **Quem entra.** `tpcolab` 1 (Empregado) e 2 (Estagiário), configurável. Situações 08, 11, 12 e 14 desligam; 09 é transferência; 99 (pré-cadastro) é ignorado; as demais (afastamentos, licenças) continuam ativas.
+- **Escopo.** Só empresas ativas no RHSenso (`temp1.flativo = 'S'`) e filiais ativas (`test1.flativofilial = 1`); com filiais marcadas, só elas. Fora do escopo, nada é enviado **e ninguém é desligado**: desligamento só por fato do RHSenso, nunca por mudança de configuração.
+- **Desligados históricos nunca são enviados.** Só é desligado no DP quem a integração já vinculou (criou ou vinculou pelo CPF).
+- **CPF ativo em duas matrículas/filiais da mesma empresa** fica de fora e aparece no relatório (`cpf_ativo_duplicado`). CPF inválido também (`cpf_invalido`).
 - **Escala e regra de ponto.** Na criação vão as padrões da conta (ou as do config). Na atualização, o worker reenvia a escala que já está no DP, para não desfazer o que o RH configurou lá.
 - **`effectiveDate` = `max(admissão, Sync:GoLiveDate)`.** Assim o DP não calcula ponto retroativo para quem já trabalhava antes do go-live.
 - **Férias.**
@@ -47,7 +55,9 @@ referências no DP (token, escala, regra de ponto, empresas por CNPJ, motivo FÉ
   - `Sync:DryRun=true` por padrão.
   - `Sync:MaxCreatesPerRun` e `Sync:MaxCancellationsPerRun` limitam o que uma execução pode fazer.
   - A execução aborta se o banco devolver 0 colaboradores.
-  - Há um lock por instância (`sp_getapplock`).
+  - Há um lock por instância e empresa (`sp_getapplock`).
+  - Se a matrícula já for o Código Externo de **outro** colaborador ativo no DP, a criação é bloqueada (`codigo_externo_em_uso`).
+  - O dry-run nunca grava no DP. Com token, ele só consulta quem já está lá para mostrar quem seria vinculado e quem seria criado.
   - Fora de Production, a API real só é usada com opt-in explícito.
 
 ## Configuração
@@ -58,7 +68,7 @@ Toda chave pode vir do `appsettings.json`, de uma variável de ambiente (`Sync__
 |---|---|---|
 | `ConnectionStrings:Rhu` | — | Obrigatória. Leitura em `dbo`; DDL/DML no schema `solidesdp` (veja INSTALL.md). |
 | `SolidesDP:BaseUrl` | `https://employer.tangerino.com.br` | Em Development aponta para o fake (`http://localhost:5080`). |
-| `SolidesDP:Token` | — | Gerado no DP em Empregador → Integrações. Obrigatório fora do dry-run. |
+| `SolidesDP:Token` | — | Gerado no DP em Empregador → Integrações. Vale enquanto nenhuma empresa foi configurada na Web (aí `Sync:EmpresasIncluidas` precisa ter uma empresa só). |
 | `SolidesDP:TimeoutSeconds` | `30` | Por tentativa; o total é 4x. |
 | `SolidesDP:SkipUnifiedSync` | `true` | Não propaga para a base unificada (CUC) da Sólides. Confirmar com a Sólides. |
 | `SolidesDP:AllowProductionApiOutsideProduction` | `false` | Opt-in para usar a API real fora de Production. |
@@ -70,12 +80,12 @@ Toda chave pode vir do `appsettings.json`, de uma variável de ambiente (`Sync__
 | `Sync:DryRun` | `true` | Simula sem chamar a API e gera o relatório. |
 | `Sync:GoLiveDate` | — | Obrigatória fora do dry-run. |
 | `Sync:TiposColaborador` | `[1, 2]` | `func1.tpcolab`. |
-| `Sync:EmpresasIncluidas` | `[]` (todas) | Rollout por empresa. |
-| `Sync:ExternalIdAllowList` | `[]` (todos) | Piloto com poucas pessoas (`"14-00901482"`). |
+| `Sync:EmpresasIncluidas` | `[]` | Sem empresas configuradas na Web: a única empresa (conta) sincronizada. |
+| `Sync:ExternalIdAllowList` | `[]` (todos) | Piloto com poucas pessoas: CPF, matrícula ou `"14-00901482"`. |
 | `Sync:WorkScheduleExternalId` / `Sync:PunchRuleExternalId` | padrão da conta | Escala e regra de ponto dos novos colaboradores (`--discover`). |
 | `Sync:CompanyMode` | `ResolveByCnpj` | Casa a empresa do DP pelo CNPJ da filial; `None` não envia empresa. |
 | `Sync:CreateMissingCompanies` | `false` | Sem correspondência de CNPJ, o colaborador fica `blocked`. |
-| `Sync:AllowDoubleBind` | `false` | Envia CPFs repetidos com `doubleBindEmployee=true`. |
+| `Gestao:ChaveTokens` | — | Chave (32 bytes base64) que cifra os tokens das empresas; a mesma de `Web:ChaveTokens`. Vazia, no Windows, usa a proteção da máquina (DPAPI). |
 | `Sync:MotivoDemissaoMap` | mapa de `tcre1` | `cdcausres` → `resignationReason`; o que não estiver mapeado vira `OUTROS`. |
 | `Sync:FeriasJanelaDias` | `60` | Envia férias com término a partir de hoje − N dias. |
 | `Sync:FeriasEnviarProgramadas` | `false` | Envia as férias "Programadas" como `PENDENTE`. |
@@ -137,11 +147,13 @@ dotnet run --project src/IntegracaoSolidesDP.Web                   # Web em http
 
 ```bash
 IntegracaoSolidesDP                  # serviço (frequência do Execution)
-IntegracaoSolidesDP --check-config   # valida config, banco e token
-IntegracaoSolidesDP --discover       # lista empresas, escalas, regras e motivos do DP
-IntegracaoSolidesDP --dry-run        # execução simulada + relatório
-IntegracaoSolidesDP --run-once       # uma execução (Sync:DryRun decide se é real)
-IntegracaoSolidesDP --reconcile [--repair]  # confere no DP os colaboradores enviados
+IntegracaoSolidesDP --check-config   # valida config, banco e o token de cada empresa
+IntegracaoSolidesDP --discover       # lista empresas, escalas, regras e motivos da conta do DP
+IntegracaoSolidesDP --dry-run        # execução simulada + relatório (nunca grava no DP)
+IntegracaoSolidesDP --run-once       # uma execução (o dry-run da configuração decide se é real)
+IntegracaoSolidesDP --reconcile [--repair]  # confere no DP os colaboradores vinculados
+
+# --empresa N em qualquer comando: só a empresa N (obrigatório no --discover/--reconcile com várias empresas)
 ```
 
 Cada execução grava o seguinte:
@@ -187,7 +199,7 @@ dotnet test                                                                   # 
 
 - **Token** de integração do DP da ADN.
 - **Conta de teste/trial** do DP para servir de sandbox, já que não há homologação.
-- **Estrutura de conta:** uma conta para todos os CNPJs, ou uma por CNPJ? Se for uma por CNPJ, sobe uma instância por token, com `Sync:InstanceName` e `Sync:EmpresasIncluidas`.
+- **Estrutura de conta:** confirmado: uma conta (token) por empresa. Uma instância só atende todas; cada empresa tem o seu token, cadastrado na Web.
 - **Escala e regra de ponto padrão**, e **data de go-live**.
 - **CUC:** o DP e o Gestão da ADN compartilham a base unificada? Isso define `SolidesDP:SkipUnifiedSync`.
 - **Férias "Programadas" que já passaram.** No banco atual há férias com data no passado ainda em `flconfirm = 1` (Programada), ou seja, o RH não as liberou no RHSenso. Com o padrão, elas nunca vão para o DP. É preciso confirmar o processo da ADN: liberar no RHSenso, ou ligar `Sync:FeriasEnviarProgramadas`.

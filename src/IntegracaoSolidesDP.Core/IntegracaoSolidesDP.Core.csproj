@@ -10,6 +10,8 @@
     <AssemblyName>IntegracaoSolidesDP.Core</AssemblyName>
     <!-- Mesmas plataformas do worker: o packages.lock.json precisa cobrir o publish com -r. -->
     <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64</RuntimeIdentifiers>
+    <!-- DPAPI (proteção do token no Windows) por LibraryImport: estruturas com ponteiro. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
