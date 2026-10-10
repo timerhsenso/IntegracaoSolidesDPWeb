@@ -10,6 +10,9 @@
     <AssemblyName>IntegracaoSolidesDP.Web</AssemblyName>
     <UserSecretsId>integracao-solidesdp-web</UserSecretsId>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Pacote do IIS: self-contained win-x64 (scripts/publicar-windows.ps1). Declarado aqui para o
+         packages.lock.json cobrir a plataforma: publicar com -r não pode alterar o lock file. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>

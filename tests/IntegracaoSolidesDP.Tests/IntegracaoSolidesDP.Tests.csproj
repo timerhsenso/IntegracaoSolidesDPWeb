@@ -32,6 +32,8 @@
     <!-- Swagger do fornecedor, vendorizado: mudança de contrato aparece como diff. -->
     <Content Include="..\..\spec\tangerino-employer.json" Link="Contracts\tangerino-employer.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\smoke\rhu-schema.sql" Link="Sql\rhu-schema.sql" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Script de permissões do pacote: os testes rodam a Web com o login que ele cria. -->
+    <Content Include="..\..\deploy\windows\permissoes-sql.sql" Link="Sql\permissoes-sql.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

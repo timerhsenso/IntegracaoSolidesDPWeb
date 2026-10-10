@@ -13,18 +13,22 @@ namespace IntegracaoSolidesDP.Tests.Web;
 /// <summary>
 /// Aplicação Web de verdade (TestServer) contra o SQL Server do Testcontainers.
 /// O login é feito pelo formulário, com o token antiforgery, como no navegador.
+/// <paramref name="connectionString"/>: outro login no mesmo banco (padrão: sa).
 /// </summary>
-public sealed partial class WebHarness(SqlServerFixture db) : IAsyncDisposable
+public sealed partial class WebHarness(SqlServerFixture db, string? connectionString = null) : IAsyncDisposable
 {
     public const string Senha = "SenhaForte123";
 
     private readonly WebApplicationFactory<WebApp> _factory = new WebApplicationFactory<WebApp>().WithWebHostBuilder(builder =>
     {
         builder.UseEnvironment("Development");
-        builder.UseSetting("ConnectionStrings:Rhu", db.ConnectionString);
+        builder.UseSetting("ConnectionStrings:Rhu", connectionString ?? db.ConnectionString);
         builder.UseSetting("Web:InstanceName", "default");
         builder.UseSetting("Web:ChaveTokens", EndToEnd.E2EHarness.ChaveTokens);
     });
+
+    /// <summary>Serviços da aplicação já iniciada (migrations do login aplicadas).</summary>
+    public IServiceProvider Services => _factory.Services;
 
     public HttpClient Cliente() => _factory.CreateClient(new WebApplicationFactoryClientOptions
     {

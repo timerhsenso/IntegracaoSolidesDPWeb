@@ -384,11 +384,11 @@
 <!-- ============================== 4 ============================== -->
 <section class="capitulo" id="config-web">
     <h2><span class="num">4</span>Configuração da Web</h2>
-    <p>O <code>appsettings.json</code> da Web fica na pasta do site no IIS. Vale a mesma precedência do serviço (arquivo &lt; variável de ambiente).</p>
+    <p>O <code>appsettings.json</code> da Web fica na pasta do site no IIS (por padrão, <code>C:\inetpub\IntegracaoSolidesDP.Web</code>, criada pelo <code>install-web.ps1</code>; veja o <code>INSTALL.md</code>, seção D). Vale a mesma precedência do serviço (arquivo &lt; variável de ambiente). O arquivo fica legível só para Administradores, SYSTEM e o app pool.</p>
     <table>
         <thead><tr><th>Chave</th><th>Padrão</th><th>Para que serve</th></tr></thead>
         <tbody>
-            <tr><td><code>ConnectionStrings:Rhu</code></td><td>—</td><td class="quebra">Obrigatória. O mesmo banco do serviço. O login precisa ler e gravar em <code>solidesdp</code> e criar e usar o schema <code>solidesdp_auth</code>.</td></tr>
+            <tr><td><code>ConnectionStrings:Rhu</code></td><td>—</td><td class="quebra">Obrigatória. O mesmo banco do serviço, com o login <code>integracao_solidesdp_web</code> criado pelo <code>permissoes-sql.sql</code>: lê o RHSenso e o <code>solidesdp</code>, grava (sem apagar) em <code>solidesdp</code> e é dono do schema <code>solidesdp_auth</code>.</td></tr>
             <tr><td><code>Web:InstanceName</code></td><td><code>default</code></td><td class="quebra">Instância do serviço que esta Web gerencia. <strong>Igual a <code>Sync:InstanceName</code> do serviço.</strong></td></tr>
             <tr><td><code>Web:TimeZone</code></td><td><code>America/Bahia</code></td><td class="quebra">Fuso para exibir datas e agrupar as execuções por dia no Painel.</td></tr>
             <tr><td><code>Web:AplicarMigrationsNoStart</code></td><td><code>true</code></td><td class="quebra">Cria e atualiza as tabelas de login (<code>solidesdp_auth</code>) ao iniciar. Desligue se a política do banco exigir que o DBA aplique os scripts.</td></tr>
@@ -396,8 +396,10 @@
             <tr><td><code>Serilog</code></td><td>console + arquivo</td><td class="quebra">Logs em <code>logs/integracao-solidesdp-web-AAAAMMDD.log</code>, mantidos por 30 dias. A identidade do app pool precisa poder escrever na pasta <code>logs</code>.</td></tr>
         </tbody>
     </table>
+    <h3>Verificar a configuração</h3>
+    <p>Na pasta do site, como Administrador: <code>.\IntegracaoSolidesDP.Web.exe --check-config</code>. Confere, sem iniciar o site e sem gravar nada, a connection string, as permissões no banco, as tabelas do login, a chave dos tokens (inclusive se os tokens já cadastrados são lidos com ela) e o fuso. Cada linha sai com <code>[OK]</code>, <code>[AVISO]</code> ou <code>[ERRO]</code>; o <code>install-web.ps1</code> só inicia o site se não houver <code>[ERRO]</code>. <code>--version</code> mostra a versão instalada. Com autenticação integrada do Windows, a verificação usa a sua conta, e não a do app pool.</p>
     <h3>Primeiro acesso</h3>
-    <p>Numa instalação nova, sem usuários, abra <code>https://localhost/&lt;site&gt;/PrimeiroAcesso</code> num navegador <strong>no próprio servidor</strong> e crie o primeiro administrador. A tela recusa acessos remotos e deixa de existir assim que há um usuário. Os demais usuários são criados pelo Admin em Usuários.</p>
+    <p>Numa instalação nova, sem usuários, abra <code>https://&lt;nome do site&gt;/PrimeiroAcesso</code> num navegador <strong>no próprio servidor</strong> e crie o primeiro administrador. A tela recusa acessos remotos e deixa de existir assim que há um usuário. Os demais usuários são criados pelo Admin em Usuários.</p>
     <h3>Segurança</h3>
     <ul>
         <li>Somente HTTPS (HSTS fora de Development). Cookie de login <code>HttpOnly</code>, <code>Secure</code> e <code>SameSite=Strict</code>, válido por 8 horas com renovação por uso.</li>
@@ -573,7 +575,9 @@ WHERE instance_name = 'default' ORDER BY versao DESC;</code></pre>
             <tr><td class="quebra">Execução "Em andamento" que nunca termina</td>
                 <td class="quebra">O serviço foi parado no meio. Na próxima execução ela é marcada como <em>Falhou</em> automaticamente. Se o serviço estiver rodando e travado, reinicie-o.</td></tr>
             <tr><td class="quebra">Web não abre (erro 500.30 no IIS)</td>
-                <td class="quebra">Hosting Bundle do .NET ausente, connection string vazia ou sem acesso ao banco. Veja o log da Web e o Visualizador de Eventos (origem "IIS AspNetCore Module").</td></tr>
+                <td class="quebra">Hosting Bundle do .NET ausente (ou instalado antes do IIS: reinstale e rode <code>iisreset</code>), connection string vazia ou sem acesso ao banco. Rode <code>IntegracaoSolidesDP.Web.exe --check-config</code> na pasta do site, veja o log da Web e o Visualizador de Eventos (origem "IIS AspNetCore Module V2").</td></tr>
+            <tr><td class="quebra">Web responde 503 ou "Em manutenção"</td>
+                <td class="quebra">A validação do <code>install-web.ps1</code> falhou e o site ficou parado. Corrija o que o <code>--check-config</code> apontou e rode o script de novo.</td></tr>
             <tr><td class="quebra">Tela Primeiro acesso diz "somente no servidor"</td>
                 <td class="quebra">Por segurança, o primeiro administrador só é criado num navegador aberto no próprio servidor (<code>localhost</code>).</td></tr>
             <tr><td class="quebra">Todos os usuários Admin perderam o acesso</td>
