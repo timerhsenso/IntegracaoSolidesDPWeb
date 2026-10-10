@@ -135,7 +135,7 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
         var valida = await WebHarness.PostFormAsync(client, "/Configuracao", "/Configuracao/Salvar", new(campos));
 
         invalida.StatusCode.Should().Be(HttpStatusCode.OK, "\"x\" não é um tipo de colaborador");
-        (await invalida.Content.ReadAsStringAsync(Ct)).Should().Contain("não é um número");
+        WebUtility.HtmlDecode(await invalida.Content.ReadAsStringAsync(Ct)).Should().Contain("\"x\" não é um número");
         valida.StatusCode.Should().Be(HttpStatusCode.Redirect);
         var atual = await _store.GetCurrentConfigurationAsync("default", Ct);
         atual!.Version.Should().Be(1);

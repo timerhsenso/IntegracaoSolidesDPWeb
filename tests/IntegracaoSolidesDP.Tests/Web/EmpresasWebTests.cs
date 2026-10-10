@@ -63,7 +63,7 @@ public sealed class EmpresasWebTests(SqlServerFixture db) : IAsyncLifetime
         empresa.Habilitada.Should().BeTrue();
         empresa.DryRun.Should().BeTrue();
         empresa.Filiais.Should().Equal(2);
-        empresa.Piloto.Should().Equal("15-00007811", "12345678901");
+        empresa.Piloto.Should().BeEquivalentTo("15-00007811", "12345678901");
         empresa.ModoEmpresa.Should().Be(ModosEmpresa.PorCnpj);
         (await AcoesAsync(login)).Should().Contain(AcoesAuditoria.EmpresaAlterada);
     }
