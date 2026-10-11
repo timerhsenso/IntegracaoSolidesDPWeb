@@ -255,8 +255,10 @@ public static class VerificacaoConfiguracao
             }
             catch (CryptographicException)
             {
-                await relatorio.ErroAsync(
-                    $"Empresa {cdempresa}: o token foi cifrado com outra chave ou em outra máquina. Confira Web:ChaveTokens (igual a Gestao:ChaveTokens) ou cadastre o token de novo na tela Empresas.");
+                // A Web só grava tokens (quem decifra é o serviço): ela sobe normalmente e é nela que se recadastra.
+                await relatorio.AvisoAsync(
+                    $"Empresa {cdempresa}: o token cadastrado foi cifrado com outra chave ou em outra máquina, e o serviço não vai conseguir lê-lo. " +
+                    "Confira Web:ChaveTokens (igual a Gestao:ChaveTokens) ou cadastre o token de novo na tela Empresas.");
             }
         }
     }

@@ -56,7 +56,7 @@ public sealed partial class VerificacaoConfiguracaoTests(SqlServerFixture db) : 
     }
 
     [Fact]
-    public async Task Token_written_with_another_key_is_an_error_and_is_never_shown()
+    public async Task Token_written_with_another_key_is_a_warning_and_is_never_shown()
     {
         var outraChave = new TokenProtector(new TokenProtectionOptions { ChaveBase64 = TokenProtector.NovaChave() });
         await _store.AddEmpresaTokenAsync(15, outraChave.Protect("token-secreto"), "teste", Ct);
@@ -64,8 +64,9 @@ public sealed partial class VerificacaoConfiguracaoTests(SqlServerFixture db) : 
 
         var (ok, saida) = await VerificarAsync(web);
 
-        ok.Should().BeFalse();
-        saida.Should().Contain("[ERRO] Empresa 15").And.NotContain("token-secreto");
+        // A Web não decifra tokens: sobe normalmente, e é nela que o token é cadastrado de novo.
+        ok.Should().BeTrue(saida);
+        saida.Should().Contain("[AVISO] Empresa 15").And.NotContain("token-secreto");
     }
 
     [Fact]

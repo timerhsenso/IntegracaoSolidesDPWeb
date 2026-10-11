@@ -397,7 +397,7 @@
         </tbody>
     </table>
     <h3>Verificar a configuração</h3>
-    <p>Na pasta do site, como Administrador: <code>.\IntegracaoSolidesDP.Web.exe --check-config</code>. Confere, sem iniciar o site e sem gravar nada, a connection string, as permissões no banco, as tabelas do login, a chave dos tokens (inclusive se os tokens já cadastrados são lidos com ela) e o fuso. Cada linha sai com <code>[OK]</code>, <code>[AVISO]</code> ou <code>[ERRO]</code>; o <code>install-web.ps1</code> só inicia o site se não houver <code>[ERRO]</code>. <code>--version</code> mostra a versão instalada. Com autenticação integrada do Windows, a verificação usa a sua conta, e não a do app pool.</p>
+    <p>Na pasta do site, como Administrador: <code>.\IntegracaoSolidesDP.Web.exe --check-config</code>. Confere, sem iniciar o site e sem gravar nada, a connection string, as permissões no banco, as tabelas do login, a chave dos tokens (e avisa se algum token já cadastrado não é lido com ela) e o fuso. Cada linha sai com <code>[OK]</code>, <code>[AVISO]</code> ou <code>[ERRO]</code>; o <code>install-web.ps1</code> só inicia o site se não houver <code>[ERRO]</code>. <code>--version</code> mostra a versão instalada. Com autenticação integrada do Windows, a verificação usa a sua conta, e não a do app pool.</p>
     <h3>Primeiro acesso</h3>
     <p>Numa instalação nova, sem usuários, abra <code>https://&lt;nome do site&gt;/PrimeiroAcesso</code> num navegador <strong>no próprio servidor</strong> e crie o primeiro administrador. A tela recusa acessos remotos e deixa de existir assim que há um usuário. Os demais usuários são criados pelo Admin em Usuários.</p>
     <h3>Segurança</h3>

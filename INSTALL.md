@@ -225,7 +225,7 @@ Sem `-HostName`/`-Port`, o site mantém o endereço que já tem. Na atualizaçã
 | Sintoma | Causa provável |
 |---|---|
 | `--check-config` com `[ERRO]` de permissão | `permissoes-sql.sql` não rodou, ou rodou num banco com outro nome. |
-| `[ERRO] Empresa N: o token foi cifrado com outra chave` | `Web:ChaveTokens` diferente de `Gestao:ChaveTokens`, ou Web e serviço em servidores diferentes sem chave. |
+| `[AVISO] Empresa N: o token cadastrado foi cifrado com outra chave` | O token foi cadastrado em outra máquina (DPAPI) ou com outra chave. A Web sobe; acerte `Web:ChaveTokens`/`Gestao:ChaveTokens` ou cadastre o token de novo na tela Empresas, senão o serviço não sincroniza essa empresa. |
 | HTTP 500.30 / 500.31 | Hosting Bundle ausente ou instalado antes do IIS (reinstale e rode `iisreset`). Veja `logs` da pasta do site e o Visualizador de Eventos (Aplicativo, origem "IIS AspNetCore Module V2"). |
 | HTTP 503 | App pool parado: a validação falhou. Rode `install-web.ps1` de novo e leia o resultado do `--check-config`. |
 | "Em manutenção" | Uma atualização parou na validação. Corrija e rode `install-web.ps1` de novo. |
