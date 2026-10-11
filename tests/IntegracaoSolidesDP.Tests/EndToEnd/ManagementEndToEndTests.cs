@@ -152,6 +152,21 @@ public sealed class ManagementEndToEndTests(SqlServerFixture db) : IAsyncLifetim
     }
 
     [Fact]
+    public async Task Check_config_warns_when_the_token_was_encrypted_with_another_key_even_in_dry_run()
+    {
+        await _harness.ConfigurarEmpresasAsync(
+            [new EmpresaConfiguracao { Cdempresa = 1, Habilitada = true, DryRun = true }],
+            new Dictionary<int, string> { [1] = E2EHarness.Token },
+            Ct);
+        // Serviço com uma chave diferente da usada pela Web para cifrar o token.
+        _harness.Settings["Gestao:ChaveTokens"] = TokenProtector.NovaChave();
+
+        var command = await RunCommandAsync(CommandTypes.CheckConfig);
+
+        command.Result.Should().Contain("[AVISO] config_invalid: empresa 1: o token não pôde ser decifrado nesta máquina");
+    }
+
+    [Fact]
     public async Task Unchanged_items_are_counted_but_not_stored()
     {
         await HabilitarEmpresa1Async();

@@ -107,15 +107,28 @@ public sealed class OperatorCommands(
             await output.WriteLineAsync(FormattableString.Invariant(
                 $"Empresa {empresa.Cdempresa}: {(options.DryRun ? "DRY-RUN (nada é enviado)" : "REAL")}; {filiais}; tipos de colaborador: {string.Join(",", options.TiposColaborador)}; go-live: {options.GoLiveDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "-"}"));
 
-            if (empresa.Problema is { } problema && !options.DryRun)
+            if (empresa.Problema is { } problema)
             {
-                ok = false;
-                await output.WriteLineAsync($"[ERRO] {problema}");
+                if (options.DryRun)
+                {
+                    // Em simulação não impede a execução, mas sem o token a simulação não consulta o DP
+                    // (não mostra quem seria vinculado pelo CPF): tem de aparecer, e não como "sem token".
+                    await output.WriteLineAsync($"[AVISO] {problema}");
+                }
+                else
+                {
+                    ok = false;
+                    await output.WriteLineAsync($"[ERRO] {problema}");
+                }
             }
 
             if (empresa.Token is null)
             {
-                await output.WriteLineAsync(FormattableString.Invariant($"[--] Empresa {empresa.Cdempresa}: sem token do Sólides DP (ok para dry-run)"));
+                if (empresa.Problema is null)
+                {
+                    await output.WriteLineAsync(FormattableString.Invariant($"[--] Empresa {empresa.Cdempresa}: sem token do Sólides DP (ok para dry-run)"));
+                }
+
                 continue;
             }
 
