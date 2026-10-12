@@ -4,17 +4,24 @@
 
 .DESCRIPTION
     Rodar como Administrador, de dentro da pasta extraída do zip do release.
-    - Copia os arquivos para -InstallDir preservando o appsettings.json que já estiver lá.
+    - Pasta de instalação: -InstallDir, ou, sem ele, pergunta na primeira instalação (Enter = C:\Services\IntegracaoSolidesDP).
+      Na atualização usa a pasta onde o serviço já está instalado.
+    - Copia os arquivos para a pasta de instalação preservando o appsettings.json que já estiver lá.
     - Registra o serviço (início automático, reinício em caso de falha).
     - Roda --check-config e só inicia o serviço se a configuração estiver válida.
 
 .EXAMPLE
     .\install-service.ps1
+    Primeira instalação: pergunta a pasta. Atualização: usa a pasta onde o serviço já está.
+
+.EXAMPLE
     .\install-service.ps1 -InstallDir "D:\Servicos\IntegracaoSolidesDP"
+    Primeira instalação numa pasta escolhida, sem perguntar.
 #>
 param(
     [string]$ServiceName = "IntegracaoSolidesDP",
-    [string]$InstallDir = "C:\Services\IntegracaoSolidesDP",
+    # Vazio: na atualização, a pasta do serviço já instalado; na primeira instalação, pergunta.
+    [string]$InstallDir = "",
     # Só para testes automatizados: inicia o serviço mesmo com a configuração incompleta.
     [switch]$SkipConfigCheck
 )
@@ -25,11 +32,54 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
     throw "Execute este script como Administrador."
 }
 
-$source = (Resolve-Path $PSScriptRoot).Path
-New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-$target = (Resolve-Path $InstallDir).Path
-
+$pastaPadrao = "C:\Services\IntegracaoSolidesDP"
+$source = (Resolve-Path $PSScriptRoot).Path.TrimEnd('\')
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+
+# Atualização: a pasta é a do executável do serviço registrado.
+$pastaAtual = $null
+if ($existing) {
+    $caminho = (Get-CimInstance Win32_Service -Filter "Name='$ServiceName'").PathName.Trim()
+    $caminho = if ($caminho.StartsWith('"')) { $caminho.Substring(1, $caminho.IndexOf('"', 1) - 1) } else { ($caminho -split ' ')[0] }
+    $pastaAtual = (Split-Path -Parent $caminho).TrimEnd('\')
+}
+
+if (-not $InstallDir) {
+    if ($pastaAtual) {
+        $InstallDir = $pastaAtual
+    }
+    elseif ([Environment]::UserInteractive) {
+        $resposta = Read-Host "Pasta de instalação do serviço (Enter = $pastaPadrao)"
+        $InstallDir = if ($resposta.Trim()) { $resposta.Trim().Trim('"') } else { $pastaPadrao }
+    }
+    else {
+        $InstallDir = $pastaPadrao
+    }
+}
+
+if ($InstallDir -notmatch '^[A-Za-z]:\\') {
+    throw "Informe o caminho completo da pasta de instalação, com a unidade (ex.: D:\Sistemas\IntegracaoSolidesDP)."
+}
+$InstallDir = [IO.Path]::GetFullPath($InstallDir).TrimEnd('\')
+
+if ($pastaAtual -and -not [string]::Equals($InstallDir, $pastaAtual, [StringComparison]::OrdinalIgnoreCase)) {
+    throw @"
+O serviço $ServiceName já está instalado em $pastaAtual. Para atualizar, rode sem -InstallDir.
+Para mudar de pasta: remova o serviço (.\uninstall-service.ps1), copie o appsettings.json (e, se quiser, logs e reports)
+de $pastaAtual para $InstallDir e rode este script de novo com -InstallDir "$InstallDir".
+"@
+}
+if (-not $pastaAtual -and [string]::Equals($InstallDir, $source, [StringComparison]::OrdinalIgnoreCase)) {
+    throw @"
+Não instale na pasta onde o pacote foi extraído ($source): na próxima atualização o zip novo sobrescreveria a configuração.
+Extraia o pacote numa pasta temporária (ex.: C:\Temp\IntegracaoSolidesDP-x.y.z) e informe a pasta definitiva.
+"@
+}
+
+Write-Host "Pasta de instalação: $InstallDir"
+New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+$target = (Resolve-Path $InstallDir).Path.TrimEnd('\')
+
 if ($existing -and $existing.Status -ne "Stopped") {
     Write-Host "Parando o serviço $ServiceName..."
     Stop-Service -Name $ServiceName -Force

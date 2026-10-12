@@ -30,7 +30,9 @@
 param(
     [string]$SiteName = "IntegracaoSolidesDP.Web",
     [string]$AppPoolName = "IntegracaoSolidesDP.Web",
-    [string]$InstallDir = "C:\inetpub\IntegracaoSolidesDP.Web",
+    # Pasta do site. Vazio: na atualização, a pasta do site já instalado; na primeira instalação, pergunta
+    # (Enter = C:\inetpub\IntegracaoSolidesDP.Web).
+    [string]$InstallDir = "",
     # Nome pelo qual os usuários acessam (ex.: gestao-solides.empresa.local). Vazio = qualquer nome, e a porta
     # fica só para este site.
     [string]$HostName = "",
@@ -121,6 +123,46 @@ function Get-SiteBindings([string]$Name) {
 }
 
 $siteExiste = Test-AppCmdObject site $SiteName
+
+# Pasta do site: a que ele já usa (atualização), a informada, ou perguntada na primeira instalação.
+$pastaPadrao = "C:\inetpub\IntegracaoSolidesDP.Web"
+$pastaAtual = $null
+if ($siteExiste) {
+    $r = Invoke-Exe $appcmd list vdir "$SiteName/" /text:physicalPath
+    if ($r.Code -eq 0 -and $r.Text) {
+        $pastaAtual = [Environment]::ExpandEnvironmentVariables(($r.Output | Select-Object -First 1).Trim()).TrimEnd('\')
+    }
+}
+if (-not $InstallDir) {
+    if ($pastaAtual) {
+        $InstallDir = $pastaAtual
+    }
+    elseif ([Environment]::UserInteractive) {
+        $resposta = Read-Host "Pasta de instalação da Web (Enter = $pastaPadrao)"
+        $InstallDir = if ($resposta.Trim()) { $resposta.Trim().Trim('"') } else { $pastaPadrao }
+    }
+    else {
+        $InstallDir = $pastaPadrao
+    }
+}
+if ($InstallDir -notmatch '^[A-Za-z]:\\') {
+    throw "Informe o caminho completo da pasta da Web, com a unidade (ex.: D:\Sites\IntegracaoSolidesDP.Web)."
+}
+$InstallDir = [IO.Path]::GetFullPath($InstallDir).TrimEnd('\')
+if ($pastaAtual -and -not [string]::Equals($InstallDir, $pastaAtual, [StringComparison]::OrdinalIgnoreCase)) {
+    throw @"
+O site $SiteName já usa a pasta $pastaAtual. Para atualizar, rode sem -InstallDir.
+Para mudar de pasta: remova o site (.\uninstall-web.ps1), copie o appsettings.json de $pastaAtual para $InstallDir
+e rode este script de novo com -InstallDir "$InstallDir" (e o -HostName/-Port/-CertThumbprint do site).
+"@
+}
+if (-not $pastaAtual -and [string]::Equals($InstallDir, $source.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) {
+    throw @"
+Não instale na pasta onde o pacote foi extraído ($source): na próxima atualização o zip novo sobrescreveria a configuração.
+Extraia o pacote numa pasta temporária (ex.: C:\Temp\IntegracaoSolidesDP.Web-x.y.z) e informe a pasta definitiva.
+"@
+}
+Write-Host "Pasta da Web: $InstallDir"
 
 # Atualização sem -HostName/-Port: mantém o endereço que o site já tem.
 if ($siteExiste -and -not ($PSBoundParameters.ContainsKey("HostName") -or $PSBoundParameters.ContainsKey("Port"))) {

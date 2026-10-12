@@ -5,12 +5,19 @@
 #>
 param(
     [string]$ServiceName = "IntegracaoSolidesDP",
-    [string]$InstallDir = "C:\Services\IntegracaoSolidesDP",
+    # Só com -RemoveFiles. Vazio: a pasta onde o serviço está instalado.
+    [string]$InstallDir = "",
     [switch]$RemoveFiles
 )
 $ErrorActionPreference = "Stop"
 
 $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+if ($service -and -not $InstallDir) {
+    $caminho = (Get-CimInstance Win32_Service -Filter "Name='$ServiceName'").PathName.Trim()
+    $caminho = if ($caminho.StartsWith('"')) { $caminho.Substring(1, $caminho.IndexOf('"', 1) - 1) } else { ($caminho -split ' ')[0] }
+    $InstallDir = Split-Path -Parent $caminho
+}
+
 if ($service) {
     if ($service.Status -ne "Stopped") {
         Stop-Service -Name $ServiceName -Force
@@ -23,7 +30,10 @@ else {
     Write-Host "Serviço $ServiceName não está instalado."
 }
 
-if ($RemoveFiles -and (Test-Path $InstallDir)) {
+if ($RemoveFiles -and -not $InstallDir) {
+    Write-Warning "Serviço não encontrado: informe a pasta com -InstallDir para apagar os arquivos."
+}
+elseif ($RemoveFiles -and (Test-Path $InstallDir)) {
     Remove-Item -Recurse -Force $InstallDir
     Write-Host "Pasta $InstallDir removida."
 }

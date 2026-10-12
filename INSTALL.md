@@ -63,16 +63,22 @@ O arquivo fica junto do executável. O mínimo para começar:
 
 ## A. Serviço Windows
 
-1. Extraia o zip (ex.: em `C:\Temp\IntegracaoSolidesDP`).
+1. Extraia o zip numa pasta **temporária** (ex.: `C:\Temp\IntegracaoSolidesDP-1.0.3`). Ela não é a pasta do sistema: o script
+   copia os arquivos para a pasta de instalação que você escolher (e recusa instalar na própria pasta extraída, porque
+   o zip da próxima versão sobrescreveria a configuração).
 2. Abra o **PowerShell como Administrador** nessa pasta e rode:
 
    ```powershell
-   .\install-service.ps1                                    # instala em C:\Services\IntegracaoSolidesDP
-   # ou: .\install-service.ps1 -InstallDir "D:\Servicos\IntegracaoSolidesDP"
+   .\install-service.ps1
+   # pergunta: Pasta de instalação do serviço (Enter = C:\Services\IntegracaoSolidesDP): D:\Sistemas\IntegracaoSolidesDP
+
+   # ou, sem perguntar:
+   .\install-service.ps1 -InstallDir "D:\Sistemas\IntegracaoSolidesDP"
    ```
 
    Na primeira vez, o script cria o `appsettings.json` na pasta de instalação e para, porque a configuração ainda está vazia.
-3. Edite o `C:\Services\IntegracaoSolidesDP\appsettings.json` (seção 2) e rode o `install-service.ps1` de novo.
+3. Edite o `appsettings.json` da pasta de instalação (seção 2) e rode o `install-service.ps1` de novo. Nas próximas vezes,
+   e nas atualizações, ele **não pergunta**: usa a pasta onde o serviço já está instalado.
 4. O script faz o seguinte:
    - registra o serviço **IntegracaoSolidesDP** com início automático e reinício em caso de falha;
    - roda `--check-config`;
@@ -87,7 +93,8 @@ Get-Content C:\Services\IntegracaoSolidesDP\logs\*.log -Tail 50
 .\uninstall-service.ps1                             # remove o serviço (mantém arquivos; -RemoveFiles apaga)
 ```
 
-- **Atualizar:** extraia o zip novo e rode `install-service.ps1` de novo. O script para o serviço, troca os arquivos, preserva a configuração e inicia de novo.
+- **Atualizar:** extraia o zip novo numa pasta temporária e rode `install-service.ps1` de novo, sem parâmetros. O script acha a pasta onde o serviço está, para o serviço, troca os arquivos, preserva a configuração e inicia de novo.
+- **Mudar de pasta:** rode `.\uninstall-service.ps1`, copie o `appsettings.json` (e, se quiser, `logs` e `reports`) para a pasta nova e instale com `-InstallDir "<pasta nova>"`. A Web é igual, com `uninstall-web.ps1` e `install-web.ps1 -InstallDir`.
 - **Conta do serviço:** é a LocalSystem. Para autenticação integrada do Windows no SQL Server (sem usuário/senha na connection string), troque a conta em `services.msc` e use `Integrated Security=True`.
 
 ## B. Serviço Linux (systemd)
@@ -177,8 +184,10 @@ A Web de gestão acompanha e opera o serviço (Painel, Execuções, Empresas, Re
    .\install-web.ps1 -Port 8443 -CertificadoAutoassinado
    ```
 
-   Na primeira vez, o script cria o app pool e o site, copia os arquivos para `C:\inetpub\IntegracaoSolidesDP.Web`, cria o `appsettings.json` lá e **para**, porque a configuração ainda está vazia.
-3. Edite `C:\inetpub\IntegracaoSolidesDP.Web\appsettings.json`:
+   Na primeira vez, o script **pergunta a pasta do site** (Enter = `C:\inetpub\IntegracaoSolidesDP.Web`; ou informe
+   `-InstallDir "D:\Sites\IntegracaoSolidesDP.Web"`), cria o app pool e o site, copia os arquivos para lá, cria o
+   `appsettings.json` e **para**, porque a configuração ainda está vazia. Nas atualizações ele usa a pasta que o site já tem.
+3. Edite o `appsettings.json` da pasta do site:
 
    ```jsonc
    {
@@ -204,7 +213,7 @@ O que o `install-web.ps1` configura:
 |---|---|
 | App pool | `IntegracaoSolidesDP.Web`, sem código gerenciado, identidade `IIS AppPool\IntegracaoSolidesDP.Web`, sempre ligado, reciclagem diária às 03:00 |
 | Site | `IntegracaoSolidesDP.Web`, só HTTPS (com `-HostName`, usa SNI e pode dividir a porta 443 com outros sites) |
-| Pasta | `C:\inetpub\IntegracaoSolidesDP.Web` (`-InstallDir` para mudar); o app pool lê a pasta e grava em `logs` |
+| Pasta | A escolhida na primeira instalação (padrão `C:\inetpub\IntegracaoSolidesDP.Web`); o app pool lê a pasta e grava em `logs` |
 | `appsettings.json` | legível só por Administradores, SYSTEM e o app pool |
 | Firewall | regra de entrada na porta do site, perfis Domínio e Privado (`-SemFirewall` para não criar) |
 

@@ -11,7 +11,8 @@
 param(
     [string]$SiteName = "IntegracaoSolidesDP.Web",
     [string]$AppPoolName = "IntegracaoSolidesDP.Web",
-    [string]$InstallDir = "C:\inetpub\IntegracaoSolidesDP.Web",
+    # Só com -RemoveFiles. Vazio: a pasta do site instalado.
+    [string]$InstallDir = "",
     [switch]$RemoveFiles
 )
 $ErrorActionPreference = "Stop"
@@ -26,6 +27,13 @@ if (-not (Test-Path $appcmd)) {
     Write-Host "IIS não instalado: nada a remover no IIS."
 }
 else {
+    if (-not $InstallDir) {
+        $pasta = & $appcmd list vdir "$SiteName/" /text:physicalPath 2>$null
+        if ($LASTEXITCODE -eq 0 -and $pasta) {
+            $InstallDir = [Environment]::ExpandEnvironmentVariables(($pasta | Select-Object -First 1).Trim())
+        }
+    }
+
     $bindings = & $appcmd list site $SiteName /text:bindings 2>$null
     if ($LASTEXITCODE -eq 0) {
         foreach ($b in ($bindings -join ",").Split(",", [StringSplitOptions]::RemoveEmptyEntries)) {
@@ -52,7 +60,10 @@ else {
     }
 }
 
-if ($RemoveFiles -and (Test-Path $InstallDir)) {
+if ($RemoveFiles -and -not $InstallDir) {
+    Write-Warning "Site não encontrado: informe a pasta com -InstallDir para apagar os arquivos."
+}
+elseif ($RemoveFiles -and (Test-Path $InstallDir)) {
     Remove-Item -Recurse -Force $InstallDir
     Write-Host "Pasta $InstallDir removida."
 }
