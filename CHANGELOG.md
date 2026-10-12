@@ -4,31 +4,77 @@ Uma seção por versão, a mais nova primeiro. O título é `## <versão> — <d
 só gera o pacote de uma versão que tenha a sua seção aqui, e a Web mostra este arquivo em Ajuda › Novidades.
 Escreva para quem usa: o que mudou na tela e no comportamento, não o código.
 
-## 1.0.3 — a definir
+## 1.0.3 — 12/10/2026
 
-- Conferência DP x RHSenso (menu Conferência DP x RHSenso): toda semana (padrão segunda, 6h) o serviço compara os colaboradores vinculados no Sólides DP com o RHSenso — nome, PIS, CTPS, nascimento, admissão, e-mail, telefone, sexo, cargo, local, empresa e situação — sem gravar nada no DP.
-- Na conferência, "Reenviar do RHSenso" marca quem deve ficar como está no RHSenso: a próxima execução reenvia o cadastro.
-- Painel avisa quando a última conferência de uma empresa encontrou diferenças; quem recebe o resumo diário recebe a lista por e-mail.
-- Novo pedido "Conferir campos (DP x RHSenso)" em Pedidos ao serviço.
+Conferência DP x RHSenso e histórico de versões.
+
+- Conferência DP x RHSenso (menu Conferência DP x RHSenso): para cada colaborador ativo e vinculado, compara o que a integração enviaria hoje com o que está no Sólides DP — nome, PIS, CTPS e série, nascimento, admissão, e-mail, telefone, sexo, cargo, local de trabalho, empresa e situação (ativo no RHSenso e desligado no DP, ou cadastro que sumiu do DP). Só lê o Sólides DP; não grava nada lá.
+- Não entram na conferência o que é do Sólides DP por regra (vigência, escala, regra de ponto e Código Externo) nem campo vazio no RHSenso. Espaços e maiúsculas no nome, pontuação no PIS e no telefone e o formato da data não contam como diferença.
+- Roda toda semana (padrão: segunda-feira, 6h; dia, hora e liga/desliga na tela Configuração) e pelo novo pedido "Conferir campos (DP x RHSenso)" em Pedidos ao serviço, ou pelo botão "Conferir agora" da própria tela.
+- Na conferência: grade com uma linha por campo diferente (valor no RHSenso e no Sólides DP), filtro por campo e CSV para baixar.
+- "Reenviar do RHSenso": marque quem deve ficar como está no RHSenso e a próxima execução reenvia o cadastro inteiro (perfis Operador e Admin; fica na auditoria como REENVIO_SOLICITADO). Se o correto é o Sólides DP, corrija o RHSenso.
+- O Painel avisa quando a última conferência de uma empresa encontrou diferenças. Na conferência semanal, quem recebe o resumo diário daquela empresa recebe a lista por e-mail.
+- As conferências antigas entram na limpeza do histórico (a última de cada empresa fica).
+- Ajuda › Novidades: o que mudou em cada versão, com a versão instalada na Web e no serviço destacada. A versão no rodapé do menu abre esta página.
+- Toda versão nova precisa da sua seção neste arquivo: sem ela, o pacote não é gerado. O arquivo vai junto nos pacotes do serviço e da Web.
+- Leitura mais tolerante dos dados que o Sólides DP devolve (número ou texto, objeto ou só o id), para um formato diferente não derrubar a leitura do cadastro.
 
 ## 1.0.2 — 12/10/2026
 
-- Avisos por e-mail (Administração › Notificações): falha da integração na hora, lembrete enquanto continuar, aviso de que voltou ao normal e resumo diário das pendências. Destinatários gerais ou por empresa.
-- Novo status "Concluída com pendências" (amarelo): nada falhou, mas há cadastro para o RH resolver. "Concluída com erros" (vermelho) passa a ser só falha de verdade.
+Avisos por e-mail, pendências separadas de erros, relatório de vinculação na tela, limpeza do histórico e sinal de vida do serviço.
+
+### Avisos por e-mail
+- Nova tela Administração › Notificações (só Admin): servidor de e-mail (SMTP) com a senha gravada cifrada e nunca exibida, destinatários gerais ou por empresa, e o que cada um recebe (falhas, resumo ou os dois).
+- Falha: o aviso sai na hora em que a empresa passa de OK para falha, e não a cada execução. Se continuar, sai um lembrete (padrão: 24 horas). Quando volta a funcionar, sai "voltou ao normal", dizendo se ficaram pendências.
+- Resumo diário das pendências de cadastro (padrão: 8h, só em dias úteis), só com as novas desde o último resumo.
+- Simulações não avisam, a não ser que isso seja ligado na tela.
+- Botão "Enviar teste" (pedido ao serviço) e a lista dos últimos envios, com o erro de cada um.
+
+### Status das execuções
+- Novo status "Concluída com pendências" (amarelo): nada falhou, mas há cadastro para o RH resolver (CPF desligado no DP, Código Externo em uso, CNPJ sem empresa no DP, recusado pelo DP).
+- "Concluída com erros" (vermelho) passa a ser só falha de verdade (recusa do Sólides DP, trava de segurança).
 - Empresa (CNPJ) que não existe no Sólides DP vira pendência, e não falha.
-- Relatório de vinculação na tela, no detalhe de cada simulação, com filtros por resultado e o cargo e o nome atuais no Sólides DP.
-- "Só no Sólides DP": quem está ativo no DP sem colaborador ativo com o mesmo CPF no RHSenso, dizendo onde o CPF está no RHSenso.
-- Trava de desligamentos por execução (padrão 20), na tela Configuração.
-- Colaborador recusado pelo Sólides DP 3 vezes com os mesmos dados vira pendência "recusado_pelo_dp" e para de ser reenviado a cada execução; tenta de novo quando os dados mudam ou uma vez por dia.
-- Limpeza automática do histórico (execuções 180 dias, arquivos de relatório 30 dias), configurável.
-- Sinal de vida do serviço: o Painel mostra cada serviço ligado ao banco e avisa "Serviço sem resposta".
-- Ajuda › Novidades (esta página).
+- O Painel conta as execuções com pendências junto com as com erros, no gráfico de 14 dias.
+
+### Relatório de vinculação
+- O relatório da simulação aparece na tela, no detalhe da execução, com filtros por resultado: Pendência, Só no Sólides DP, Desligar, Criar, Vincular pelo CPF, Atualizar, Fora do escopo e Sem alteração.
+- Novo resultado "Só no Sólides DP": quem está ativo no DP sem colaborador ativo com o mesmo CPF no RHSenso. O CPF é procurado em todo o RHSenso, e a observação diz onde está (desligado, transferido, outra empresa, outro tipo de colaborador) ou que não existe lá. A integração não desliga esses cadastros: o RH decide.
+- Nova linha "Desligar": quem a integração vai desligar no Sólides DP.
+- Cargo e nome atuais no Sólides DP para todos, inclusive para quem já está vinculado, e aviso quando o cargo vai mudar ou o nome não confere.
+
+### Segurança e reenvio
+- Trava de desligamentos por execução (padrão: 20): acima disso, ninguém é desligado e fica uma falha. Na simulação, só um aviso.
+- Colaborador recusado pelo Sólides DP 3 vezes seguidas com os mesmos dados vira pendência "recusado_pelo_dp" e para de ser reenviado a cada execução. Tenta de novo quando os dados mudam no RHSenso, ou uma vez por dia (caso a correção tenha sido feita no DP). Queda do DP, demora e erro 5xx não contam. O limite fica na tela Configuração.
+
+### Histórico e serviço
+- Limpeza diária do histórico: execuções com mais de 180 dias (com itens e relatórios), e-mails enviados e arquivos de relatório com mais de 30 dias. Nunca apaga a última execução de cada empresa, os vínculos, a auditoria nem os pedidos. Prazos e hora configuráveis; 0 = não apaga.
+- Sinal de vida do serviço: o Painel mostra cada máquina que roda o serviço com este banco (versão, último sinal, "Respondendo" ou "Sem resposta") e avisa "Serviço sem resposta" no Painel e nas telas de pedidos. Uma máquina inesperada na lista indica outro serviço usando o mesmo banco.
+- Correções: o pedido "Testar e-mail" não era aceito pela tela de pedidos.
 
 ## 1.0.1 e anteriores
 
-- Serviço de sincronização RHSenso → Sólides DP: cargos, locais de trabalho, colaboradores, desligamentos e férias.
-- Uma conta do Sólides DP por empresa, com a identidade do colaborador pelo CPF (vincula quem o RH já tinha cadastrado no DP).
-- Aplicação Web de gestão: Painel, Execuções, O que foi migrado, Pendências, Pedidos ao serviço, Configuração versionada, Empresas (token, filiais, piloto, simulação), Usuários e Auditoria.
-- Simulação (dry-run) com relatório de vinculação em CSV; quem está desligado no Sólides DP não é criado de novo.
-- Instalação do serviço como serviço do Windows e da Web no IIS; manual de uso na Web e manual técnico em PDF.
-- Versão da Web e do serviço no rodapé do menu.
+Primeira versão em homologação: o serviço de sincronização e a Web de gestão.
+
+### Sincronização RHSenso → Sólides DP
+- Envia cargos, locais de trabalho (filiais), colaboradores, desligamentos e férias, nessa ordem, a cada 30 minutos (ou em horários fixos).
+- Uma conta do Sólides DP por empresa, cada uma com o seu token.
+- Identidade do colaborador pelo CPF: quem o RH já tinha cadastrado no DP é vinculado pelo CPF, e não duplicado.
+- Quem está desligado no Sólides DP não é criado de novo: vira pendência "cpf_desligado_no_dp" até o RH readmitir lá.
+- Código Externo de quem já existe no DP é respeitado; nos novos, vai a matrícula. Se a matrícula já for o Código Externo de outra pessoa, a criação fica bloqueada ("codigo_externo_em_uso").
+- Mantém a vigência que já está no Sólides DP, a escala atribuída lá, e envia a data de início no cargo quando o cargo muda.
+- Simulação (dry-run): faz toda a análise sem gravar nada no DP, com relatório de vinculação em CSV.
+- Travas de segurança: máximo de colaboradores novos e de férias canceladas por execução; nada é enviado se o RHSenso devolver 0 colaboradores; uma execução por empresa de cada vez.
+- Férias: período enviado como lançamento de ajuste; reprogramadas ou apagadas no RHSenso são canceladas no DP; desistência depois de 5 falhas do mesmo período.
+
+### Aplicação Web de gestão
+- Login com perfis Consulta, Operador e Admin; usuários e auditoria de tudo que é feito.
+- Painel, Execuções (com os itens de cada uma), O que foi migrado, Pendências e Pedidos ao serviço (executar, simular, verificar configuração, consultar o Sólides DP, conferir enviados).
+- Configuração versionada: cada gravação é uma versão nova, com motivo obrigatório e histórico. Ativar e desativar a integração pelo Painel.
+- Tela Empresas: empresa habilitada, simulação ou envio real, go-live, filiais marcadas, piloto, token do Sólides DP (gravado cifrado), escala, regra de ponto e empresa no DP. Regras gerais separadas das regras de cada empresa.
+- Ajuda com o manual de uso de cada tela e o manual técnico em PDF (só Admin).
+- Versão da Web e do serviço no rodapé do menu, com alerta quando são diferentes.
+- Caixa de diálogo padrão do sistema para confirmações e motivos.
+
+### Instalação
+- Serviço do Windows (install-service.ps1) e Web no IIS (install-web.ps1), com scripts de permissões no SQL Server (logins próprios para o serviço e para a Web). As atualizações preservam o appsettings.json instalado.
+- Pacotes self-contained gerados por scripts\publicar-windows.ps1 (não precisa instalar o .NET no servidor).
