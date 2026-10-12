@@ -91,7 +91,20 @@
             columns: colunas,
             ajax: {
                 url: url,
-                data: d => Object.assign(d, opcoes.params ? opcoes.params() : {})
+                // Só o que o servidor lê (DataTables.cs). O padrão do DataTables manda ~6 parâmetros por coluna
+                // (columns[i][data], [searchable]...) e a URL passa do limite de query string do IIS (2048 bytes,
+                // erro 404.15), que não existe no Kestrel do ambiente de desenvolvimento.
+                data: d => {
+                    const ordem = d.order && d.order.length ? d.order[0] : { column: 0, dir: 'desc' };
+                    return Object.assign({
+                        draw: d.draw,
+                        start: d.start,
+                        length: d.length,
+                        'search[value]': d.search ? d.search.value : '',
+                        'order[0][column]': ordem.column,
+                        'order[0][dir]': ordem.dir
+                    }, opcoes.params ? opcoes.params() : {});
+                }
             }
         }, opcoes.dt || {}));
     }
