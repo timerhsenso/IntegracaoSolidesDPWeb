@@ -84,6 +84,7 @@ Com a gestão desligada, vale a tabela abaixo inteira, para uma só empresa.
 | `SolidesDP:AllowProductionApiOutsideProduction` | `false` | Opt-in para usar a API real fora de Production. |
 | `Gestao:Habilitada` | `false` | Liga a gestão pela Web (veja [Gestão pela Web](#gestão-pela-web)). |
 | `Gestao:IntervaloComandos` | `00:00:15` | Com a gestão ligada, frequência com que o serviço procura comandos pedidos na Web. |
+| `Gestao:IntervaloSinalDeVida` | `00:01:00` | Com a gestão ligada, frequência do sinal de vida (`solidesdp.servico_sinal`) que o Painel mostra. |
 | `Execution:Interval` | `00:30:00` | Frequência. Use esta **ou** `TimesOfDay`. |
 | `Execution:TimesOfDay` | — | Ex.: `["07:00", "13:00"]`, no fuso abaixo. |
 | `Execution:TimeZone` | `America/Bahia` | Fuso dos horários e das datas do RHSenso. |
@@ -102,6 +103,10 @@ Com a gestão desligada, vale a tabela abaixo inteira, para uma só empresa.
 | `Sync:FeriasMotivoId` | descoberto | Id do motivo FÉRIAS no DP. |
 | `Sync:FeriasEndDateMode` | `InicioDoDiaSeguinte` | Como calcular o `endDate` (calibrar com o DP real). |
 | `Sync:MaxCreatesPerRun` / `Sync:MaxCancellationsPerRun` / `Sync:MaxDismissalsPerRun` | `300` / `20` / `20` | Travas de segurança. |
+| `Sync:ColaboradorMaxTentativas` | `3` | Recusas seguidas do DP aos mesmos dados antes de o colaborador virar pendência `recusado_pelo_dp`. |
+| `Sync:RetencaoExecucoesDias` / `Sync:RetencaoArquivosDias` | `180` / `30` | Limpeza diária: execuções (com itens e relatórios) e e-mails no banco / arquivos da pasta `reports`. `0` = não apaga. A última execução de cada empresa fica sempre. |
+| `Sync:LimpezaHora` | `3` | Hora local a partir da qual a limpeza do dia roda. |
+| `Sync:ServicoSemRespostaMinutos` | `5` | A Web avisa "serviço sem resposta" quando o último sinal de vida passa disso. |
 
 ## Gestão pela Web
 

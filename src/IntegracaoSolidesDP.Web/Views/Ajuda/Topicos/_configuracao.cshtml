@@ -71,6 +71,30 @@
     </text>);
 }
 
+<h4>Histórico e serviço</h4>
+@{
+    Campo(nameof(ConfiguracaoForm.RetencaoExecucoesDias), @<text>
+        <p class="mb-1">
+            Sem limpeza, as tabelas de execuções crescem para sempre (com 3 empresas a cada 30 minutos são mais de 4 mil execuções
+            por mês). A limpeza apaga as execuções antigas com os itens e os relatórios delas, e também o histórico de e-mails enviados.
+            Nunca apaga a última execução de cada empresa, os vínculos com o Sólides DP, a auditoria nem os pedidos (um pedido antigo
+            pode ficar apontando para uma execução que já foi apagada). Mínimo de 30 dias; 0 desliga a limpeza do banco.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.RetencaoArquivosDias), @<text>
+        <p class="mb-1">A pasta <code>reports</code> do serviço ganha dois arquivos por execução e empresa. O mesmo conteúdo fica no banco e pode ser baixado no detalhe da execução enquanto ela existir.</p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.LimpezaHora));
+    Campo(nameof(ConfiguracaoForm.ServicoSemRespostaMinutos), @<text>
+        <p class="mb-1">
+            O serviço grava um sinal de vida a cada minuto (<code>Gestao:IntervaloSinalDeVida</code>), inclusive durante as execuções.
+            Se nenhum serviço der sinal dentro deste tempo, o Painel e a tela de pedidos mostram <em>Serviço sem resposta</em>.
+            O Painel lista cada máquina que já rodou o serviço com este banco: se aparecer uma máquina inesperada, há outro serviço
+            (outra versão, outro servidor) sincronizando com o mesmo banco.
+        </p>
+    </text>);
+}
+
 <h4>Quem entra</h4>
 @{
     Campo(nameof(ConfiguracaoForm.TiposColaborador));

@@ -4,6 +4,7 @@
     ViewData["Title"] = "Pedidos ao serviço";
     var podeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin);
 }
+@await Component.InvokeAsync("SituacaoServico", new { compacto = true })
 <p class="small text-body-secondary">
     A Web não fala com o Sólides DP: ela registra o pedido e o serviço o atende em alguns segundos, um de cada vez.
     O resultado fica gravado no pedido.

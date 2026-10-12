@@ -16,6 +16,23 @@ public sealed class OptionsValidationTests
         validator.Validate(null, new ExecutionOptions { TimesOfDay = [TimeSpan.FromHours(7)] }).Succeeded.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(180, 30, 3, 5, true)]
+    [InlineData(0, 0, 0, 1, true)]
+    [InlineData(29, 30, 3, 5, false)]
+    [InlineData(180, -1, 3, 5, false)]
+    [InlineData(180, 30, 24, 5, false)]
+    [InlineData(180, 30, 3, 0, false)]
+    public void Retention_cleanup_hour_and_service_timeout_are_validated(int execucoes, int arquivos, int hora, int minutos, bool valido)
+    {
+        var options = new SyncOptions
+        {
+            RetencaoExecucoesDias = execucoes, RetencaoArquivosDias = arquivos, LimpezaHora = hora, ServicoSemRespostaMinutos = minutos,
+        };
+
+        new SyncOptionsValidator().Validate(null, options).Succeeded.Should().Be(valido);
+    }
+
     [Fact]
     public void Unknown_time_zone_is_rejected()
     {

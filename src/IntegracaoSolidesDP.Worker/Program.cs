@@ -49,6 +49,7 @@ builder.Services.AddIntegracaoSolidesDP(builder.Configuration);
 if (command.Mode == CliMode.Service)
 {
     builder.Services.AddHostedService<SyncWorker>();
+    builder.Services.AddHostedService<SinalVidaWorker>();
 }
 
 IHost host;

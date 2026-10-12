@@ -39,6 +39,26 @@ public sealed class SyncOptionsValidator : IValidateOptions<SyncOptions>
             errors.Add("Sync:ColaboradorMaxTentativas deve ser pelo menos 1.");
         }
 
+        if (options.RetencaoExecucoesDias is not 0 and (< 30 or > 3650))
+        {
+            errors.Add("Sync:RetencaoExecucoesDias deve ser 0 (não apaga) ou de 30 a 3650.");
+        }
+
+        if (options.RetencaoArquivosDias is < 0 or > 3650)
+        {
+            errors.Add("Sync:RetencaoArquivosDias deve ser de 0 (não apaga) a 3650.");
+        }
+
+        if (options.LimpezaHora is < 0 or > 23)
+        {
+            errors.Add("Sync:LimpezaHora deve ser de 0 a 23.");
+        }
+
+        if (options.ServicoSemRespostaMinutos is < 1 or > 1440)
+        {
+            errors.Add("Sync:ServicoSemRespostaMinutos deve ser de 1 a 1440.");
+        }
+
         if (string.IsNullOrWhiteSpace(options.InstanceName) || options.InstanceName.Length > 64)
         {
             errors.Add("Sync:InstanceName deve ter entre 1 e 64 caracteres.");

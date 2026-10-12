@@ -1,0 +1,64 @@
+@model SituacaoServicoModel
+@{
+    var minutos = (int)Model.Limite.TotalMinutes;
+}
+@if (Model.Servicos.Count == 0)
+{
+    if (!Model.Compacto)
+    {
+        <div class="alert alert-secondary small" data-situacao-servico="sem-sinal">
+            <i class="bi bi-question-circle"></i> O serviço ainda não registrou sinal de vida. Versões do serviço anteriores a esta
+            não gravam o sinal: atualize o serviço no servidor para a Web saber se ele está rodando.
+        </div>
+    }
+}
+else if (!Model.AlgumRespondendo)
+{
+    var ultimo = Model.Servicos[0];
+    <div class="alert alert-danger" data-situacao-servico="parado">
+        <i class="bi bi-exclamation-octagon"></i>
+        <strong>Serviço sem resposta</strong> desde @F.Data(ultimo.UltimoSinal) (máquina @ultimo.Maquina).
+        Enquanto ele estiver parado, nada é sincronizado e os pedidos feitos aqui ficam aguardando.
+        Verifique o serviço <code>IntegracaoSolidesDP</code> no servidor (services.msc) e o log dele.
+    </div>
+}
+@if (!Model.Compacto && Model.Servicos.Count > 0)
+{
+    <div class="card mb-3">
+        <div class="card-header">Serviço</div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0 small align-middle">
+                <thead>
+                    <tr><th>Situação</th><th>Máquina</th><th>Instância</th><th>Versão</th><th>Último sinal</th><th>Rodando desde</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Servicos)
+                    {
+                        var ok = Model.Respondendo(s);
+                        <tr>
+                            <td>
+                                @if (ok)
+                                {
+                                    <span class="badge text-bg-success">Respondendo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-danger">Sem resposta</span>
+                                }
+                            </td>
+                            <td>@s.Maquina</td>
+                            <td>@s.Instancia</td>
+                            <td>@(s.Versao ?? "—")</td>
+                            <td>@F.Data(s.UltimoSinal) <span class="text-body-secondary">(há @Formatador.Duracao(Model.SemSinalHa(s)))</span></td>
+                            <td>@(ok ? F.Data(s.IniciadoEm) : "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer small text-body-secondary">
+            Sem sinal há mais de @minutos min = sem resposta (opção "Serviço sem resposta após" da tela Configuração).
+            Mais de uma máquina na lista: há outro serviço usando o mesmo banco.
+        </div>
+    </div>
+}

@@ -92,6 +92,21 @@ public sealed class SyncOptions
     /// <summary>Trava: se uma execução for desligar mais colaboradores que isto, não desliga nenhum.</summary>
     public int MaxDismissalsPerRun { get; set; } = 20;
 
+    /// <summary>
+    /// Limpeza diária: execuções (com os itens e relatórios) mais antigas que isto são apagadas do banco.
+    /// 0 = nunca apaga. A última execução de cada empresa (real e simulação) fica sempre.
+    /// </summary>
+    public int RetencaoExecucoesDias { get; set; } = 180;
+
+    /// <summary>Limpeza diária: arquivos da pasta de relatórios mais antigos que isto são apagados. 0 = nunca apaga.</summary>
+    public int RetencaoArquivosDias { get; set; } = 30;
+
+    /// <summary>Hora local (0 a 23) a partir da qual roda a limpeza do dia (uma vez por dia).</summary>
+    public int LimpezaHora { get; set; } = 3;
+
+    /// <summary>A Web avisa "serviço sem resposta" quando o último sinal de vida do serviço é mais antigo que isto (minutos).</summary>
+    public int ServicoSemRespostaMinutos { get; set; } = 5;
+
     /// <summary>Pasta dos relatórios CSV/JSON de cada execução (relativa ao executável).</summary>
     public string ReportDirectory { get; set; } = "reports";
 }

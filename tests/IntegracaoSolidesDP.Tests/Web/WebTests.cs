@@ -51,6 +51,32 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Dashboard_shows_the_service_signal_and_warns_when_no_service_answers()
+    {
+        var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Consulta));
+        var sinais = new SqlSinalServicoStore(db.Connections);
+        var agora = DateTimeOffset.UtcNow;
+        await sinais.RegistrarAsync(new SinalServico
+        {
+            Instancia = "default", Maquina = "SRV-TESTE", Versao = "9.9.9", IniciadoEm = agora.AddHours(-2), UltimoSinal = agora.AddMinutes(-30),
+        }, Ct);
+
+        var parado = await client.GetStringAsync("/", Ct);
+        var pedidosParado = await client.GetStringAsync("/Comandos", Ct);
+
+        parado.Should().Contain("data-situacao-servico=\"parado\"").And.Contain("SRV-TESTE").And.Contain("9.9.9");
+        pedidosParado.Should().Contain("data-situacao-servico=\"parado\"", "a tela de pedidos também avisa");
+
+        await sinais.RegistrarAsync(new SinalServico
+        {
+            Instancia = "default", Maquina = "SRV-TESTE", Versao = "9.9.9", IniciadoEm = agora.AddHours(-2), UltimoSinal = DateTimeOffset.UtcNow,
+        }, Ct);
+
+        (await client.GetStringAsync("/", Ct)).Should().NotContain("data-situacao-servico=\"parado\"").And.Contain("SRV-TESTE");
+        (await client.GetStringAsync("/Comandos", Ct)).Should().NotContain("data-situacao-servico");
+    }
+
+    [Fact]
     public async Task Wrong_password_is_refused_and_audited()
     {
         var login = await _web.CriarUsuarioAsync(Perfis.Consulta);

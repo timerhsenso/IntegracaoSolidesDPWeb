@@ -153,6 +153,41 @@
                     </div>
                 </div>
             </div>
+
+            <div class="col-xl-6">
+                <div class="card h-100">
+                    <div class="card-header">Histórico e serviço</div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label asp-for="Form.RetencaoExecucoesDias" class="form-label"></label>
+                                <input asp-for="Form.RetencaoExecucoesDias" class="form-control" />
+                                <dica-campo for="Form.RetencaoExecucoesDias" />
+                                <span asp-validation-for="Form.RetencaoExecucoesDias" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.RetencaoArquivosDias" class="form-label"></label>
+                                <input asp-for="Form.RetencaoArquivosDias" class="form-control" />
+                                <dica-campo for="Form.RetencaoArquivosDias" />
+                                <span asp-validation-for="Form.RetencaoArquivosDias" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.LimpezaHora" class="form-label"></label>
+                                <input asp-for="Form.LimpezaHora" class="form-control" />
+                                <dica-campo for="Form.LimpezaHora" />
+                                <span asp-validation-for="Form.LimpezaHora" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.ServicoSemRespostaMinutos" class="form-label"></label>
+                                <input asp-for="Form.ServicoSemRespostaMinutos" class="form-control" />
+                                <dica-campo for="Form.ServicoSemRespostaMinutos" />
+                                <span asp-validation-for="Form.ServicoSemRespostaMinutos" class="text-danger small"></span>
+                            </div>
+                        </div>
+                        <div class="form-text">Vínculos, auditoria e pedidos nunca são apagados pela limpeza.</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         @if (Model.PodeEditar)

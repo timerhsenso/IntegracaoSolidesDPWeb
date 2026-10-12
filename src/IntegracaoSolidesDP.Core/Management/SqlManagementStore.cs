@@ -236,6 +236,17 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             );
             CREATE INDEX ix_solidesdp_notificacao_envio_data ON solidesdp.notificacao_envio (enviado_em);
         END;
+
+        IF OBJECT_ID(N'solidesdp.servico_sinal', N'U') IS NULL
+        CREATE TABLE solidesdp.servico_sinal (
+            instance_name nvarchar(64)      NOT NULL,
+            maquina       nvarchar(128)     NOT NULL,
+            versao        nvarchar(32)      NULL,
+            pid           int               NULL,
+            iniciado_em   datetimeoffset(7) NOT NULL,
+            ultimo_sinal  datetimeoffset(7) NOT NULL,
+            CONSTRAINT pk_solidesdp_servico_sinal PRIMARY KEY (instance_name, maquina)
+        );
         """;
 
     private const int UniqueKeyViolation = 2627;
@@ -546,6 +557,9 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         ("notificacao_pendencia", "chave", "entidade|registro|código do motivo: a mesma pendência tem sempre a mesma chave."),
         ("notificacao_pendencia", "primeira_vez", "Quando apareceu (ou reapareceu depois de resolvida): define o que é novo no resumo."),
         ("notificacao_pendencia", "resolvida_em", "Quando deixou de aparecer nas execuções. Nulo = em aberto."),
+        ("servico_sinal", null, "Sinal de vida de cada serviço (instância e máquina): a Web avisa quando o último sinal fica velho (Sync:ServicoSemRespostaMinutos)."),
+        ("servico_sinal", "ultimo_sinal", "Último sinal (a cada Gestao:IntervaloSinalDeVida, também durante as execuções)."),
+        ("servico_sinal", "iniciado_em", "Quando o processo atual do serviço começou."),
         ("notificacao_envio", null, "E-mails enviados ou tentados (falha, lembrete, normalizou, resumo, teste), com o erro quando não saiu."),
         ("configuracao", null, "Versões da configuração da integração (só INSERT). A vigente é a de maior versão da instância."),
         ("configuracao_empresa", null, "Empresas do RHSenso (dbo.temp1) em cada versão da configuração. Cada empresa é uma conta do Sólides DP."),

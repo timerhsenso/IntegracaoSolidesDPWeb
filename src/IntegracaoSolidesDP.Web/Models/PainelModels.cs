@@ -81,3 +81,19 @@ public static class TiposRelatorio
     /// <summary>As mesmas linhas em JSON, para a grade da tela (simulações a partir da versão que grava este tipo).</summary>
     public const string VinculacaoLinhas = "vinculacao-linhas";
 }
+
+/// <summary>Sinal de vida dos serviços para o aviso do Painel e das telas de pedidos.</summary>
+/// <param name="Servicos">Serviços que já deram sinal, o mais recente primeiro.</param>
+/// <param name="Limite">Sem sinal há mais que isto = sem resposta (Sync:ServicoSemRespostaMinutos).</param>
+/// <param name="Agora">Momento da consulta.</param>
+/// <param name="Compacto">Só o aviso (quando nenhum serviço responde), sem a lista.</param>
+public sealed record SituacaoServicoModel(IReadOnlyList<SinalServico> Servicos, TimeSpan Limite, DateTimeOffset Agora, bool Compacto)
+{
+    public bool Respondendo(SinalServico servico) => Agora - servico.UltimoSinal <= Limite;
+
+    public bool AlgumRespondendo => Servicos.Any(Respondendo);
+
+    /// <summary>Tempo desde o último sinal (nunca negativo, se os relógios das máquinas divergirem).</summary>
+    public TimeSpan SemSinalHa(SinalServico servico) =>
+        Agora > servico.UltimoSinal ? Agora - servico.UltimoSinal : TimeSpan.Zero;
+}

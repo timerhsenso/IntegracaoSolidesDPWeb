@@ -54,6 +54,9 @@ public static class ServiceRegistration
         services.AddSingleton<INotificacaoStore, SqlNotificacaoStore>();
         services.AddSingleton<IEnviadorEmail, SmtpEnviadorEmail>();
         services.AddSingleton<Notificador>();
+        services.AddSingleton<ISinalServicoStore, SqlSinalServicoStore>();
+        services.AddSingleton<ILimpezaStore, SqlLimpezaStore>();
+        services.AddSingleton<Limpeza>();
         services.AddSingleton<ITokenProtector>(sp => new TokenProtector(new TokenProtectionOptions
         {
             ChaveBase64 = sp.GetRequiredService<IOptions<ManagementOptions>>().Value.ChaveTokens,

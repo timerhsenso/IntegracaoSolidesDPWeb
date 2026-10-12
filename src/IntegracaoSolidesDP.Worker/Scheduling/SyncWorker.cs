@@ -15,6 +15,7 @@ public sealed class SyncWorker(
     ExecutionSchedule schedule,
     CommandProcessor commands,
     Notificador notificador,
+    Limpeza limpeza,
     IOptions<ManagementOptions> management,
     TimeProvider clock,
     ILogger<SyncWorker> logger) : BackgroundService
@@ -41,6 +42,9 @@ public sealed class SyncWorker(
                 // Resumo diário das pendências: confere a hora a cada ciclo; envia uma vez por dia.
                 await notificador.ResumoSeDevidoAsync(stoppingToken);
             }
+
+            // Limpeza do histórico antigo: uma vez por dia, a partir de Sync:LimpezaHora.
+            await limpeza.LimparSeDevidoAsync(stoppingToken);
 
             var now = clock.GetUtcNow();
             if (now >= next)

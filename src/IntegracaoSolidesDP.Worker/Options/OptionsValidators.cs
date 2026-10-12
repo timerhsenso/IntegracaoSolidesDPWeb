@@ -88,8 +88,15 @@ internal sealed class SolidesDpOptionsValidator(IHostEnvironment environment, IO
 
 internal sealed class ManagementOptionsValidator : IValidateOptions<ManagementOptions>
 {
-    public ValidateOptionsResult Validate(string? name, ManagementOptions options) =>
-        options.IntervaloComandos < TimeSpan.FromSeconds(1) || options.IntervaloComandos > TimeSpan.FromMinutes(10)
-            ? ValidateOptionsResult.Fail("Gestao:IntervaloComandos deve estar entre 00:00:01 e 00:10:00.")
+    public ValidateOptionsResult Validate(string? name, ManagementOptions options)
+    {
+        if (options.IntervaloComandos < TimeSpan.FromSeconds(1) || options.IntervaloComandos > TimeSpan.FromMinutes(10))
+        {
+            return ValidateOptionsResult.Fail("Gestao:IntervaloComandos deve estar entre 00:00:01 e 00:10:00.");
+        }
+
+        return options.IntervaloSinalDeVida < TimeSpan.FromSeconds(10) || options.IntervaloSinalDeVida > TimeSpan.FromMinutes(10)
+            ? ValidateOptionsResult.Fail("Gestao:IntervaloSinalDeVida deve estar entre 00:00:10 e 00:10:00.")
             : ValidateOptionsResult.Success;
+    }
 }

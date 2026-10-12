@@ -29,6 +29,8 @@
     </div>
 }
 
+@await Component.InvokeAsync("SituacaoServico", new { compacto = false })
+
 <div class="row g-3 mb-3">
     <div class="col-md-6 col-xl-3">
         <div class="card h-100 border-@(ativa ? "success" : "danger")">

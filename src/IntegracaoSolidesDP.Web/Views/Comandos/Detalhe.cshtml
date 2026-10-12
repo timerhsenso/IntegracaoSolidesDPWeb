@@ -8,6 +8,7 @@
 {
     <meta http-equiv="refresh" content="5" />
     <div class="alert alert-info"><span class="spinner-border spinner-border-sm"></span> Aguardando o serviço. Esta página se atualiza sozinha.</div>
+    @await Component.InvokeAsync("SituacaoServico", new { compacto = true })
 }
 <div class="card mb-3">
     <div class="card-body">

@@ -58,6 +58,22 @@ public sealed class ConfiguracaoForm
     [Display(Name = "Recusas do DP por colaborador", Description = "Depois de o Sólides DP recusar este número de vezes seguidas os mesmos dados de um colaborador, a integração para de reenviar a cada execução: tenta de novo quando os dados mudam no RHSenso ou uma vez por dia.")]
     public int ColaboradorMaxTentativas { get; set; } = 3;
 
+    [Range(0, 3650, ErrorMessage = "Informe 0 (não apaga) ou de 30 a 3650.")]
+    [Display(Name = "Guardar execuções por (dias)", Description = "Execuções mais antigas que isto (com os itens e relatórios) são apagadas na limpeza diária. 0 = nunca apaga. A última execução de cada empresa fica sempre.")]
+    public int RetencaoExecucoesDias { get; set; } = 180;
+
+    [Range(0, 3650, ErrorMessage = "Informe de 0 (não apaga) a 3650.")]
+    [Display(Name = "Guardar arquivos de relatório por (dias)", Description = "Arquivos CSV/JSON da pasta de relatórios do serviço mais antigos que isto são apagados. 0 = nunca apaga. O conteúdo continua no banco.")]
+    public int RetencaoArquivosDias { get; set; } = 30;
+
+    [Range(0, 23, ErrorMessage = "Informe uma hora de 0 a 23.")]
+    [Display(Name = "Hora da limpeza", Description = "A limpeza roda uma vez por dia, a partir desta hora (fuso do serviço).")]
+    public int LimpezaHora { get; set; } = 3;
+
+    [Range(1, 1440, ErrorMessage = "Informe de 1 a 1440 minutos.")]
+    [Display(Name = "Serviço sem resposta após (minutos)", Description = "O Painel e a tela de pedidos avisam que o serviço parou quando o último sinal de vida dele é mais antigo que isto.")]
+    public int ServicoSemRespostaMinutos { get; set; } = 5;
+
     [Required(ErrorMessage = "Descreva o motivo da alteração.")]
     [StringLength(500, ErrorMessage = "Use até 500 caracteres.")]
     [Display(Name = "Motivo da alteração")]
@@ -77,6 +93,10 @@ public sealed class ConfiguracaoForm
         MaxCancellationsPerRun = options.MaxCancellationsPerRun,
         MaxDismissalsPerRun = options.MaxDismissalsPerRun,
         ColaboradorMaxTentativas = options.ColaboradorMaxTentativas,
+        RetencaoExecucoesDias = options.RetencaoExecucoesDias,
+        RetencaoArquivosDias = options.RetencaoArquivosDias,
+        LimpezaHora = options.LimpezaHora,
+        ServicoSemRespostaMinutos = options.ServicoSemRespostaMinutos,
     };
 
     /// <summary>
@@ -100,6 +120,10 @@ public sealed class ConfiguracaoForm
         options.MaxCancellationsPerRun = MaxCancellationsPerRun;
         options.MaxDismissalsPerRun = MaxDismissalsPerRun;
         options.ColaboradorMaxTentativas = ColaboradorMaxTentativas;
+        options.RetencaoExecucoesDias = RetencaoExecucoesDias;
+        options.RetencaoArquivosDias = RetencaoArquivosDias;
+        options.LimpezaHora = LimpezaHora;
+        options.ServicoSemRespostaMinutos = ServicoSemRespostaMinutos;
         return options;
     }
 

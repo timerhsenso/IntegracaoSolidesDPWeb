@@ -25,6 +25,7 @@ public static class WebRegistration
         services.AddSingleton(sp => new ConnectionFactory(ConnectionString(sp.GetRequiredService<IConfiguration>())));
         services.AddSingleton<IManagementStore, SqlManagementStore>();
         services.AddSingleton<INotificacaoStore, SqlNotificacaoStore>();
+        services.AddSingleton<ISinalServicoStore, SqlSinalServicoStore>();
         services.AddSingleton<ITokenProtector>(sp => new TokenProtector(new TokenProtectionOptions
         {
             ChaveBase64 = sp.GetRequiredService<IOptions<WebOptions>>().Value.ChaveTokens,
