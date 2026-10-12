@@ -438,8 +438,10 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         var linhas = _pipeline.State.Reports[(summary.RunId, VinculacaoReport.Tipo)].Conteudo
             .Split('\n', StringSplitOptions.RemoveEmptyEntries);
         linhas.Should().HaveCount(2);
+        // "Atualizar" e não "Sem alteração": no envio real o payload leva o id da empresa do DP (resolvido pelo CNPJ),
+        // que a simulação não busca. O que importa aqui é o cadastro atual do DP ao lado do RHSenso.
         linhas[1].Should().StartWith(FormattableString.Invariant(
-            $"1-00007811;MARIA DA SILVA;529.***.***-25;1;Sem alteração (já vinculado);{maria};MARIA DA SILVA;Sim;00007811;00007811;00100 ANALISTA DE SISTEMAS;00100 ANALISTA DE SISTEMAS;Não;"));
+            $"1-00007811;MARIA DA SILVA;529.***.***-25;1;Atualizar (já vinculado);{maria};MARIA DA SILVA;Sim;00007811;00007811;00100 ANALISTA DE SISTEMAS;00100 ANALISTA DE SISTEMAS;Não;"));
 
         var (arquivo, conteudo) = _pipeline.State.Reports[(summary.RunId, VinculacaoReport.TipoLinhas)];
         arquivo.Should().Be("vinculacao-empresa1-20261005-120000.json");
@@ -447,7 +449,7 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         json.GetArrayLength().Should().Be(1);
         json[0].GetProperty("matricula").GetString().Should().Be("1-00007811");
         json[0].GetProperty("cpf").GetString().Should().Be("529.***.***-25", "o CPF vai mascarado também para a tela");
-        json[0].GetProperty("resultado").GetString().Should().Be(ResultadosVinculacao.SemAlteracao);
+        json[0].GetProperty("resultado").GetString().Should().Be(ResultadosVinculacao.Atualizar);
         json[0].GetProperty("nomeDp").GetString().Should().Be("MARIA DA SILVA");
         json[0].GetProperty("nomesConferem").GetString().Should().Be("Sim");
         json[0].GetProperty("cargoDp").GetString().Should().Be("00100 ANALISTA DE SISTEMAS");
