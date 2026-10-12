@@ -35,6 +35,9 @@ public sealed class ExecucaoDetalheViewModel
 
     /// <summary>Relatórios para baixar (ex.: "vinculacao").</summary>
     public IReadOnlyList<string> Relatorios { get; init; } = [];
+
+    /// <summary>Versão do serviço que fez a execução (null nas de versões que não gravavam).</summary>
+    public string? VersaoServico { get; init; }
 }
 
 public sealed record MigradosViewModel(string Tipo)

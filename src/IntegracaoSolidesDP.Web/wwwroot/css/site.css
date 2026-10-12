@@ -320,3 +320,12 @@ a.dica-ajuda {
 .app-dialogo-mensagem {
     white-space: pre-line;
 }
+
+/* Versões instaladas, no rodapé do menu. */
+.app-versao {
+    padding: .75rem 1.25rem;
+    font-size: .75rem;
+    color: var(--app-sidebar-texto);
+    opacity: .75;
+    border-top: 1px solid rgba(255, 255, 255, .1);
+}

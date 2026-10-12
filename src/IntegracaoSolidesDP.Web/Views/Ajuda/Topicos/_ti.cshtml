@@ -6,6 +6,11 @@
     <li>A conexão com o banco do RHSenso, os <strong>logs</strong> e os relatórios CSV de cada execução.</li>
     <li>Ligar, parar e atualizar o serviço, e os <strong>comandos de linha de comando</strong> (inclusive o reenvio de colaboradores ausentes).</li>
 </ul>
+<p class="small">
+    <strong>Versão instalada:</strong> aparece no rodapé do menu, à esquerda (<em>Web 1.0.2 · Serviço 1.0.2</em>). A do serviço é a da
+    última execução, e o detalhe de cada execução mostra com qual versão ela rodou. Um <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+    ao lado indica Web e serviço em versões diferentes: atualize os dois com o mesmo pacote.
+</p>
 @if (User.IsInRole(Perfis.Admin))
 {
     <a class="btn btn-primary" asp-controller="Ajuda" asp-action="ManualTecnico">

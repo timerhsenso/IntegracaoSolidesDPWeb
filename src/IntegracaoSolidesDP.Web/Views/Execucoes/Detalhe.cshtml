@@ -35,6 +35,7 @@
                             <span>appsettings.json do serviço</span>
                         }
                     </dd>
+                    <dt class="col-5">Versão do serviço</dt><dd class="col-7">@(Model.VersaoServico ?? "—")</dd>
                     <dt class="col-5">Id</dt><dd class="col-7"><code>@e.RunId</code></dd>
                 </dl>
                 @if (Model.Relatorios.Contains("vinculacao"))

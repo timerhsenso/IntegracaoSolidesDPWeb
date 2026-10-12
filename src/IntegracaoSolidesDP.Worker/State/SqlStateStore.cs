@@ -73,6 +73,9 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
         IF COL_LENGTH(N'solidesdp.runs', N'cdempresa') IS NULL
             ALTER TABLE solidesdp.runs ADD cdempresa int NULL;
 
+        IF COL_LENGTH(N'solidesdp.runs', N'versao_servico') IS NULL
+            ALTER TABLE solidesdp.runs ADD versao_servico nvarchar(32) NULL;
+
         IF OBJECT_ID(N'solidesdp.run_items', N'U') IS NULL
         BEGIN
             CREATE TABLE solidesdp.run_items (
@@ -188,6 +191,7 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
     private static readonly string Descricoes = Management.DescricoesSql.Gerar(
     [
         ("runs", null, "Uma linha por execução da sincronização (por empresa)."),
+        ("runs", "versao_servico", "Versão do serviço que fez a execução (a do pacote instalado, ex.: 1.0.2)."),
         ("runs", "cdempresa", "Empresa (conta do Sólides DP) da execução; NULL = execução que parou antes de chegar a uma empresa."),
         ("run_items", null, "Itens de cada execução (os sem alteração ficam só na contagem de runs.summary_json)."),
         ("run_relatorio", null, "Relatórios gerados por uma execução para baixar na Web (ex.: vinculação, gerado em toda simulação)."),
@@ -276,13 +280,13 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
         var runId = Guid.CreateVersion7();
         await using var connection = await connections.OpenAsync(ct);
         await connection.ExecuteAsync(new CommandDefinition("""
-            INSERT INTO solidesdp.runs (run_id, instance_name, cdempresa, dry_run, triggered_by, status, started_at)
-            VALUES (@RunId, @InstanceName, @Cdempresa, @DryRun, @Trigger, @Status, @Now)
+            INSERT INTO solidesdp.runs (run_id, instance_name, cdempresa, dry_run, triggered_by, status, started_at, versao_servico)
+            VALUES (@RunId, @InstanceName, @Cdempresa, @DryRun, @Trigger, @Status, @Now, @Versao)
             """,
             new
             {
                 RunId = runId, InstanceName = instanceName, Cdempresa = cdempresa, DryRun = dryRun, Trigger = trigger,
-                Status = RunStatuses.Running, Now = clock.GetUtcNow(),
+                Status = RunStatuses.Running, Now = clock.GetUtcNow(), Versao = Infrastructure.VersaoServico.Atual,
             },
             cancellationToken: ct));
         return runId;

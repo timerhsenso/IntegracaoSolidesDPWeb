@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace IntegracaoSolidesDP.Web.Controllers;
 
 [ExigeGestaoPreparada]
-public sealed class ExecucoesController(PainelRepository painel, EmpresasRepository empresas, Auditoria auditoria) : Controller
+public sealed class ExecucoesController(PainelRepository painel, EmpresasRepository empresas, Auditoria auditoria, VersoesSistema versoes) : Controller
 {
     public async Task<IActionResult> Index() => View(await empresas.EmpresasAtivasAsync(HttpContext.RequestAborted));
 
@@ -29,6 +29,7 @@ public sealed class ExecucoesController(PainelRepository painel, EmpresasReposit
             Execucao = execucao,
             Contagens = Contagens(execucao.ResumoJson),
             Relatorios = await painel.RelatoriosAsync(id, HttpContext.RequestAborted),
+            VersaoServico = await versoes.ServicoDaExecucaoAsync(id, HttpContext.RequestAborted),
         });
     }
 

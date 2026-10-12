@@ -32,6 +32,7 @@ public static class WebRegistration
         services.AddScoped<Auditoria>();
         services.AddScoped<GestaoService>();
         services.AddSingleton<Formatador>();
+        services.AddSingleton<VersoesSistema>();
 
         // Login: ASP.NET Core Identity no schema solidesdp_auth.
         services.AddDbContext<AuthDbContext>((sp, options) => options.UseSqlServer(

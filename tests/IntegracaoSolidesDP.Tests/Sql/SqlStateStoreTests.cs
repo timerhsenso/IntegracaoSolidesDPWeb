@@ -1,3 +1,4 @@
+using IntegracaoSolidesDP.Worker.Infrastructure;
 using IntegracaoSolidesDP.Worker.State;
 
 namespace IntegracaoSolidesDP.Tests.Sql;
@@ -40,6 +41,17 @@ public sealed class SqlStateStoreTests(SqlServerFixture db) : IAsyncLifetime
               AND ep.minor_id = COLUMNPROPERTY(OBJECT_ID(N'solidesdp.colaborador_vinculo'), N'cpf', 'ColumnId')
             """);
         descricao.Should().ContainSingle().Which.Should().Contain("CPF");
+    }
+
+    [Fact]
+    public async Task Each_run_records_the_service_version()
+    {
+        await _store.EnsureSchemaAsync(Ct);
+
+        var runId = await _store.StartRunAsync("default", 15, dryRun: true, "teste", Ct);
+
+        var versao = await db.QueryAsync<string>("SELECT versao_servico FROM solidesdp.runs WHERE run_id = @runId", new { runId });
+        versao.Should().Equal(VersaoServico.Atual);
     }
 
     [Fact]

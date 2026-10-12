@@ -2,6 +2,7 @@ using System.Net;
 using IntegracaoSolidesDP.Tests.Sql;
 using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Identity;
+using IntegracaoSolidesDP.Worker.Infrastructure;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.State;
 
@@ -179,6 +180,20 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
         bytes.Take(3).Should().Equal(new byte[] { 0xEF, 0xBB, 0xBF }, "BOM para o Excel abrir a acentuação");
         System.Text.Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3).Should().Contain("CLÁUDIO");
         (await Auditoria(login)).Should().Contain(AcoesAuditoria.RelatorioBaixado);
+    }
+
+    [Fact]
+    public async Task Menu_and_run_detail_show_the_installed_versions()
+    {
+        var store = new SqlStateStore(db.Connections, TimeProvider.System);
+        var runId = await store.StartRunAsync("default", 15, dryRun: true, "web", Ct);
+        await store.FinishRunAsync(runId, RunStatuses.Completed, "{}", null, Ct);
+        var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Consulta));
+
+        var detalhe = WebUtility.HtmlDecode(await client.GetStringAsync($"/Execucoes/Detalhe/{runId}", Ct));
+
+        detalhe.Should().Contain($"Serviço {VersaoServico.Atual}", "rodapé do menu")
+            .And.Contain($"Versão do serviço</dt><dd class=\"col-7\">{VersaoServico.Atual}</dd>", "detalhe da execução");
     }
 
     [Fact]

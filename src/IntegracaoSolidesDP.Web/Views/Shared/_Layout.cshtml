@@ -1,5 +1,7 @@
+@inject VersoesSistema Versoes
 @{
     var controller = ViewContext.RouteData.Values["controller"] as string;
+    var versaoServico = await Versoes.ServicoAsync(Context.RequestAborted);
     string Ativo(string alvo) => string.Equals(controller, alvo, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
     var nome = User.FindFirst(ClaimsWeb.Nome)?.Value ?? User.Identity?.Name;
     var perfil = Perfis.Todos.LastOrDefault(User.IsInRole) ?? "—";
@@ -39,6 +41,13 @@
             <div class="nav-titulo">Suporte</div>
             <a class="nav-link @Ativo("Ajuda")" asp-controller="Ajuda" asp-action="Index"><i class="bi bi-question-circle"></i> Ajuda</a>
         </nav>
+        <div class="app-versao" title="Versões instaladas. Web e serviço devem ser do mesmo pacote.">
+            Web @Versoes.Web · Serviço @(versaoServico ?? "—")
+            @if (versaoServico is not null && versaoServico != Versoes.Web)
+            {
+                <i class="bi bi-exclamation-triangle-fill text-warning" title="Web e serviço em versões diferentes: atualize os dois com o mesmo pacote."></i>
+            }
+        </div>
     </aside>
 
     <div class="app-main">
