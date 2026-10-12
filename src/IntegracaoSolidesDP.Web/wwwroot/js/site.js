@@ -1,4 +1,4 @@
-// Funções comuns das telas: grades (DataTables server-side), rótulos e confirmações.
+// Funções comuns das telas: grades (DataTables server-side), rótulos e a caixa de diálogo padrão.
 (function () {
     'use strict';
 
@@ -79,6 +79,94 @@
         return `<a href="${url}"><code>${esc(externalId)}</code></a>`;
     }
 
+    // ---------------------------------------------------------------- caixa de diálogo padrão
+    // Modal do Bootstrap (#app-dialogo, no _Layout) no lugar de alert/confirm/prompt do navegador.
+    // Os textos entram com textContent: nunca interpretam HTML.
+    const estilosDialogo = {
+        info: { icone: 'bi-info-circle-fill', cor: 'text-primary', botao: 'btn-primary' },
+        aviso: { icone: 'bi-exclamation-triangle-fill', cor: 'text-warning', botao: 'btn-warning' },
+        perigo: { icone: 'bi-exclamation-octagon-fill', cor: 'text-danger', botao: 'btn-danger' },
+        sucesso: { icone: 'bi-check-circle-fill', cor: 'text-success', botao: 'btn-success' }
+    };
+
+    /**
+     * Abre a caixa de diálogo. Opções: titulo, mensagem, tipo (info|aviso|perigo|sucesso), botao (texto do botão
+     * de confirmar), campo (rótulo de um texto obrigatório, ex.: "Motivo"), somenteOk (só o botão OK).
+     * Resolve com true/false; com campo, com o texto digitado ou null se cancelou.
+     */
+    function dialogo(opcoes) {
+        const el = document.getElementById('app-dialogo');
+        if (!el || !window.bootstrap) {
+            // Página sem o modal (ex.: tela de login): diálogo do navegador.
+            if (opcoes.campo) {
+                const texto = window.prompt(opcoes.mensagem);
+                return Promise.resolve(texto && texto.trim() ? texto.trim() : null);
+            }
+            if (opcoes.somenteOk) {
+                window.alert(opcoes.mensagem);
+                return Promise.resolve(true);
+            }
+            return Promise.resolve(window.confirm(opcoes.mensagem));
+        }
+
+        if (el.classList.contains('show')) {
+            // Já há uma caixa aberta (ex.: vários erros de grade de uma vez): não empilha.
+            return Promise.resolve(opcoes.campo ? null : false);
+        }
+
+        const estilo = estilosDialogo[opcoes.tipo] || estilosDialogo.info;
+        const q = seletor => el.querySelector(seletor);
+        const texto = q('#app-dialogo-texto');
+        const ok = q('[data-dialogo-ok]');
+
+        q('[data-dialogo-icone]').className = `bi ${estilo.icone} ${estilo.cor}`;
+        q('[data-dialogo-titulo]').textContent = opcoes.titulo || 'Confirmação';
+        q('[data-dialogo-mensagem]').textContent = opcoes.mensagem || '';
+        q('[data-dialogo-campo]').classList.toggle('d-none', !opcoes.campo);
+        q('[data-dialogo-rotulo]').textContent = opcoes.campo || '';
+        q('[data-dialogo-cancelar]').classList.toggle('d-none', !!opcoes.somenteOk);
+        texto.value = '';
+        texto.classList.remove('is-invalid');
+        ok.className = `btn ${estilo.botao}`;
+        ok.textContent = opcoes.botao || (opcoes.somenteOk ? 'OK' : 'Confirmar');
+
+        const modal = bootstrap.Modal.getOrCreateInstance(el);
+        return new Promise(resolve => {
+            let resultado = opcoes.campo ? null : false;
+            ok.onclick = () => {
+                if (opcoes.campo) {
+                    const valor = texto.value.trim();
+                    if (!valor) {
+                        texto.classList.add('is-invalid');
+                        texto.focus();
+                        return;
+                    }
+                    resultado = valor;
+                } else {
+                    resultado = true;
+                }
+                modal.hide();
+            };
+            el.addEventListener('shown.bs.modal', () => (opcoes.campo ? texto : ok).focus(), { once: true });
+            el.addEventListener('hidden.bs.modal', () => {
+                ok.onclick = null;
+                resolve(resultado);
+            }, { once: true });
+            modal.show();
+        });
+    }
+
+    const confirmar = (mensagem, opcoes) => dialogo(Object.assign({ mensagem }, opcoes));
+    const pedirMotivo = (mensagem, opcoes) => dialogo(Object.assign({ mensagem, campo: 'Motivo', tipo: 'aviso' }, opcoes));
+    const avisar = (mensagem, opcoes) => dialogo(Object.assign({ mensagem, somenteOk: true }, opcoes));
+
+    // Erro numa grade (ex.: sessão expirada, servidor fora): caixa padrão em vez do alert do DataTables.
+    if (window.DataTable) {
+        DataTable.ext.errMode = (settings, tecnico, mensagem) => avisar(
+            'Não foi possível carregar os dados desta lista. Recarregue a página (F5); se continuar, avise o TI.\n\nDetalhe técnico: ' + mensagem,
+            { titulo: 'Erro ao carregar a lista', tipo: 'perigo' });
+    }
+
     function grid(seletor, url, colunas, opcoes) {
         opcoes = opcoes || {};
         return new DataTable(seletor, Object.assign({
@@ -110,7 +198,7 @@
     }
 
     window.app = {
-        esc, data, dia, duracao, badge, resumo, linkHistorico, grid,
+        esc, data, dia, duracao, badge, resumo, linkHistorico, grid, dialogo, confirmar, pedirMotivo, avisar,
         entidade: t => esc(rotulos.entidades[t] || t),
         acao: a => esc(rotulos.acoes[a] || a),
         comando: c => esc(rotulos.comandos[c] || c),
@@ -124,18 +212,44 @@
         }
     });
 
-    // <form data-motivo="pergunta"> pede o motivo; <form data-confirmar="pergunta"> pede confirmação.
-    document.addEventListener('submit', e => {
+    // Formulários que pedem confirmação, com a caixa padrão:
+    //   <form data-confirmar="texto">            confirmação
+    //   <form data-motivo="texto">               motivo obrigatório, gravado no <input name="motivo">
+    //   data-dialogo-titulo / data-dialogo-tipo (info|aviso|perigo|sucesso) / data-dialogo-botao: opcionais.
+    // O botão de confirmar repete o texto do botão clicado ("Desativar", "Executar agora").
+    document.addEventListener('submit', async e => {
         const form = e.target;
-        if (form.dataset.motivo !== undefined) {
-            const motivo = window.prompt(form.dataset.motivo);
-            if (!motivo || !motivo.trim()) {
-                e.preventDefault();
-                return;
-            }
-            form.querySelector('input[name="motivo"]').value = motivo.trim();
-        } else if (form.dataset.confirmar && !window.confirm(form.dataset.confirmar)) {
-            e.preventDefault();
+        if (form.dataset.dialogoConfirmado === '1') {
+            delete form.dataset.dialogoConfirmado;
+            return;
+        }
+
+        const pedeMotivo = form.dataset.motivo !== undefined;
+        if (!pedeMotivo && !form.dataset.confirmar) {
+            return;
+        }
+
+        e.preventDefault();
+        const botao = e.submitter;
+        const opcoes = {
+            titulo: form.dataset.dialogoTitulo,
+            tipo: form.dataset.dialogoTipo || (pedeMotivo ? 'aviso' : 'info'),
+            botao: form.dataset.dialogoBotao || (botao && botao.textContent.trim()) || undefined
+        };
+
+        if (pedeMotivo) {
+            const motivo = await pedirMotivo(form.dataset.motivo, Object.assign({}, opcoes, { titulo: opcoes.titulo || 'Informe o motivo' }));
+            if (motivo === null) return;
+            form.querySelector('input[name="motivo"]').value = motivo;
+        } else if (!await confirmar(form.dataset.confirmar, Object.assign({}, opcoes, { titulo: opcoes.titulo || 'Confirmação' }))) {
+            return;
+        }
+
+        form.dataset.dialogoConfirmado = '1';
+        if (form.requestSubmit) {
+            form.requestSubmit(botao && botao.form === form ? botao : undefined);
+        } else {
+            form.submit();
         }
     });
 })();

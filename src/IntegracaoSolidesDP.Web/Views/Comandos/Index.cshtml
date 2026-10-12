@@ -22,7 +22,8 @@
                 {
                     <div class="col-md-6 col-xl-4">
                         <form asp-action="Solicitar" method="post" class="d-flex gap-2 align-items-start border rounded p-2 h-100"
-                              data-confirmar="@(tipo == CommandTypes.Run ? "Executar a sincronização agora? Com o envio real ligado, os dados vão para o Sólides DP." : "")">
+                              data-dialogo-titulo="Executar agora" data-dialogo-tipo="aviso"
+                              data-confirmar="@(tipo == CommandTypes.Run ? "O serviço sincroniza agora, com a configuração em vigor: empresas com ENVIO REAL enviam ao Sólides DP; as que estão em simulação só simulam." : "")">
                             <input type="hidden" name="tipo" value="@tipo" />
                             <input type="hidden" name="cdempresa" data-empresa-do-pedido />
                             <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary") text-nowrap">@Rotulos.Comando(tipo)</button>

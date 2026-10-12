@@ -92,6 +92,33 @@
         </div>
     }
 
+    @* Caixa de diálogo padrão do sistema (confirmação, motivo, erro). Preenchida por app.dialogo em site.js. *@
+    <div class="modal fade" id="app-dialogo" tabindex="-1" aria-labelledby="app-dialogo-titulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content app-dialogo">
+                <div class="modal-header">
+                    <h2 class="modal-title h5 d-flex align-items-center gap-2" id="app-dialogo-titulo">
+                        <i class="bi" data-dialogo-icone></i><span data-dialogo-titulo></span>
+                    </h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0 app-dialogo-mensagem" data-dialogo-mensagem></p>
+                    <div class="mt-3 d-none" data-dialogo-campo>
+                        <label class="form-label small fw-semibold" for="app-dialogo-texto" data-dialogo-rotulo>Motivo</label>
+                        <textarea id="app-dialogo-texto" class="form-control" rows="3" maxlength="500"></textarea>
+                        <div class="invalid-feedback">Informe o motivo para continuar.</div>
+                        <div class="form-text">Fica registrado na auditoria.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" data-dialogo-cancelar>Cancelar</button>
+                    <button type="button" class="btn btn-primary" data-dialogo-ok>Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/lib/datatables/js/dataTables.min.js"></script>

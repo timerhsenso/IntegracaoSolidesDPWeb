@@ -300,3 +300,23 @@ a.dica-ajuda {
         display: block !important;
     }
 }
+
+/* Caixa de diálogo padrão (#app-dialogo no _Layout). */
+.app-dialogo {
+    border: 0;
+    border-radius: .75rem;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .25);
+}
+
+.app-dialogo .modal-header,
+.app-dialogo .modal-footer {
+    border: 0;
+}
+
+.app-dialogo .modal-header .bi {
+    font-size: 1.4rem;
+}
+
+.app-dialogo-mensagem {
+    white-space: pre-line;
+}

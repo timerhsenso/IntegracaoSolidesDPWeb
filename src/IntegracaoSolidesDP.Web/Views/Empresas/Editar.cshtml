@@ -193,7 +193,8 @@
                     @if (Model.TemToken)
                     {
                         <form asp-action="RemoverToken" asp-route-id="@f.Cdempresa" method="post"
-                              data-motivo="Motivo para remover o token desta empresa (ela deixa de enviar ao Sólides DP):">
+                              data-dialogo-titulo="Remover o token" data-dialogo-tipo="perigo"
+                              data-motivo="@($"A empresa {f.Cdempresa} deixa de enviar ao Sólides DP até um token novo ser cadastrado.")">
                             <input type="hidden" name="motivo" />
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Remover o token</button>
                         </form>
@@ -217,7 +218,10 @@
                     })
                     {
                         <form asp-action="Solicitar" asp-route-id="@f.Cdempresa" method="post" class="d-flex gap-2 align-items-start"
-                              data-confirmar="@(tipo == CommandTypes.Run ? $"Executar a empresa {f.Cdempresa} agora? Com o envio real ligado, os dados vão para o Sólides DP." : "")">
+                              data-dialogo-titulo="@($"Executar a empresa {f.Cdempresa}")" data-dialogo-tipo="@(f.DryRun ? "info" : "perigo")"
+                              data-confirmar="@(tipo != CommandTypes.Run ? "" : f.DryRun
+                                  ? $"A empresa {f.Cdempresa} está em SIMULAÇÃO: o serviço só simula, nada é gravado no Sólides DP."
+                                  : $"A empresa {f.Cdempresa} está com ENVIO REAL: os dados vão para o Sólides DP agora.")">
                             <input type="hidden" name="tipo" value="@tipo" />
                             <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary") text-nowrap">@Rotulos.Comando(tipo)</button>
                             <span class="small text-body-secondary">@descricao</span>

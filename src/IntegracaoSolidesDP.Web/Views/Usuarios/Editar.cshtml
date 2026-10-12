@@ -43,7 +43,9 @@
         <div class="card mb-3">
             <div class="card-header">Redefinir senha</div>
             <div class="card-body">
-                <form asp-action="RedefinirSenha" method="post" class="d-flex gap-2" data-confirmar="Redefinir a senha deste usuário?">
+                <form asp-action="RedefinirSenha" method="post" class="d-flex gap-2"
+                      data-dialogo-titulo="Redefinir a senha" data-dialogo-tipo="aviso"
+                      data-confirmar="O usuário passa a entrar com a senha informada e terá de trocá-la no próximo acesso.">
                     <input type="hidden" name="id" value="@Model.Id" />
                     <input type="password" name="novaSenha" class="form-control" placeholder="Nova senha" autocomplete="new-password" required />
                     <button type="submit" class="btn btn-outline-primary text-nowrap">Redefinir</button>
@@ -58,7 +60,9 @@
                 <div class="card-body">
                     @if (Model.Ativo)
                     {
-                        <form asp-action="Desativar" method="post" data-confirmar="Desativar este usuário? Ele perde o acesso em até 1 minuto.">
+                        <form asp-action="Desativar" method="post"
+                              data-dialogo-titulo="Desativar o usuário" data-dialogo-tipo="perigo"
+                              data-confirmar="Ele perde o acesso em até 1 minuto, mesmo com a sessão aberta. Pode ser ativado de novo depois.">
                             <input type="hidden" name="id" value="@Model.Id" />
                             <button type="submit" class="btn btn-outline-danger"><i class="bi bi-person-slash"></i> Desativar</button>
                         </form>

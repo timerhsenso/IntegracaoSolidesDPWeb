@@ -77,14 +77,18 @@
                 <div class="card-footer bg-transparent">
                     @if (ativa)
                     {
-                        <form asp-controller="Configuracao" asp-action="Desativar" method="post" data-motivo="Motivo para DESATIVAR a integração:">
+                        <form asp-controller="Configuracao" asp-action="Desativar" method="post"
+                              data-dialogo-titulo="Desativar a integração" data-dialogo-tipo="perigo"
+                              data-motivo="Enquanto estiver desativada, nenhuma empresa envia ao Sólides DP. As simulações continuam permitidas.">
                             <input type="hidden" name="motivo" />
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-pause-fill"></i> Desativar</button>
                         </form>
                     }
                     else
                     {
-                        <form asp-controller="Configuracao" asp-action="Ativar" method="post" data-motivo="Motivo para ATIVAR a integração:">
+                        <form asp-controller="Configuracao" asp-action="Ativar" method="post"
+                              data-dialogo-titulo="Ativar a integração" data-dialogo-tipo="aviso"
+                              data-motivo="As empresas com envio real voltam a enviar ao Sólides DP a partir da próxima execução.">
                             <input type="hidden" name="motivo" />
                             <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-play-fill"></i> Ativar</button>
                         </form>
@@ -155,7 +159,8 @@
             {
                 var bloqueado = tipo == CommandTypes.Run && !ativa;
                 <form asp-controller="Comandos" asp-action="Solicitar" method="post"
-                      data-confirmar="@(tipo == CommandTypes.Run ? "Executar a sincronização agora? Com o envio real ligado, os dados vão para o Sólides DP." : "")">
+                      data-dialogo-titulo="Executar agora" data-dialogo-tipo="aviso"
+                      data-confirmar="@(tipo == CommandTypes.Run ? "O serviço sincroniza agora as empresas habilitadas, com a configuração em vigor: as que estão com ENVIO REAL enviam ao Sólides DP; as que estão em simulação só simulam." : "")">
                     <input type="hidden" name="tipo" value="@tipo" />
                     <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary")" disabled="@bloqueado"
                             title="@(bloqueado ? "Integração desativada" : "")">
