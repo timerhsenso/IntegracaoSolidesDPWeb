@@ -9,14 +9,14 @@ public sealed class VinculacaoReportTests
     {
         var csv = VinculacaoReport.ToCsv(
         [
-            new VinculacaoLinha { Rotulo = "15-3", Nome = "ZÉLIA", Resultado = ResultadosVinculacao.SemAlteracao },
-            new VinculacaoLinha { Rotulo = "15-2", Nome = "BRUNO", Resultado = ResultadosVinculacao.Criar },
-            new VinculacaoLinha { Rotulo = "15-1", Nome = "ÁLVARO", Resultado = ResultadosVinculacao.Criar },
-            new VinculacaoLinha { Rotulo = "15-4", Nome = "CARLA", Resultado = ResultadosVinculacao.Pendencia, Observacao = "cpf_invalido: CPF vazio; corrigir" },
+            new VinculacaoLinha { Rotulo = "15-00000003", Nome = "ZÉLIA", Resultado = ResultadosVinculacao.SemAlteracao },
+            new VinculacaoLinha { Rotulo = "15-00000002", Nome = "BRUNO", Resultado = ResultadosVinculacao.Criar },
+            new VinculacaoLinha { Rotulo = "15-00000001", Nome = "ÁLVARO", Resultado = ResultadosVinculacao.Criar },
+            new VinculacaoLinha { Rotulo = "15-00000004", Nome = "CARLA", Resultado = ResultadosVinculacao.Pendencia, Observacao = "cpf_invalido: CPF vazio; corrigir" },
         ]);
 
         var linhas = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        linhas.Skip(1).Select(l => l.Split(';')[0]).Should().Equal("15-4", "15-1", "15-2", "15-3");
+        linhas.Skip(1).Select(l => l.Split(';')[0]).Should().Equal("15-00000004", "15-00000001", "15-00000002", "15-00000003");
         linhas[1].Should().EndWith("\"cpf_invalido: CPF vazio; corrigir\"", "texto com ponto e vírgula vai entre aspas");
     }
 

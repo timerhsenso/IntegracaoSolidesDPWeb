@@ -171,7 +171,7 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
         var detalhe = WebUtility.HtmlDecode(await client.GetStringAsync($"/Execucoes/Detalhe/{runId}", Ct));
         var resposta = await client.GetAsync($"/Execucoes/Relatorio/{runId}?tipo=vinculacao", Ct);
 
-        detalhe.Should().Contain("Baixar relatório de vinculação");
+        detalhe.Should().Contain($"/Execucoes/Relatorio/{runId}?tipo=vinculacao");
         resposta.StatusCode.Should().Be(HttpStatusCode.OK);
         resposta.Content.Headers.ContentType!.MediaType.Should().Be("text/csv");
         resposta.Content.Headers.ContentDisposition!.ToString().Should().Contain("vinculacao-empresa15-20261011-212019.csv");
@@ -192,7 +192,8 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
         var detalhe = WebUtility.HtmlDecode(await client.GetStringAsync($"/Execucoes/Detalhe/{runId}", Ct));
         var resposta = await client.GetAsync($"/Execucoes/Relatorio/{runId}?tipo=vinculacao", Ct);
 
-        detalhe.Should().NotContain("Baixar relatório de vinculação");
+        // O texto do botão também aparece na Ajuda da tela: confere o link do download.
+        detalhe.Should().NotContain("/Execucoes/Relatorio/");
         resposta.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
