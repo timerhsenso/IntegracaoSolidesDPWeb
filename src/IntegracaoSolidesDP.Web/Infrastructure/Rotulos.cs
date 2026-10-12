@@ -66,6 +66,7 @@ public static class Rotulos
         ["CHECK_CONFIG"] = "Verificar configuração",
         ["DISCOVER"] = "Consultar o Sólides DP",
         ["RECONCILE"] = "Conferir enviados",
+        ["CONFERIR_CAMPOS"] = "Conferir campos (DP x RHSenso)",
         ["TESTAR_EMAIL"] = "Testar e-mail",
     };
 

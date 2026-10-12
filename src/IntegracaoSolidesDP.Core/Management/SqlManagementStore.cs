@@ -247,6 +247,25 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             ultimo_sinal  datetimeoffset(7) NOT NULL,
             CONSTRAINT pk_solidesdp_servico_sinal PRIMARY KEY (instance_name, maquina)
         );
+
+        IF OBJECT_ID(N'solidesdp.conferencia', N'U') IS NULL
+        BEGIN
+            CREATE TABLE solidesdp.conferencia (
+                id             bigint IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_conferencia PRIMARY KEY,
+                instance_name  nvarchar(64)      NOT NULL,
+                cdempresa      int               NOT NULL,
+                iniciada_em    datetimeoffset(7) NOT NULL,
+                concluida_em   datetimeoffset(7) NOT NULL,
+                gatilho        varchar(16)       NOT NULL,
+                solicitado_por nvarchar(64)      NULL,
+                conferidos     int               NOT NULL,
+                pessoas        int               NOT NULL,
+                divergencias   int               NOT NULL,
+                erro           nvarchar(max)     NULL,
+                linhas_json    nvarchar(max)     NULL
+            );
+            CREATE INDEX ix_solidesdp_conferencia_empresa ON solidesdp.conferencia (instance_name, cdempresa, iniciada_em DESC);
+        END;
         """;
 
     private const int UniqueKeyViolation = 2627;
@@ -557,6 +576,10 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         ("notificacao_pendencia", "chave", "entidade|registro|código do motivo: a mesma pendência tem sempre a mesma chave."),
         ("notificacao_pendencia", "primeira_vez", "Quando apareceu (ou reapareceu depois de resolvida): define o que é novo no resumo."),
         ("notificacao_pendencia", "resolvida_em", "Quando deixou de aparecer nas execuções. Nulo = em aberto."),
+        ("conferencia", null, "Conferência DP x RHSenso: campos dos colaboradores vinculados que estão diferentes no Sólides DP (semanal ou pedida na Web)."),
+        ("conferencia", "gatilho", "agendada = a semanal (Sync:ConferenciaDiaSemana/ConferenciaHora); pedido = Conferir campos na Web."),
+        ("conferencia", "pessoas", "Colaboradores com pelo menos um campo diferente."),
+        ("conferencia", "linhas_json", "Uma linha por campo diferente: pessoa, campo, valor no RHSenso e no Sólides DP."),
         ("servico_sinal", null, "Sinal de vida de cada serviço (instância e máquina): a Web avisa quando o último sinal fica velho (Sync:ServicoSemRespostaMinutos)."),
         ("servico_sinal", "ultimo_sinal", "Último sinal (a cada Gestao:IntervaloSinalDeVida, também durante as execuções)."),
         ("servico_sinal", "iniciado_em", "Quando o processo atual do serviço começou."),

@@ -87,7 +87,10 @@ public static class CommandTypes
     public const string Discover = "DISCOVER";
     public const string Reconcile = "RECONCILE";
 
-    public static readonly IReadOnlyList<string> All = [Run, DryRun, CheckConfig, Discover, Reconcile];
+    /// <summary>Conferência campo a campo DP x RHSenso dos colaboradores vinculados (só lê o Sólides DP).</summary>
+    public const string ConferirCampos = "CONFERIR_CAMPOS";
+
+    public static readonly IReadOnlyList<string> All = [Run, DryRun, CheckConfig, Discover, Reconcile, ConferirCampos];
 
     /// <summary>E-mail de teste para os destinatários ativos (pedido pela tela Notificações; fora de <see cref="All"/>).</summary>
     public const string TestarEmail = "TESTAR_EMAIL";

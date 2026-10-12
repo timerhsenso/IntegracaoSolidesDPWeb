@@ -1,0 +1,39 @@
+@* Ajuda › Conferência DP x RHSenso *@
+<p>
+    A integração só percebe o que muda no <strong>RHSenso</strong>. Se alguém altera um cadastro direto no Sólides DP (nome, cargo,
+    local...), a diferença fica para sempre. A conferência mostra essas diferenças. Todos os perfis veem;
+    <span class="badge text-bg-primary">Operador</span> e <span class="badge text-bg-dark">Admin</span> pedem o reenvio.
+</p>
+<h4>Quando roda</h4>
+<ul>
+    <li><strong>Toda semana</strong>, no dia e hora das <a href="#cfg-ConferenciaDiaSemana">regras gerais</a> (padrão: segunda-feira, 6h), para cada empresa habilitada com token.</li>
+    <li><strong>Quando pedida</strong>: botão "Conferir agora" desta tela, ou o pedido "Conferir campos" em Pedidos ao serviço (para uma empresa só).</li>
+    <li>Só <strong>lê</strong> o Sólides DP (uma consulta da lista de colaboradores por empresa). Não grava nada lá.</li>
+</ul>
+<h4>O que é comparado</h4>
+<p>
+    Para cada colaborador <strong>ativo no RHSenso e já vinculado</strong>, o que a integração enviaria hoje contra o que está no
+    Sólides DP: nome, PIS, CTPS e série, nascimento, admissão, e-mail, telefone, sexo, cargo, local de trabalho, empresa e situação
+    (ativo no RHSenso e desligado no DP, ou cadastro que não existe mais no DP). Espaços e maiúsculas no nome não contam.
+</p>
+<p>
+    <strong>Não é comparado</strong> o que é do Sólides DP por regra: início da vigência, escala, regra de ponto e Código Externo.
+    Campo vazio no RHSenso também não: a integração não o envia, e o DP pode ter o seu valor.
+</p>
+<h4>O que fazer com uma diferença</h4>
+<dl class="ajuda-def">
+    <dt>O RHSenso está certo</dt>
+    <dd>
+        Marque a pessoa na grade e use <strong>Reenviar do RHSenso</strong>. A próxima execução da empresa reenvia o cadastro inteiro
+        com os dados do RHSenso (fica na auditoria como <code>REENVIO_SOLICITADO</code>). Empresa em simulação: a simulação mostra
+        a pessoa em "Atualizar".
+    </dd>
+    <dt>O Sólides DP está certo</dt>
+    <dd>Corrija o RHSenso. A próxima execução envia a correção e a diferença some da próxima conferência.</dd>
+    <dt>Situação: desligado no DP</dt>
+    <dd>A pessoa está ativa no RHSenso mas desligada no Sólides DP: readmita no DP ou confira a demissão no RHSenso.</dd>
+</dl>
+<p>
+    Na conferência semanal com diferenças, quem recebe o <strong>resumo diário</strong> daquela empresa (tela Notificações) recebe
+    um e-mail com a lista. As conferências antigas são apagadas pela limpeza do histórico (a última de cada empresa fica).
+</p>

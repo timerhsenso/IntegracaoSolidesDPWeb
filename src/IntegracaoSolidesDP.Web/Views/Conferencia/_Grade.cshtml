@@ -1,0 +1,82 @@
+@model long
+@* Grade das divergências de uma conferência (Conferencia/Detalhe). As linhas vêm de Conferencia/Linhas (JSON). *@
+@{
+    var podeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin);
+}
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const podeOperar = @(podeOperar ? "true" : "false");
+        const nada = '<span class="text-body-secondary">vazio</span>';
+        let linhas;
+        try {
+            const resposta = await fetch('@Url.Action("Linhas", "Conferencia", new { id = Model })', { headers: { Accept: 'application/json' } });
+            if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
+            linhas = await resposta.json();
+        } catch (erro) {
+            document.getElementById('conferencia-resumo').innerHTML =
+                `<span class="text-danger small">Não foi possível carregar as linhas (${app.esc(erro.message)}). Use o botão de baixar o CSV.</span>`;
+            return;
+        }
+
+        let filtro = '';
+        DataTable.ext.search.push((settings, dados, indice, linha) =>
+            settings.nTable.id !== 'conferencia-grade' || !filtro || linha.campo === filtro);
+
+        const marcados = new Set();
+        const grade = new DataTable('#conferencia-grade', {
+            data: linhas,
+            language: app.idioma,
+            pageLength: 25,
+            order: [[1, 'asc']],
+            columns: [
+                {
+                    data: 'rotulo', orderable: false, searchable: false, visible: podeOperar,
+                    render: (v, tipo) => tipo === 'display'
+                        ? `<input type="checkbox" class="form-check-input" data-rotulo="${app.esc(v)}" ${marcados.has(v) ? 'checked' : ''} aria-label="Marcar ${app.esc(v)}">`
+                        : v
+                },
+                { data: 'rotulo', render: v => app.esc(v) },
+                {
+                    data: 'nome',
+                    render: (v, tipo, r) => tipo === 'display'
+                        ? `${app.esc(v || '')}${r.cadastroDp ? `<div class="small text-body-secondary">cadastro ${r.cadastroDp} no DP</div>` : ''}`
+                        : (v || '')
+                },
+                { data: 'cpf', render: v => app.esc(v || '') },
+                { data: 'campo', render: (v, tipo) => tipo === 'display' ? `<span class="badge text-bg-warning">${app.esc(v)}</span>` : v },
+                { data: 'rhSenso', render: (v, tipo) => tipo === 'display' ? (v ? app.esc(v) : nada) : (v || '') },
+                { data: 'dp', render: (v, tipo) => tipo === 'display' ? (v ? app.esc(v) : nada) : (v || '') }
+            ]
+        });
+
+        // Marcar uma linha marca a pessoa (todas as linhas dela).
+        document.getElementById('conferencia-grade').addEventListener('change', ev => {
+            const caixa = ev.target.closest('input[data-rotulo]');
+            if (!caixa) return;
+            if (caixa.checked) marcados.add(caixa.dataset.rotulo); else marcados.delete(caixa.dataset.rotulo);
+            grade.rows().invalidate('data').draw(false);
+        });
+        const form = document.getElementById('conferencia-reenviar');
+        form.addEventListener('submit', () => {
+            const destino = document.getElementById('conferencia-marcados');
+            if (!destino) return;
+            destino.innerHTML = [...marcados].map(r => `<input type="hidden" name="rotulos" value="${app.esc(r)}">`).join('');
+        }, true);
+
+        const contagem = {};
+        linhas.forEach(l => { contagem[l.campo] = (contagem[l.campo] || 0) + 1; });
+        const resumo = document.getElementById('conferencia-resumo');
+        const botao = (valor, texto, quantidade) =>
+            `<button type="button" class="btn btn-sm btn-outline-secondary" data-campo="${app.esc(valor)}">${app.esc(texto)} <span class="badge text-bg-secondary">${quantidade}</span></button>`;
+        resumo.innerHTML = botao('', 'Todos', linhas.length) + Object.keys(contagem).sort().map(c => botao(c, c, contagem[c])).join('');
+        const marcar = valor => resumo.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.campo === valor));
+        marcar('');
+        resumo.addEventListener('click', ev => {
+            const b = ev.target.closest('button[data-campo]');
+            if (!b) return;
+            filtro = b.dataset.campo;
+            marcar(filtro);
+            grade.draw();
+        });
+    });
+</script>

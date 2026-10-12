@@ -30,6 +30,7 @@ public static class AjudaTopicos
         new("migrados", "O que foi migrado", "bi-people", "Migrados"),
         new("pendencias", "Pendências", "bi-exclamation-triangle", "Pendencias"),
         new("pedidos", "Pedidos ao serviço", "bi-terminal", "Comandos"),
+        new("conferencia", "Conferência DP x RHSenso", "bi-ui-checks", "Conferencia"),
         new("configuracao", "Regras gerais", "bi-sliders", "Configuracao"),
         new("usuarios", "Usuários", "bi-person-gear", "Usuarios"),
         new("auditoria", "Auditoria", "bi-journal-text", "Auditoria"),
@@ -141,6 +142,7 @@ public static class CamposConfiguracao
         FeriasEndDateMode.InicioDoDiaSeguinte => "00:00 do dia seguinte ao último dia",
         FeriasEndDateMode.InicioDoUltimoDia => "00:00 do último dia",
         FeriasEndDateMode.FimDoUltimoDia => "23:59:59 do último dia",
+        DayOfWeek dia => CultureInfo.GetCultureInfo("pt-BR").DateTimeFormat.GetDayName(dia),
         IFormattable f => f.ToString(null, CultureInfo.GetCultureInfo("pt-BR")),
         _ => valor.ToString() ?? string.Empty,
     };

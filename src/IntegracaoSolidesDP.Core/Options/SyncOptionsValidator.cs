@@ -54,6 +54,16 @@ public sealed class SyncOptionsValidator : IValidateOptions<SyncOptions>
             errors.Add("Sync:LimpezaHora deve ser de 0 a 23.");
         }
 
+        if (options.ConferenciaHora is < 0 or > 23)
+        {
+            errors.Add("Sync:ConferenciaHora deve ser de 0 a 23.");
+        }
+
+        if (!Enum.IsDefined(options.ConferenciaDiaSemana))
+        {
+            errors.Add("Sync:ConferenciaDiaSemana inválido.");
+        }
+
         if (options.ServicoSemRespostaMinutos is < 1 or > 1440)
         {
             errors.Add("Sync:ServicoSemRespostaMinutos deve ser de 1 a 1440.");

@@ -31,6 +31,15 @@
 
 @await Component.InvokeAsync("SituacaoServico", new { compacto = false })
 
+@foreach (var conferencia in Model.Conferencias.Where(c => c.Erro is null && c.Pessoas > 0))
+{
+    <div class="alert alert-warning py-2" data-conferencia-divergente="@conferencia.Cdempresa">
+        <i class="bi bi-ui-checks"></i> Conferência DP x RHSenso de @F.Data(conferencia.IniciadaEm), empresa @conferencia.Cdempresa:
+        <strong>@conferencia.Pessoas colaborador(es)</strong> com dados diferentes no Sólides DP.
+        <a asp-controller="Conferencia" asp-action="Detalhe" asp-route-id="@conferencia.Id">Ver e decidir</a>
+    </div>
+}
+
 <div class="row g-3 mb-3">
     <div class="col-md-6 col-xl-3">
         <div class="card h-100 border-@(ativa ? "success" : "danger")">

@@ -38,6 +38,24 @@ public sealed class NotificadorTests
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Weekly_conference_with_differences_goes_to_who_receives_the_summary_of_that_company()
+    {
+        var conferencia = new Conferencia
+        {
+            Id = 7, Instancia = "default", Cdempresa = 15, IniciadaEm = _clock.GetUtcNow(), ConcluidaEm = _clock.GetUtcNow(),
+            Gatilho = GatilhosConferencia.Agendada, Conferidos = 33, Pessoas = 1, Divergencias = 1,
+            Linhas = [new DivergenciaCampo { Rotulo = "15-00000001", Cpf = TestData.Cpf1, Campo = CamposConferencia.Cargo, RhSenso = "00200", Dp = "00100" }],
+        };
+
+        await Criar().AvisarConferenciaAsync(conferencia, Ct);
+        await Criar().AvisarConferenciaAsync(conferencia with { Pessoas = 0, Divergencias = 0, Linhas = [] }, Ct);
+
+        var email = _enviador.Enviados.Should().ContainSingle("sem diferença não há e-mail").Subject.Mensagem;
+        email.Para.Should().Equal("rh15@adn.com.br");
+        email.Html.Should().Contain("15-00000001").And.Contain("https://srv:8443/Conferencia/Detalhe/7");
+    }
+
+    [Fact]
     public async Task Failure_is_sent_once_reminded_after_the_interval_and_recovery_is_announced()
     {
         var notificador = Criar();

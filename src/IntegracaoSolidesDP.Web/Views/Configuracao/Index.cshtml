@@ -185,6 +185,35 @@
                             </div>
                         </div>
                         <div class="form-text">Vínculos, auditoria e pedidos nunca são apagados pela limpeza.</div>
+                        <hr />
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input asp-for="Form.ConferenciaAtiva" class="form-check-input" />
+                                    <label asp-for="Form.ConferenciaAtiva" class="form-check-label"></label>
+                                    <dica-campo for="Form.ConferenciaAtiva" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.ConferenciaDiaSemana" class="form-label"></label>
+                                <select asp-for="Form.ConferenciaDiaSemana" class="form-select">
+                                    <option value="@DayOfWeek.Monday">Segunda-feira</option>
+                                    <option value="@DayOfWeek.Tuesday">Terça-feira</option>
+                                    <option value="@DayOfWeek.Wednesday">Quarta-feira</option>
+                                    <option value="@DayOfWeek.Thursday">Quinta-feira</option>
+                                    <option value="@DayOfWeek.Friday">Sexta-feira</option>
+                                    <option value="@DayOfWeek.Saturday">Sábado</option>
+                                    <option value="@DayOfWeek.Sunday">Domingo</option>
+                                </select>
+                                <dica-campo for="Form.ConferenciaDiaSemana" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Form.ConferenciaHora" class="form-label"></label>
+                                <input asp-for="Form.ConferenciaHora" class="form-control" />
+                                <dica-campo for="Form.ConferenciaHora" />
+                                <span asp-validation-for="Form.ConferenciaHora" class="text-danger small"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

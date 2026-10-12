@@ -94,6 +94,7 @@ public sealed class LimpezaTests : IAsyncLifetime
         return new Limpeza(
             _store,
             new SqlSinalServicoStore(new ConnectionFactory("Server=nao-usado")),
+            new SqlConferenciaStore(new ConnectionFactory("Server=nao-usado")),
             new MemoryManagement(),
             Options.Create(regras),
             Options.Create(new ManagementOptions { Habilitada = false }),

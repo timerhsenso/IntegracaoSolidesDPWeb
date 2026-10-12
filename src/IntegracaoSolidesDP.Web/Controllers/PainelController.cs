@@ -1,12 +1,14 @@
 using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Infrastructure;
 using IntegracaoSolidesDP.Web.Models;
+using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.State;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IntegracaoSolidesDP.Web.Controllers;
 
-public sealed class PainelController(PainelRepository painel, GestaoService gestao, Formatador formatador, TimeProvider clock) : Controller
+public sealed class PainelController(
+    PainelRepository painel, GestaoService gestao, IConferenciaStore conferencias, Formatador formatador, TimeProvider clock) : Controller
 {
     private const int Dias = 14;
 
@@ -47,6 +49,12 @@ public sealed class PainelController(PainelRepository painel, GestaoService gest
                 })
                 .ToList(),
             ComandosRecentes = await painel.ComandosRecentesAsync(8, ct),
+            // A última conferência DP x RHSenso de cada empresa (o aviso aparece quando há diferença).
+            Conferencias = (await conferencias.RecentesAsync(50, ct))
+                .GroupBy(x => x.Cdempresa)
+                .Select(g => g.First())
+                .OrderBy(x => x.Cdempresa)
+                .ToList(),
             PedidoParadoDesde = aguardandoDesde is { } desde && clock.GetUtcNow() - desde > TimeSpan.FromMinutes(2) ? desde : null,
         });
     }

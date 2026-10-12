@@ -95,6 +95,17 @@
     </text>);
 }
 
+<h4>Conferência DP x RHSenso</h4>
+@{
+    Campo(nameof(ConfiguracaoForm.ConferenciaAtiva), @<text>
+        <p class="mb-1">Detalhes na <a href="#conferencia">Conferência DP x RHSenso</a>. Desligada, a conferência só roda pelo pedido na Web.</p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.ConferenciaDiaSemana));
+    Campo(nameof(ConfiguracaoForm.ConferenciaHora), @<text>
+        <p class="mb-1">Se o serviço estiver parado nessa hora, a conferência roda assim que ele voltar, na mesma semana.</p>
+    </text>);
+}
+
 <h4>Quem entra</h4>
 @{
     Campo(nameof(ConfiguracaoForm.TiposColaborador));

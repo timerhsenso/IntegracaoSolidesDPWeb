@@ -106,6 +106,7 @@ Com a gestão desligada, vale a tabela abaixo inteira, para uma só empresa.
 | `Sync:ColaboradorMaxTentativas` | `3` | Recusas seguidas do DP aos mesmos dados antes de o colaborador virar pendência `recusado_pelo_dp`. |
 | `Sync:RetencaoExecucoesDias` / `Sync:RetencaoArquivosDias` | `180` / `30` | Limpeza diária: execuções (com itens e relatórios) e e-mails no banco / arquivos da pasta `reports`. `0` = não apaga. A última execução de cada empresa fica sempre. |
 | `Sync:LimpezaHora` | `3` | Hora local a partir da qual a limpeza do dia roda. |
+| `Sync:ConferenciaAtiva` / `Sync:ConferenciaDiaSemana` / `Sync:ConferenciaHora` | `true` / `Monday` / `6` | Conferência semanal DP x RHSenso (com a gestão ligada): compara os colaboradores vinculados no Sólides DP com o RHSenso, só lendo o DP. Também pelo pedido "Conferir campos" na Web. |
 | `Sync:ServicoSemRespostaMinutos` | `5` | A Web avisa "serviço sem resposta" quando o último sinal de vida passa disso. |
 
 ## Gestão pela Web

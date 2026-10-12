@@ -104,6 +104,15 @@ public sealed class SyncOptions
     /// <summary>Hora local (0 a 23) a partir da qual roda a limpeza do dia (uma vez por dia).</summary>
     public int LimpezaHora { get; set; } = 3;
 
+    /// <summary>Conferência semanal DP x RHSenso dos colaboradores vinculados (só lê o Sólides DP). Desligada: só pelo pedido na Web.</summary>
+    public bool ConferenciaAtiva { get; set; } = true;
+
+    /// <summary>Dia da semana da conferência automática.</summary>
+    public DayOfWeek ConferenciaDiaSemana { get; set; } = DayOfWeek.Monday;
+
+    /// <summary>Hora local (0 a 23) a partir da qual roda a conferência do dia.</summary>
+    public int ConferenciaHora { get; set; } = 6;
+
     /// <summary>A Web avisa "serviço sem resposta" quando o último sinal de vida do serviço é mais antigo que isto (minutos).</summary>
     public int ServicoSemRespostaMinutos { get; set; } = 5;
 

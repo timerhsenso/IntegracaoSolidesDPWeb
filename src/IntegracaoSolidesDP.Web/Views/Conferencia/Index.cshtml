@@ -1,0 +1,63 @@
+@model IReadOnlyList<IntegracaoSolidesDP.Worker.Management.Conferencia>
+@using IntegracaoSolidesDP.Worker.Management
+@{
+    ViewData["Title"] = "Conferência DP x RHSenso";
+    var podeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin);
+}
+<p class="small text-body-secondary">
+    O serviço compara, para cada colaborador ativo e vinculado, o que a integração enviaria hoje com o que está no Sólides DP
+    (nome, PIS, CTPS, nascimento, admissão, e-mail, telefone, sexo, cargo, local, empresa e situação). Nada é corrigido
+    sozinho: abra a conferência e use <strong>Reenviar do RHSenso</strong> para quem deve ficar como está no RHSenso.
+    Roda toda semana (tela Configuração) e quando pedida aqui.
+</p>
+@if (podeOperar)
+{
+    <form asp-controller="Comandos" asp-action="Solicitar" method="post" class="mb-3">
+        <input type="hidden" name="tipo" value="@CommandTypes.ConferirCampos" />
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-ui-checks"></i> Conferir agora (todas as empresas habilitadas)</button>
+        <span class="small text-body-secondary ms-2">Para uma empresa só, use a tela Pedidos ao serviço.</span>
+    </form>
+}
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle" id="conferencias">
+            <thead>
+                <tr><th>Empresa</th><th>Quando</th><th>Origem</th><th class="text-end">Conferidos</th><th class="text-end">Com diferença</th><th class="text-end">Campos</th><th></th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-body-secondary">Nenhuma conferência ainda.</td></tr>
+                }
+                @foreach (var c in Model)
+                {
+                    <tr data-conferencia="@c.Id">
+                        <td>@c.Cdempresa</td>
+                        <td>@F.Data(c.IniciadaEm)</td>
+                        <td>@(c.Gatilho == GatilhosConferencia.Agendada ? "Semanal" : $"Pedida por {c.SolicitadoPor}")</td>
+                        @if (c.Erro is { } erro)
+                        {
+                            <td colspan="3"><span class="badge text-bg-danger">Não concluída</span> <span class="small">@erro</span></td>
+                        }
+                        else
+                        {
+                            <td class="text-end">@c.Conferidos</td>
+                            <td class="text-end">
+                                @if (c.Pessoas > 0)
+                                {
+                                    <span class="badge text-bg-warning">@c.Pessoas</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-success">0</span>
+                                }
+                            </td>
+                            <td class="text-end">@c.Divergencias</td>
+                        }
+                        <td class="text-end"><a asp-action="Detalhe" asp-route-id="@c.Id">abrir</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

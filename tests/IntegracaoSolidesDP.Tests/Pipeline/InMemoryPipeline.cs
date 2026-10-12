@@ -56,6 +56,9 @@ internal sealed class InMemoryPipeline : IAsyncDisposable
 
     public FakeEnviadorEmail Emails { get; } = new();
 
+    /// <summary>Conferências DP x RHSenso gravadas.</summary>
+    public MemoryConferenciaStore Conferencias { get; } = new();
+
     public Dictionary<string, string?> Settings { get; } = new()
     {
         ["SolidesDP:BaseUrl"] = "http://solidesdp-fake",
@@ -83,6 +86,15 @@ internal sealed class InMemoryPipeline : IAsyncDisposable
         return await scope.ServiceProvider.GetRequiredService<SyncPipeline>().RunAsync(new RunRequest("teste", dryRun, Cdempresa: empresa), ct);
     }
 
+    /// <summary>Conferência DP x RHSenso pedida (todas as empresas, ou a informada).</summary>
+    public async Task<IReadOnlyList<Conferencia>> ConferirAsync(int? empresa = null, CancellationToken ct = default)
+    {
+        await using var provider = Build();
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<ConferenciaCampos>()
+            .ExecutarAsync(empresa, GatilhosConferencia.Pedido, "teste", desde: null, ct);
+    }
+
     public async Task<IReadOnlyList<SolidesDP.Fake.Domain.RecordedRequest>> WritesAsync(CancellationToken ct = default) =>
         (await Fake.GetRequestsAsync(ct)).Where(r => r.Method is "POST" or "PUT" or "DELETE").ToList();
 
@@ -102,6 +114,7 @@ internal sealed class InMemoryPipeline : IAsyncDisposable
         services.AddSingleton<IManagementStore>(Management);
         services.AddSingleton<INotificacaoStore>(Notificacoes);
         services.AddSingleton<IEnviadorEmail>(Emails);
+        services.AddSingleton<IConferenciaStore>(Conferencias);
         services.AddSingleton<ITokenProtector>(new PlainTokens());
 
         foreach (var name in new[] { SolidesDpClient.RetryClientName, SolidesDpClient.NoRetryClientName })
@@ -265,6 +278,41 @@ internal sealed class MemoryState : IStateStore
     private sealed class NoLock : IAsyncDisposable
     {
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>Conferências em memória (o SQL tem testes próprios).</summary>
+internal sealed class MemoryConferenciaStore : IConferenciaStore
+{
+    public List<Conferencia> Salvas { get; } = [];
+
+    public HashSet<(int Cdempresa, string Cpf)> Reenvios { get; } = [];
+
+    public Task<long> SalvarAsync(Conferencia conferencia, CancellationToken ct)
+    {
+        var id = Salvas.Count + 1L;
+        Salvas.Add(conferencia with { Id = id });
+        return Task.FromResult(id);
+    }
+
+    public Task<Conferencia?> ObterAsync(long id, CancellationToken ct) => Task.FromResult(Salvas.FirstOrDefault(c => c.Id == id));
+
+    public Task<IReadOnlyList<Conferencia>> RecentesAsync(int quantidade, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<Conferencia>>(Salvas.AsEnumerable().Reverse().Take(quantidade).ToList());
+
+    public Task<DateTimeOffset?> UltimaAsync(string instancia, int cdempresa, CancellationToken ct) =>
+        Task.FromResult(Salvas.Where(c => c.Instancia == instancia && c.Cdempresa == cdempresa).Select(c => (DateTimeOffset?)c.IniciadaEm).Max());
+
+    public Task<int> ApagarAntigasAsync(DateTimeOffset limite, CancellationToken ct) => Task.FromResult(0);
+
+    public Task<int> MarcarReenvioAsync(int cdempresa, IReadOnlyCollection<string> cpfs, CancellationToken ct)
+    {
+        foreach (var cpf in cpfs)
+        {
+            Reenvios.Add((cdempresa, cpf));
+        }
+
+        return Task.FromResult(cpfs.Count);
     }
 }
 

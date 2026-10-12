@@ -52,6 +52,62 @@ public sealed class Notificador(
         }
     }
 
+    /// <summary>
+    /// Conferência DP x RHSenso com divergências: avisa quem recebe o resumo diário daquela empresa. Nunca lança.
+    /// </summary>
+    public async Task AvisarConferenciaAsync(Conferencia conferencia, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(conferencia);
+        if (!management.Value.Habilitada || conferencia.Pessoas == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var config = await store.ConfiguracaoAsync(ct);
+            if (config is not { Ativo: true })
+            {
+                return;
+            }
+
+            var para = (await store.DestinatariosAsync(ct))
+                .Where(d => d.Ativo && d.RecebeResumo && d.Atende(conferencia.Cdempresa))
+                .Select(d => d.Email)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (para.Count == 0)
+            {
+                return;
+            }
+
+            var empresa = Empresa(conferencia.Cdempresa);
+            var html = new StringBuilder();
+            html.Append("<p><b>").Append(Encode(empresa)).Append("</b>: a conferência de ").Append(Encode(Local(conferencia.IniciadaEm)))
+                .Append(" encontrou <b>").Append(conferencia.Pessoas.ToString(CultureInfo.InvariantCulture))
+                .Append(" colaborador(es)</b> com dados diferentes no Sólides DP e no RHSenso (")
+                .Append(conferencia.Divergencias.ToString(CultureInfo.InvariantCulture)).Append(" campo(s), de ")
+                .Append(conferencia.Conferidos.ToString(CultureInfo.InvariantCulture)).Append(" conferidos).</p>")
+                .Append("<p>A integração não corrige sozinha: na tela Conferência, confira e use \"Reenviar do RHSenso\" para quem deve ficar como está no RHSenso.</p>");
+            AppendTabela(html, conferencia.Linhas.Take(MaximoItensNoEmail)
+                .Select(l => (l.Rotulo, $"{l.Campo}: RHSenso \"{l.RhSenso}\" × DP \"{l.Dp}\"")));
+            if (conferencia.Linhas.Count > MaximoItensNoEmail)
+            {
+                html.Append("<p>… e mais ").Append((conferencia.Linhas.Count - MaximoItensNoEmail).ToString(CultureInfo.InvariantCulture))
+                    .Append(" na tela.</p>");
+            }
+
+            AppendLink(html, config, string.Create(CultureInfo.InvariantCulture, $"Conferencia/Detalhe/{conferencia.Id}"), "Abrir a conferência");
+            var assunto = string.Create(CultureInfo.InvariantCulture,
+                $"{Prefixo} {empresa}: {conferencia.Pessoas} colaborador(es) diferente(s) no Sólides DP");
+            await EnviarAsync(config, TiposNotificacao.Conferencia, conferencia.Cdempresa, para, assunto, html.ToString(), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Falha ao avisar a conferência {Id}", conferencia.Id);
+        }
+    }
+
     /// <summary>A cada ciclo do serviço: envia o resumo diário das pendências quando chega a hora (uma vez por dia).</summary>
     public async Task ResumoSeDevidoAsync(CancellationToken ct)
     {

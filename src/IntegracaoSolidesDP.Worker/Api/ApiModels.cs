@@ -182,6 +182,114 @@ public sealed record EmployeeDto
     /// <summary>Data do desligamento no Sólides DP (epoch ms), quando o colaborador está desligado.</summary>
     [JsonConverter(typeof(EpochMillisFlexibleConverter))]
     public long? ResignationDate { get; init; }
+
+    // Campos da conferência DP x RHSenso (find-all). Leitura tolerante: a API devolve número ou texto
+    // conforme o endpoint, e um formato inesperado vira null em vez de derrubar a leitura do cadastro.
+
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Pis { get; init; }
+
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Ctps { get; init; }
+
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Series { get; init; }
+
+    [JsonConverter(typeof(EpochMillisFlexibleConverter))]
+    public long? BirthDate { get; init; }
+
+    [JsonConverter(typeof(EpochMillisFlexibleConverter))]
+    public long? AdmissionDate { get; init; }
+
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Email { get; init; }
+
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Phone { get; init; }
+
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Gender { get; init; }
+
+    /// <summary>Local de trabalho atual.</summary>
+    [JsonPropertyName("currentWorkplaceDTO")]
+    [JsonConverter(typeof(FlexibleObjectConverter<WorkplaceDto>))]
+    public WorkplaceDto? CurrentWorkplace { get; init; }
+
+    /// <summary>Empresa (no find-all vem o objeto; em outras respostas, só o id).</summary>
+    [JsonConverter(typeof(FlexibleCompanyConverter))]
+    public CompanyDto? Company { get; init; }
+}
+
+/// <summary>Texto que a API às vezes devolve como número; objeto, lista ou booleano viram null.</summary>
+public sealed class FlexibleStringConverter : JsonConverter<string?>
+{
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        switch (reader.TokenType)
+        {
+            case JsonTokenType.String:
+                return reader.GetString();
+            case JsonTokenType.Number:
+                return reader.TryGetInt64(out var inteiro)
+                    ? inteiro.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    : reader.GetDouble().ToString(System.Globalization.CultureInfo.InvariantCulture);
+            default:
+                reader.Skip();
+                return null;
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
+    {
+        if (value is null)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStringValue(value);
+        }
+    }
+}
+
+/// <summary>Objeto que, se vier em outro formato, vira null em vez de falhar a leitura.</summary>
+public sealed class FlexibleObjectConverter<T> : JsonConverter<T?>
+    where T : class
+{
+    public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.StartObject)
+        {
+            return JsonSerializer.Deserialize<T>(ref reader, options);
+        }
+
+        reader.Skip();
+        return null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options) =>
+        JsonSerializer.Serialize(writer, value, options);
+}
+
+/// <summary>Empresa como objeto (CompanyReturnDTO) ou só o id numérico (EmployeeDTO).</summary>
+public sealed class FlexibleCompanyConverter : JsonConverter<CompanyDto?>
+{
+    public override CompanyDto? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        switch (reader.TokenType)
+        {
+            case JsonTokenType.StartObject:
+                return JsonSerializer.Deserialize<CompanyDto>(ref reader, options);
+            case JsonTokenType.Number when reader.TryGetInt64(out var id):
+                return new CompanyDto { Id = id };
+            default:
+                reader.Skip();
+                return null;
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, CompanyDto? value, JsonSerializerOptions options) =>
+        JsonSerializer.Serialize(writer, value, options);
 }
 
 /// <summary>

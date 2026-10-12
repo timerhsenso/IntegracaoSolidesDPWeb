@@ -18,6 +18,7 @@ public sealed record ResultadoLimpeza(int Execucoes, int Envios, int Sinais, int
 public sealed class Limpeza(
     ILimpezaStore store,
     ISinalServicoStore sinais,
+    IConferenciaStore conferencias,
     IManagementStore management,
     IOptions<SyncOptions> configured,
     IOptions<ManagementOptions> gestao,
@@ -83,6 +84,11 @@ public sealed class Limpeza(
             if (gestao.Value.Habilitada)
             {
                 removidos = await sinais.ApagarAntigosAsync(limite, ct);
+                var conferenciasApagadas = await conferencias.ApagarAntigasAsync(limite, ct);
+                if (conferenciasApagadas > 0)
+                {
+                    logger.LogInformation("Limpeza do histórico: {Conferencias} conferências DP x RHSenso apagadas", conferenciasApagadas);
+                }
             }
         }
 

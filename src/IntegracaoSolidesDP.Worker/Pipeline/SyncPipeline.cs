@@ -250,9 +250,14 @@ public sealed class SyncPipeline(
     /// Filiais da execução: as marcadas (ou todas, se nenhuma foi marcada) que estão ativas no RHSenso
     /// (test1.flativofilial = 1). Colaborador ativo fora delas fica fora do escopo: nem envia nem desliga.
     /// </summary>
-    private async Task<EscopoEmpresa> EscopoAsync(EmpresaSettings empresa, CancellationToken ct)
+    private async Task<EscopoEmpresa> EscopoAsync(EmpresaSettings empresa, CancellationToken ct) =>
+        Escopo(empresa, await source.ReadWorkplacesAsync(ct));
+
+    /// <summary>Filiais da empresa no escopo, a partir das filiais do RHSenso (test1). Sem filial ativa, aborta.</summary>
+    public static EscopoEmpresa Escopo(EmpresaSettings empresa, IEnumerable<WorkplaceRow> filiaisRhSenso)
     {
-        var ativas = (await source.ReadWorkplacesAsync(ct))
+        ArgumentNullException.ThrowIfNull(empresa);
+        var ativas = filiaisRhSenso
             .Where(w => w.Cdempresa == empresa.Cdempresa && w.Ativa)
             .Select(w => w.Cdfilial)
             .ToHashSet();

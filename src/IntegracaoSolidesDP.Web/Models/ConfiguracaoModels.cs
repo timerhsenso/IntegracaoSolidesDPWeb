@@ -74,6 +74,16 @@ public sealed class ConfiguracaoForm
     [Display(Name = "Serviço sem resposta após (minutos)", Description = "O Painel e a tela de pedidos avisam que o serviço parou quando o último sinal de vida dele é mais antigo que isto.")]
     public int ServicoSemRespostaMinutos { get; set; } = 5;
 
+    [Display(Name = "Conferência semanal DP x RHSenso", Description = "Ligado: toda semana o serviço compara os colaboradores vinculados no Sólides DP com o RHSenso (só lê o DP). Desligado: só pelo pedido na Web.")]
+    public bool ConferenciaAtiva { get; set; } = true;
+
+    [Display(Name = "Dia da conferência", Description = "Dia da semana em que a conferência DP x RHSenso roda.")]
+    public DayOfWeek ConferenciaDiaSemana { get; set; } = DayOfWeek.Monday;
+
+    [Range(0, 23, ErrorMessage = "Informe uma hora de 0 a 23.")]
+    [Display(Name = "Hora da conferência", Description = "A conferência roda a partir desta hora do dia escolhido (fuso do serviço).")]
+    public int ConferenciaHora { get; set; } = 6;
+
     [Required(ErrorMessage = "Descreva o motivo da alteração.")]
     [StringLength(500, ErrorMessage = "Use até 500 caracteres.")]
     [Display(Name = "Motivo da alteração")]
@@ -97,6 +107,9 @@ public sealed class ConfiguracaoForm
         RetencaoArquivosDias = options.RetencaoArquivosDias,
         LimpezaHora = options.LimpezaHora,
         ServicoSemRespostaMinutos = options.ServicoSemRespostaMinutos,
+        ConferenciaAtiva = options.ConferenciaAtiva,
+        ConferenciaDiaSemana = options.ConferenciaDiaSemana,
+        ConferenciaHora = options.ConferenciaHora,
     };
 
     /// <summary>
@@ -124,6 +137,9 @@ public sealed class ConfiguracaoForm
         options.RetencaoArquivosDias = RetencaoArquivosDias;
         options.LimpezaHora = LimpezaHora;
         options.ServicoSemRespostaMinutos = ServicoSemRespostaMinutos;
+        options.ConferenciaAtiva = ConferenciaAtiva;
+        options.ConferenciaDiaSemana = ConferenciaDiaSemana;
+        options.ConferenciaHora = ConferenciaHora;
         return options;
     }
 

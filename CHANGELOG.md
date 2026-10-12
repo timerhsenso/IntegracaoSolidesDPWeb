@@ -4,6 +4,13 @@ Uma seção por versão, a mais nova primeiro. O título é `## <versão> — <d
 só gera o pacote de uma versão que tenha a sua seção aqui, e a Web mostra este arquivo em Ajuda › Novidades.
 Escreva para quem usa: o que mudou na tela e no comportamento, não o código.
 
+## 1.0.3 — a definir
+
+- Conferência DP x RHSenso (menu Conferência DP x RHSenso): toda semana (padrão segunda, 6h) o serviço compara os colaboradores vinculados no Sólides DP com o RHSenso — nome, PIS, CTPS, nascimento, admissão, e-mail, telefone, sexo, cargo, local, empresa e situação — sem gravar nada no DP.
+- Na conferência, "Reenviar do RHSenso" marca quem deve ficar como está no RHSenso: a próxima execução reenvia o cadastro.
+- Painel avisa quando a última conferência de uma empresa encontrou diferenças; quem recebe o resumo diário recebe a lista por e-mail.
+- Novo pedido "Conferir campos (DP x RHSenso)" em Pedidos ao serviço.
+
 ## 1.0.2 — 12/10/2026
 
 - Avisos por e-mail (Administração › Notificações): falha da integração na hora, lembrete enquanto continuar, aviso de que voltou ao normal e resumo diário das pendências. Destinatários gerais ou por empresa.

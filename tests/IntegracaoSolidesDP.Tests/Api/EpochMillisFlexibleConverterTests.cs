@@ -34,4 +34,16 @@ public sealed class EpochMillisFlexibleConverterTests
 
         dto.JobRole!.ExternalId.Should().Be("005");
     }
+
+    [Theory]
+    [InlineData("""{"company":{"id":3001,"fantasyName":"ADN"},"phone":"71999990000","currentWorkplaceDTO":{"externalId":"15-1"}}""")]
+    [InlineData("""{"company":3001,"phone":71999990000,"currentWorkplaceDTO":"15-1"}""")]
+    public void Conference_fields_accept_object_or_id_and_text_or_number(string json)
+    {
+        var dto = JsonSerializer.Deserialize<EmployeeDto>(json, SolidesDpJson.Options)!;
+
+        dto.Company!.Id.Should().Be(3001);
+        dto.Phone.Should().Be("71999990000");
+        dto.CurrentWorkplace?.ExternalId.Should().BeOneOf("15-1", null);
+    }
 }

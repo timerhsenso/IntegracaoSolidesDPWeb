@@ -85,6 +85,19 @@ public sealed class CommandProcessor(
                     return (exitCode == 0 ? CommandStatuses.Done : CommandStatuses.Failed, null, output.ToString());
                 }
 
+                case CommandTypes.ConferirCampos:
+                {
+                    var feitas = await services.GetRequiredService<ConferenciaCampos>().ExecutarAsync(
+                        command.Cdempresa, GatilhosConferencia.Pedido, command.RequestedBy, desde: null, ct);
+                    var texto = feitas.Count == 0
+                        ? "Nenhuma empresa habilitada para conferir."
+                        : string.Join(Environment.NewLine, feitas.Select(c => c.Erro is { } erro
+                            ? string.Create(CultureInfo.InvariantCulture, $"empresa {c.Cdempresa}: não conferida: {erro} (conferência {c.Id})")
+                            : string.Create(CultureInfo.InvariantCulture,
+                                $"empresa {c.Cdempresa}: {c.Conferidos} conferidos, {c.Pessoas} com dados diferentes no Sólides DP ({c.Divergencias} campos). Conferência {c.Id}.")));
+                    return (feitas.Any(c => c.Erro is not null) ? CommandStatuses.Failed : CommandStatuses.Done, null, texto);
+                }
+
                 case CommandTypes.TestarEmail:
                     return (CommandStatuses.Done, null, await services.GetRequiredService<Notificador>().EnviarTesteAsync(ct));
 

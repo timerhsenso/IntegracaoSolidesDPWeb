@@ -29,6 +29,12 @@
         Confere se cada colaborador enviado pela integração ainda existe no Sólides DP. Os que sumiram aparecem como <code>[AUSENTE]</code>.
         <strong>Não corrige nada</strong>: o reenvio dos ausentes é feito pelo TI. Bom para rodar uma vez por semana.
     </dd>
+    <dt>Conferir campos (DP x RHSenso)</dt>
+    <dd>
+        Compara campo a campo os colaboradores vinculados no Sólides DP com o RHSenso e grava o resultado na tela
+        <a asp-controller="Ajuda" asp-action="Index" asp-fragment="conferencia">Conferência DP x RHSenso</a>. Só lê o Sólides DP.
+        Sem empresa escolhida, confere todas as habilitadas.
+    </dd>
 </dl>
 
 <h4>Acompanhando um pedido</h4>

@@ -134,4 +134,7 @@ public static class TiposNotificacao
     public const string Normalizou = "normalizou";
     public const string Resumo = "resumo";
     public const string Teste = "teste";
+
+    /// <summary>Conferência semanal DP x RHSenso com divergências.</summary>
+    public const string Conferencia = "conferencia";
 }

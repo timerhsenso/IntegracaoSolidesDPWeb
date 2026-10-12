@@ -1,0 +1,60 @@
+@model IntegracaoSolidesDP.Worker.Management.Conferencia
+@using IntegracaoSolidesDP.Worker.Management
+@{
+    ViewData["Title"] = $"Conferência da empresa {Model.Cdempresa}";
+    var podeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin);
+}
+<div class="card mb-3">
+    <div class="card-body">
+        <dl class="row mb-0 small">
+            <dt class="col-sm-3">Empresa</dt><dd class="col-sm-9">@Model.Cdempresa</dd>
+            <dt class="col-sm-3">Quando</dt><dd class="col-sm-9">@F.Data(Model.IniciadaEm)</dd>
+            <dt class="col-sm-3">Origem</dt><dd class="col-sm-9">@(Model.Gatilho == GatilhosConferencia.Agendada ? "Conferência semanal" : $"Pedida por {Model.SolicitadoPor}")</dd>
+            <dt class="col-sm-3">Conferidos</dt><dd class="col-sm-9">@Model.Conferidos colaboradores ativos e vinculados</dd>
+            <dt class="col-sm-3">Com diferença</dt><dd class="col-sm-9" data-pessoas="@Model.Pessoas">@Model.Pessoas colaborador(es), @Model.Divergencias campo(s)</dd>
+        </dl>
+    </div>
+</div>
+@if (Model.Erro is { } erro)
+{
+    <div class="alert alert-danger"><strong>Conferência não concluída:</strong> @erro</div>
+}
+else if (Model.Divergencias == 0)
+{
+    <div class="alert alert-success"><i class="bi bi-check-circle"></i> Tudo confere: o Sólides DP está igual ao que a integração enviaria hoje.</div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+            <span>Campos diferentes</span>
+            <a class="btn btn-sm btn-outline-secondary ms-auto" asp-action="Csv" asp-route-id="@Model.Id"><i class="bi bi-filetype-csv"></i> Baixar CSV</a>
+        </div>
+        <div class="card-body">
+            <p class="small text-body-secondary mb-2">
+                RHSenso = o que a integração enviaria hoje; Sólides DP = o que está lá. Clique num campo para filtrar.
+                @if (podeOperar)
+                {
+                    <span>Marque quem deve ficar como está no RHSenso e use <strong>Reenviar do RHSenso</strong>: a próxima execução da empresa reenvia o cadastro inteiro.
+                    Se a correta é a informação do Sólides DP, corrija o RHSenso.</span>
+                }
+            </p>
+            <div id="conferencia-resumo" class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filtrar por campo"></div>
+            <form asp-action="Reenviar" asp-route-id="@Model.Id" method="post" id="conferencia-reenviar"
+                  data-dialogo-titulo="Reenviar do RHSenso" data-dialogo-tipo="aviso"
+                  data-confirmar="A próxima execução desta empresa reenvia ao Sólides DP o cadastro dos colaboradores marcados, com os dados do RHSenso.">
+                <table id="conferencia-grade" class="table table-sm table-hover w-100">
+                    <thead>
+                        <tr><th></th><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Campo</th><th>RHSenso</th><th>Sólides DP</th></tr>
+                    </thead>
+                </table>
+                @if (podeOperar)
+                {
+                    <div id="conferencia-marcados"></div>
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-arrow-repeat"></i> Reenviar do RHSenso os marcados</button>
+                }
+            </form>
+        </div>
+    </div>
+    <partial name="_Grade" model="Model.Id" />
+}

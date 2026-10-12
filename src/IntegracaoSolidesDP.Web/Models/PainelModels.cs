@@ -15,6 +15,9 @@ public sealed class PainelViewModel
     public IReadOnlyList<ExecucoesDoDia> PorDia { get; init; } = [];
     public IReadOnlyList<Comando> ComandosRecentes { get; init; } = [];
 
+    /// <summary>A última conferência DP x RHSenso de cada empresa.</summary>
+    public IReadOnlyList<Conferencia> Conferencias { get; init; } = [];
+
     /// <summary>Pedido esperando o serviço há mais de 2 minutos: serviço parado ou com a gestão desligada.</summary>
     public DateTimeOffset? PedidoParadoDesde { get; init; }
 

@@ -16,6 +16,7 @@ public sealed class SyncWorker(
     CommandProcessor commands,
     Notificador notificador,
     Limpeza limpeza,
+    ConferenciaAgendada conferencia,
     IOptions<ManagementOptions> management,
     TimeProvider clock,
     ILogger<SyncWorker> logger) : BackgroundService
@@ -41,6 +42,8 @@ public sealed class SyncWorker(
                 await ProcessCommandsAsync(stoppingToken);
                 // Resumo diário das pendências: confere a hora a cada ciclo; envia uma vez por dia.
                 await notificador.ResumoSeDevidoAsync(stoppingToken);
+                // Conferência semanal DP x RHSenso: a partir do dia e hora configurados.
+                await conferencia.ConferirSeDevidoAsync(stoppingToken);
             }
 
             // Limpeza do histórico antigo: uma vez por dia, a partir de Sync:LimpezaHora.
