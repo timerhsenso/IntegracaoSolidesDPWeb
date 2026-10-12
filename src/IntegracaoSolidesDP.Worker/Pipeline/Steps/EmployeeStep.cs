@@ -247,8 +247,10 @@ public sealed class EmployeeStep(
         }
     }
 
-    /// <summary>O que o RHSenso diz do CPF de quem está ativo só no Sólides DP.</summary>
-    /// <param name="linhas">Linhas de func1 com este CPF em qualquer empresa, tipo ou situação (null quando não houve busca).</param>
+    /// <summary>
+    /// O que o RHSenso diz do CPF de quem está ativo só no Sólides DP. <c>linhas</c> = linhas de func1 com este CPF em
+    /// qualquer empresa, tipo ou situação (null quando não houve busca).
+    /// </summary>
     private string SoNoDpMotivo(SyncContext context, EmployeePlan plan, string? cpf, Departure? saida, EmployeeDto dp, IReadOnlyList<EmployeeRow>? linhas)
     {
         if (cpf is null)
