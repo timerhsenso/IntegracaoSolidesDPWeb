@@ -444,7 +444,7 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
 
     public async Task<long> EnqueueCommandAsync(string instanceName, string type, string requestedBy, int? cdempresa, CancellationToken ct)
     {
-        if (!CommandTypes.All.Contains(type, StringComparer.Ordinal))
+        if (!CommandTypes.All.Contains(type, StringComparer.Ordinal) && !string.Equals(type, CommandTypes.TestarEmail, StringComparison.Ordinal))
         {
             throw new ArgumentOutOfRangeException(nameof(type), type, "Tipo de comando desconhecido.");
         }

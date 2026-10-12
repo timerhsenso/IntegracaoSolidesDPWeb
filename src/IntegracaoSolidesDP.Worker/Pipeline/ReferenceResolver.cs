@@ -92,7 +92,7 @@ public sealed class ReferenceResolver(
         {
             foreach (var cnpj in missing)
             {
-                context.Add(new RunItem(EntityTypes.Company, cnpj, ItemActions.Resolve, ItemStatuses.Failed,
+                context.Add(new RunItem(EntityTypes.Company, cnpj, ItemActions.Resolve, ItemStatuses.Blocked,
                     Message: "company_not_found: CNPJ não cadastrado no Sólides DP; colaboradores desta empresa ficam bloqueados"));
             }
 
