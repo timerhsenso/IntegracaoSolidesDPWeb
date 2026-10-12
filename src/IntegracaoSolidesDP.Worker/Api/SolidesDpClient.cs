@@ -23,6 +23,9 @@ public interface ISolidesDpClient
 
     Task<ApiResult<JobRoleDto>> FindJobRoleAsync(string externalId, CancellationToken ct);
 
+    /// <summary>Todos os cargos da conta (para mostrar no relatório o cargo atual de quem já está no DP).</summary>
+    Task<ApiResult<IReadOnlyList<JobRoleDto>>> FindAllJobRolesAsync(CancellationToken ct);
+
     Task<ApiResult<JobRoleDto>> RegisterJobRoleAsync(JobRoleRequest request, CancellationToken ct);
 
     Task<ApiResult<WorkplaceDto>> FindWorkplaceAsync(string externalId, CancellationToken ct);
@@ -94,6 +97,9 @@ public sealed class SolidesDpClient(IHttpClientFactory factory, SolidesDpClientS
 
     public Task<ApiResult<JobRoleDto>> FindJobRoleAsync(string externalId, CancellationToken ct) =>
         SendAsync<JobRoleDto>(RetryClientName, HttpMethod.Get, $"job-role/find?externalId={Uri.EscapeDataString(externalId)}", null, ct);
+
+    public Task<ApiResult<IReadOnlyList<JobRoleDto>>> FindAllJobRolesAsync(CancellationToken ct) =>
+        GetAllPagesAsync<JobRoleDto>("job-role/find-all", "page", "size", static e => e, ct);
 
     public Task<ApiResult<JobRoleDto>> RegisterJobRoleAsync(JobRoleRequest request, CancellationToken ct) =>
         // Sem allowUpdate no Swagger: reenviar o mesmo externalId pode duplicar o cargo. Sem retry.

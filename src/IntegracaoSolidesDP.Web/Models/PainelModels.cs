@@ -33,7 +33,7 @@ public sealed class ExecucaoDetalheViewModel
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> Contagens { get; init; } =
         new Dictionary<string, IReadOnlyDictionary<string, int>>();
 
-    /// <summary>Relatórios para baixar (ex.: "vinculacao").</summary>
+    /// <summary>Relatórios gravados pela execução (ver <see cref="TiposRelatorio"/>).</summary>
     public IReadOnlyList<string> Relatorios { get; init; } = [];
 
     /// <summary>Versão do serviço que fez a execução (null nas de versões que não gravavam).</summary>
@@ -70,4 +70,14 @@ public sealed record ItensExecucaoModel(Guid RunId, bool SomentePendencias)
         ["created", "updated", "adopted", "dismissed", "cancelled", "dry_run", "skipped", "deferred", "blocked", "warning", "failed"];
 
     public IReadOnlyList<string> StatusDisponiveis => SomentePendencias ? PainelRepository.StatusPendencia : TodosStatus;
+}
+
+/// <summary>Tipos de solidesdp.run_relatorio gravados pelo serviço (VinculacaoReport no serviço).</summary>
+public static class TiposRelatorio
+{
+    /// <summary>CSV do relatório de vinculação, para baixar.</summary>
+    public const string Vinculacao = "vinculacao";
+
+    /// <summary>As mesmas linhas em JSON, para a grade da tela (simulações a partir da versão que grava este tipo).</summary>
+    public const string VinculacaoLinhas = "vinculacao-linhas";
 }

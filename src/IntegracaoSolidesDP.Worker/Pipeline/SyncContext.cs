@@ -1,3 +1,4 @@
+using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Pipeline.Steps;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
@@ -28,6 +29,12 @@ public sealed class SyncContext(Guid runId, int cdempresa, bool dryRun, DateOnly
 
     /// <summary>Colaboradores desligados da conta no DP, por CPF (carregado só quando alguém seria criado).</summary>
     public DpDesligadosIndex? DpDesligados { get; set; }
+
+    /// <summary>
+    /// Cargos da conta no DP por id (só na simulação com token): a lista de colaboradores do DP pode trazer o cargo só
+    /// com o id, e o relatório de vinculação mostra o código e a descrição do cargo atual.
+    /// </summary>
+    public Dictionary<long, JobRoleDto> DpCargos { get; } = new();
 
     /// <summary>Relatório de vinculação (só na simulação): uma linha por pessoa.</summary>
     public List<VinculacaoLinha> Vinculacao { get; } = [];

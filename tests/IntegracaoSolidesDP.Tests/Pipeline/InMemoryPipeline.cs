@@ -151,6 +151,10 @@ internal sealed class MemorySource : ISourceReader
             .Where(e => tipos.Contains(e.TipoColaborador) && (empresas.Count == 0 || empresas.Contains(e.Cdempresa)))
             .ToList());
 
+    /// <summary>Como no SQL: qualquer empresa, tipo ou situação.</summary>
+    public Task<IReadOnlyList<EmployeeRow>> ReadEmployeesByCpfAsync(IReadOnlyCollection<string> cpfs, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<EmployeeRow>>(Employees.Where(e => e.Chave is { } chave && cpfs.Contains(chave)).ToList());
+
     public Task<IReadOnlyList<JobRoleRow>> ReadJobRolesAsync(IReadOnlyCollection<string> codigos, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<JobRoleRow>>(JobRoles.Where(j => codigos.Contains(j.Cdcargo)).ToList());
 

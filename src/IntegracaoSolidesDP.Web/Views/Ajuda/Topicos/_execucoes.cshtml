@@ -30,6 +30,9 @@
 <p>
     Toda <strong>simulação</strong> gera, no detalhe da execução, o botão <em>Baixar relatório de vinculação</em>: um arquivo
     (CSV, abre no Excel) com uma linha por pessoa, feito para o RH do cliente conferir antes do envio real.
+    A mesma lista aparece na própria tela, na seção <em>Relatório de vinculação</em>: os botões do alto mostram quantas pessoas
+    há em cada resultado e, ao clicar, filtram a lista; a busca acha por nome, matrícula, CPF ou Código Externo.
+    Simulações feitas antes desta versão têm só o botão de baixar.
 </p>
 <dl class="ajuda-def">
     <dt>Resultado</dt>
@@ -48,12 +51,14 @@
         desliga quem ela mesma vinculou. A última coluna diz o que o RHSenso sabe da pessoa: <em>desligado no RHSenso em ...</em>
         ou <em>transferido</em> (o RH desliga no Sólides DP), <em>o Código Externo é a matrícula de outro CPF</em> (um dos dois CPFs
         está errado) ou <em>CPF não aparece entre os ativos do RHSenso</em> (cadastro feito só no Sólides DP, ou tipo de colaborador
-        fora das regras). Não aparece quando o campo Piloto da empresa está preenchido.
+        fora das regras). Quando o CPF existe em outra parte do RHSenso, a observação diz onde: por exemplo
+        <em>empresa 1, matrícula 00001112: desligado em 18/01/2007</em> ou <em>ativo, tipo de colaborador 3, fora dos tipos da integração</em>.
+        Não aparece quando o campo Piloto da empresa está preenchido.
         Nessas linhas, a matrícula e o nome do RHSenso ficam vazios quando o RHSenso não tem a pessoa.
     </dd>
     <dt>Nome no RHSenso × Nome no DP</dt>
     <dd>Para conferir se o CPF ligou a pessoa certa. A coluna <em>Nomes conferem</em> compara sem acento e sem diferença de maiúsculas.</dd>
-    <dt>Código Externo e cargo</dt><dd>O que está hoje no Sólides DP e o que fica depois do envio. <em>Muda o cargo</em> = Sim: o cargo do RHSenso passa a valer a partir do dia do envio.</dd>
+    <dt>Código Externo e cargo</dt><dd>O que está hoje no Sólides DP e o que fica depois do envio, inclusive para quem já está vinculado. <em>Muda o cargo</em> = Sim: o cargo do RHSenso passa a valer a partir do dia do envio.</dd>
     <dt>CPF</dt><dd>Sai mascarado (529.***.***-25): o arquivo circula por e-mail.</dd>
 </dl>
 <div class="alert alert-warning small">

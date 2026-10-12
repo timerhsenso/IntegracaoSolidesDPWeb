@@ -180,6 +180,29 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
         bytes.Take(3).Should().Equal(new byte[] { 0xEF, 0xBB, 0xBF }, "BOM para o Excel abrir a acentuação");
         System.Text.Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3).Should().Contain("CLÁUDIO");
         (await Auditoria(login)).Should().Contain(AcoesAuditoria.RelatorioBaixado);
+        detalhe.Should().NotContain("vinculacao-grade", "simulação antiga, só com o CSV: a tela oferece o download");
+    }
+
+    [Fact]
+    public async Task Simulation_shows_the_linking_report_on_the_screen()
+    {
+        var store = new SqlStateStore(db.Connections, TimeProvider.System);
+        var runId = await store.StartRunAsync("default", 15, dryRun: true, "web", Ct);
+        await store.FinishRunAsync(runId, RunStatuses.Completed, "{}", null, Ct);
+        await store.SaveRunReportAsync(runId, "vinculacao", "vinculacao-empresa15-20261012-093828.csv", "Matrícula;Nome no RHSenso\n15-00000930;CLÁUDIO\n", Ct);
+        await store.SaveRunReportAsync(runId, "vinculacao-linhas", "vinculacao-empresa15-20261012-093828.json",
+            """[{"matricula":"15-00000930","nome":"CLÁUDIO","resultado":"Vincular pelo CPF"}]""", Ct);
+        var login = await _web.CriarUsuarioAsync(Perfis.Consulta);
+        var client = await _web.EntrarAsync(login);
+
+        var detalhe = WebUtility.HtmlDecode(await client.GetStringAsync($"/Execucoes/Detalhe/{runId}", Ct));
+        var resposta = await client.GetAsync($"/Execucoes/Vinculacao/{runId}", Ct);
+
+        detalhe.Should().Contain("id=\"vinculacao-grade\"").And.Contain($"/Execucoes/Vinculacao/{runId}");
+        resposta.StatusCode.Should().Be(HttpStatusCode.OK);
+        resposta.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+        (await resposta.Content.ReadAsStringAsync(Ct)).Should().Contain("CLÁUDIO").And.Contain("Vincular pelo CPF");
+        (await Auditoria(login)).Should().NotContain(AcoesAuditoria.RelatorioBaixado, "ver na tela não é baixar");
     }
 
     [Fact]
@@ -208,8 +231,9 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
         var resposta = await client.GetAsync($"/Execucoes/Relatorio/{runId}?tipo=vinculacao", Ct);
 
         // O texto do botão também aparece na Ajuda da tela: confere o link do download.
-        detalhe.Should().NotContain("/Execucoes/Relatorio/");
+        detalhe.Should().NotContain("/Execucoes/Relatorio/").And.NotContain("vinculacao-grade");
         resposta.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await client.GetAsync($"/Execucoes/Vinculacao/{runId}", Ct)).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     private Task<IReadOnlyList<string>> Auditoria(string login) =>

@@ -36,6 +36,23 @@ public sealed class SqlSourceReaderTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Finds_a_cpf_in_any_company_type_or_situation_including_cpfs_without_the_leading_zero()
+    {
+        const string CpfComZero = "03942152061";
+        await _seed.FilialAsync(empresa: 2, filial: 1, cnpj: "00594807000361");
+        await _seed.FuncionarioAsync(matric: "1", tipo: 14);
+        await _seed.FuncionarioAsync(matric: "2", empresa: 2, situacao: "08", demissao: new DateTime(2007, 1, 18));
+        await _seed.FuncionarioAsync(matric: "3", cpf: CpfComZero[1..]);
+        await _seed.FuncionarioAsync(matric: "4", cpf: TestData.Cpf2);
+
+        var rows = await _reader.ReadEmployeesByCpfAsync([TestData.Cpf1, CpfComZero], Ct);
+
+        rows.Select(r => r.Nomatric).Should().BeEquivalentTo(["1", "2", "3"], "func1.nocpf sem o zero à esquerda também é encontrado");
+        rows.Single(r => r.Nomatric == "2").SituacaoDeDesligamento.Should().BeTrue();
+        (await _reader.ReadEmployeesByCpfAsync([], Ct)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Filters_by_collaborator_type_and_company()
     {
         await _seed.FilialAsync(empresa: 2, filial: 1, cnpj: "00594807000361");

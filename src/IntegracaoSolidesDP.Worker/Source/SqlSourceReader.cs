@@ -6,6 +6,12 @@ public interface ISourceReader
 {
     Task<IReadOnlyList<EmployeeRow>> ReadEmployeesAsync(IReadOnlyCollection<int> tipos, IReadOnlyCollection<int> empresas, CancellationToken ct);
 
+    /// <summary>
+    /// Todas as linhas de func1 destes CPFs (só dígitos, 11), em qualquer empresa, tipo de colaborador ou situação.
+    /// Usado no relatório de vinculação para dizer onde está no RHSenso quem aparece "só no Sólides DP".
+    /// </summary>
+    Task<IReadOnlyList<EmployeeRow>> ReadEmployeesByCpfAsync(IReadOnlyCollection<string> cpfs, CancellationToken ct);
+
     Task<IReadOnlyList<JobRoleRow>> ReadJobRolesAsync(IReadOnlyCollection<string> codigos, CancellationToken ct);
 
     Task<IReadOnlyList<WorkplaceRow>> ReadWorkplacesAsync(CancellationToken ct);
@@ -22,7 +28,20 @@ public interface ISourceReader
 /// <summary>Leitura somente-leitura das tabelas do RHSenso (schema dbo).</summary>
 public sealed class SqlSourceReader(ConnectionFactory connections) : ISourceReader
 {
-    private const string EmployeesSql = """
+    private const string EmployeesSql = EmployeeSelect + """
+
+        WHERE f.tpcolab IN @Tipos
+          AND (@TodasEmpresas = 1 OR f.cdempresa IN @Empresas)
+        """;
+
+    // nocpf é varchar(11), às vezes com máscara ou sem os zeros à esquerda: compara só os dígitos, completados com zeros.
+    // A checagem final (dígito verificador) é a mesma do resto da integração: EmployeeRow.Chave.
+    private const string EmployeesByCpfSql = EmployeeSelect + """
+
+        WHERE RIGHT('00000000000' + REPLACE(REPLACE(REPLACE(REPLACE(LTRIM(RTRIM(f.nocpf)), '.', ''), '-', ''), '/', ''), ' ', ''), 11) IN @Cpfs
+        """;
+
+    private const string EmployeeSelect = """
         SELECT
             f.id                       AS Id,
             RTRIM(f.nomatric)          AS Nomatric,
@@ -59,8 +78,6 @@ public sealed class SqlSourceReader(ConnectionFactory connections) : ISourceRead
         LEFT JOIN dbo.tsitu1 s ON s.cdsituacao = f.cdsituacao
         LEFT JOIN dbo.tcus1 c  ON c.cdccusto = f.cdccusto
         LEFT JOIN dbo.test1 t  ON t.cdempresa = f.cdempresa AND t.cdfilial = f.cdfilial
-        WHERE f.tpcolab IN @Tipos
-          AND (@TodasEmpresas = 1 OR f.cdempresa IN @Empresas)
         """;
 
     private const string JobRolesSql = """
@@ -99,6 +116,27 @@ public sealed class SqlSourceReader(ConnectionFactory connections) : ISourceRead
             new { Tipos = tipos.ToArray(), TodasEmpresas = empresas.Count == 0, Empresas = empresas.Count == 0 ? new[] { 0 } : empresas.ToArray() },
             cancellationToken: ct));
         return rows.AsList();
+    }
+
+    public async Task<IReadOnlyList<EmployeeRow>> ReadEmployeesByCpfAsync(IReadOnlyCollection<string> cpfs, CancellationToken ct)
+    {
+        if (cpfs.Count == 0)
+        {
+            return [];
+        }
+
+        await using var connection = await connections.OpenAsync(ct);
+        var wanted = cpfs.ToHashSet(StringComparer.Ordinal);
+        var found = new List<EmployeeRow>();
+        // SQL Server aceita no máximo ~2100 parâmetros por comando.
+        foreach (var chunk in wanted.Chunk(1000))
+        {
+            var rows = await connection.QueryAsync<EmployeeRow>(new CommandDefinition(
+                EmployeesByCpfSql, new { Cpfs = chunk }, cancellationToken: ct));
+            found.AddRange(rows.Where(r => r.Chave is { } chave && wanted.Contains(chave)));
+        }
+
+        return found;
     }
 
     public async Task<IReadOnlyList<JobRoleRow>> ReadJobRolesAsync(IReadOnlyCollection<string> codigos, CancellationToken ct)

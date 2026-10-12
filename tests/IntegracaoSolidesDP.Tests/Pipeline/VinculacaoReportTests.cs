@@ -49,6 +49,23 @@ public sealed class VinculacaoReportTests
     }
 
     [Fact]
+    public void Json_has_the_same_order_and_the_masked_cpf()
+    {
+        var json = System.Text.Json.JsonDocument.Parse(VinculacaoReport.ToJson(
+        [
+            new VinculacaoLinha { Rotulo = "15-00000005", Nome = "EDU", Cpf = TestData.Cpf1, Resultado = ResultadosVinculacao.Criar },
+            new VinculacaoLinha { Rotulo = string.Empty, NomeDp = "BIA", Resultado = ResultadosVinculacao.SoNoDp, CadastroDp = 42, Observacao = "x" },
+        ])).RootElement;
+
+        json.GetArrayLength().Should().Be(2);
+        json[0].GetProperty("resultado").GetString().Should().Be(ResultadosVinculacao.SoNoDp);
+        json[0].GetProperty("cadastroDp").GetInt64().Should().Be(42);
+        json[0].GetProperty("nomesConferem").GetString().Should().BeEmpty();
+        json[1].GetProperty("cpf").GetString().Should().Be("529.***.***-25");
+        json[1].GetProperty("cargoMuda").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
+    }
+
+    [Fact]
     public void Cpf_is_masked() =>
         VinculacaoReport.MascararCpf(TestData.Cpf1).Should().Be("529.***.***-25");
 

@@ -1,0 +1,119 @@
+@model Guid
+@* Relatório de vinculação na tela (Execuções › Detalhe de uma simulação). As linhas vêm de Execucoes/Vinculacao (JSON). *@
+<div class="card mb-3" id="vinculacao">
+    <div class="card-header">Relatório de vinculação</div>
+    <div class="card-body">
+        <p class="small text-body-secondary mb-2">
+            O que o envio real faria com cada pessoa, e quem está ativo só no Sólides DP. Clique num resultado para filtrar a lista.
+        </p>
+        <div id="vinculacao-resumo" class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filtrar por resultado"></div>
+        <table id="vinculacao-grade" class="table table-sm table-hover w-100">
+            <thead>
+                <tr><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Resultado</th><th>Código Externo</th><th>Cargo</th><th>Observação</th></tr>
+            </thead>
+        </table>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Mesma ordem e textos do relatório (VinculacaoReport no serviço).
+        const resultados = [
+            { texto: 'Pendência', cor: 'danger', linha: 'table-danger' },
+            { texto: 'Só no Sólides DP', cor: 'warning', linha: 'table-warning' },
+            { texto: 'Desligar', cor: 'dark', linha: '' },
+            { texto: 'Criar', cor: 'primary', linha: '' },
+            { texto: 'Vincular pelo CPF', cor: 'info', linha: '' },
+            { texto: 'Atualizar (já vinculado)', cor: 'secondary', linha: '' },
+            { texto: 'Fora do escopo', cor: 'light', linha: '' },
+            { texto: 'Sem alteração (já vinculado)', cor: 'success', linha: '' }
+        ];
+        const porTexto = Object.fromEntries(resultados.map(r => [r.texto, r]));
+        const badge = texto => `<span class="badge text-bg-${(porTexto[texto] || { cor: 'secondary' }).cor}">${app.esc(texto)}</span>`;
+        const nada = '<span class="text-body-secondary">—</span>';
+
+        let linhas;
+        try {
+            const resposta = await fetch('@Url.Action("Vinculacao", "Execucoes", new { id = Model })', { headers: { Accept: 'application/json' } });
+            if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
+            linhas = await resposta.json();
+        } catch (erro) {
+            document.getElementById('vinculacao-resumo').innerHTML =
+                `<span class="text-danger small">Não foi possível carregar o relatório (${app.esc(erro.message)}). Use o botão de baixar o CSV.</span>`;
+            return;
+        }
+
+        // Filtro por resultado: só nesta grade.
+        let filtro = '';
+        DataTable.ext.search.push((settings, dados, indice, linha) =>
+            settings.nTable.id !== 'vinculacao-grade' || !filtro || linha.resultado === filtro);
+
+        const grade = new DataTable('#vinculacao-grade', {
+            data: linhas,
+            language: app.idioma,
+            pageLength: 25,
+            order: [],
+            columns: [
+                { data: 'matricula', render: (v, tipo) => tipo === 'display' ? (v ? app.esc(v) : nada) : (v || '') },
+                {
+                    data: 'nome',
+                    render: (v, tipo, r) => {
+                        if (tipo !== 'display') return [v, r.nomeDp].filter(Boolean).join(' ');
+                        const rh = v ? `<div>${app.esc(v)}</div>` : '<div class="text-body-secondary">não está no RHSenso</div>';
+                        const dp = r.nomeDp
+                            ? `<div class="small text-body-secondary">DP: ${app.esc(r.nomeDp)}${r.cadastroDp ? ` (cadastro ${r.cadastroDp})` : ''}</div>`
+                            : '';
+                        const confere = r.nomesConferem === 'Não, conferir' ? ' <span class="badge text-bg-warning">nome diferente</span>' : '';
+                        return rh + dp + confere;
+                    }
+                },
+                { data: 'cpf', render: v => app.esc(v || '') },
+                {
+                    data: 'resultado',
+                    render: (v, tipo) => tipo === 'display' ? badge(v) : tipo === 'sort' ? String(resultados.findIndex(r => r.texto === v)) : v
+                },
+                {
+                    data: 'codigoExternoDp',
+                    render: (v, tipo, r) => {
+                        if (tipo !== 'display') return [v, r.codigoExternoFica].filter(Boolean).join(' ');
+                        if (!v && !r.codigoExternoFica) return nada;
+                        if (!r.codigoExternoFica || v === r.codigoExternoFica) return app.esc(v || r.codigoExternoFica);
+                        return `${v ? app.esc(v) : '<span class="text-body-secondary">vazio</span>'} → <strong>${app.esc(r.codigoExternoFica)}</strong>`;
+                    }
+                },
+                {
+                    data: 'cargoRhSenso',
+                    render: (v, tipo, r) => {
+                        if (tipo !== 'display') return [r.cargoDp, v].filter(Boolean).join(' ');
+                        const dp = r.cargoDp ? `<div class="small text-body-secondary">DP: ${app.esc(r.cargoDp)}</div>` : '';
+                        const rh = v ? `<div>${app.esc(v)}</div>` : '';
+                        const muda = r.cargoMuda ? ' <span class="badge text-bg-info">muda o cargo</span>' : '';
+                        return (dp + rh + muda) || nada;
+                    }
+                },
+                { data: 'observacao', render: v => `<span class="mensagem small">${app.esc(v || '')}</span>` }
+            ],
+            createdRow: (tr, r) => {
+                const classe = (porTexto[r.resultado] || {}).linha;
+                if (classe) tr.classList.add(classe);
+            }
+        });
+
+        // Resumo: um botão por resultado presente, com a quantidade; clicar filtra a grade.
+        const contagem = {};
+        linhas.forEach(l => { contagem[l.resultado] = (contagem[l.resultado] || 0) + 1; });
+        const resumo = document.getElementById('vinculacao-resumo');
+        const botao = (valor, texto, cor, quantidade) =>
+            `<button type="button" class="btn btn-sm btn-outline-${cor}" data-resultado="${app.esc(valor)}">${app.esc(texto)} <span class="badge text-bg-${cor}">${quantidade}</span></button>`;
+        resumo.innerHTML = botao('', 'Todos', 'secondary', linhas.length) +
+            resultados.filter(r => contagem[r.texto]).map(r => botao(r.texto, r.texto, r.cor === 'light' ? 'secondary' : r.cor, contagem[r.texto])).join('');
+        const marcar = valor => resumo.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.resultado === valor));
+        marcar('');
+        resumo.addEventListener('click', ev => {
+            const b = ev.target.closest('button[data-resultado]');
+            if (!b) return;
+            filtro = b.dataset.resultado;
+            marcar(filtro);
+            grade.draw();
+        });
+    });
+</script>

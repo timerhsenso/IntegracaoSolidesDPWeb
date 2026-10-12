@@ -223,10 +223,14 @@ public sealed class SyncPipeline(
         }
 
         var csv = VinculacaoReport.ToCsv(context.Vinculacao);
-        var arquivo = VinculacaoReport.NomeArquivo(cdempresa, TimeZoneInfo.ConvertTime(summary.StartedAt, dates.Zone));
+        var inicioLocal = TimeZoneInfo.ConvertTime(summary.StartedAt, dates.Zone);
+        var arquivo = VinculacaoReport.NomeArquivo(cdempresa, inicioLocal);
         try
         {
             await state.SaveRunReportAsync(summary.RunId, VinculacaoReport.Tipo, arquivo, csv, CancellationToken.None);
+            // As mesmas linhas em JSON: a Web mostra o relatório na tela da execução.
+            await state.SaveRunReportAsync(summary.RunId, VinculacaoReport.TipoLinhas,
+                VinculacaoReport.NomeArquivoLinhas(cdempresa, inicioLocal), VinculacaoReport.ToJson(context.Vinculacao), CancellationToken.None);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

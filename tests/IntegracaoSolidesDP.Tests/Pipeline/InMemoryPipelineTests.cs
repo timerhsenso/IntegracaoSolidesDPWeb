@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Pipeline;
@@ -400,9 +401,57 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         linhas[2].Should().StartWith(FormattableString.Invariant($";;123.***.***-09;;Só no Sólides DP;{outroCpf};OUTRO CPF;;7811;"))
             .And.Contain("o Código Externo 7811 é a matrícula 1-00007811 do RHSenso, que tem outro CPF");
         linhas[3].Should().StartWith(FormattableString.Invariant($";;390.***.***-05;;Só no Sólides DP;{semRhSenso};SO NO DP;;00000009;"))
-            .And.Contain("CPF não aparece entre os colaboradores ativos do RHSenso");
+            .And.Contain("CPF não existe no RHSenso (em nenhuma empresa, tipo de colaborador ou situação)");
         linhas[4].Should().StartWith(FormattableString.Invariant($"1-00007811;MARIA DA SILVA;529.***.***-25;1;Vincular pelo CPF;{maria};"));
         (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().OnlyContain(e => !e.Fired, "a simulação não desliga ninguém");
+    }
+
+    [Fact]
+    public async Task Only_in_dp_says_where_the_cpf_is_in_the_whole_payroll()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811"));
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000033", empresa: 2, cpf: TestData.Cpf3,
+            situacao: "08", desligado: true, demissao: new DateTime(2007, 1, 18), causa: "21"));
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000003", cpf: TestData.Cpf3, tipo: 3));
+        await RegisterByHrAsync("00007811", "MARIA DA SILVA", TestData.Cpf1);
+        var terceiro = await RegisterByHrAsync("", "TERCEIRO", TestData.Cpf3);
+
+        var summary = await _pipeline.RunAsync(dryRun: true, ct: Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        var linha = _pipeline.State.Reports[(summary.RunId, VinculacaoReport.Tipo)].Conteudo
+            .Split('\n').Single(l => l.Contains(ResultadosVinculacao.SoNoDp, StringComparison.Ordinal));
+        linha.Should().StartWith(FormattableString.Invariant($";;390.***.***-05;;Só no Sólides DP;{terceiro};TERCEIRO;"))
+            .And.Contain("no RHSenso: empresa 1, matrícula 00000003: ativo, tipo de colaborador 3, fora dos tipos da integração; " +
+                         "empresa 2, matrícula 00000033: desligado em 18/01/2007. Conferir se a pessoa deve continuar no ponto desta conta");
+    }
+
+    [Fact]
+    public async Task Dry_run_shows_the_current_dp_record_and_job_role_of_who_is_already_linked()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811", nome: "MARIA DA SILVA"));
+        var maria = await RegisterByHrAsync("00007811", "MARIA (MANUAL)", TestData.Cpf1);
+        (await _pipeline.RunAsync(ct: Ct)).Status.Should().Be(RunStatuses.Completed);
+
+        var summary = await _pipeline.RunAsync(dryRun: true, ct: Ct);
+
+        var linhas = _pipeline.State.Reports[(summary.RunId, VinculacaoReport.Tipo)].Conteudo
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        linhas.Should().HaveCount(2);
+        linhas[1].Should().StartWith(FormattableString.Invariant(
+            $"1-00007811;MARIA DA SILVA;529.***.***-25;1;Sem alteração (já vinculado);{maria};MARIA DA SILVA;Sim;00007811;00007811;00100 ANALISTA DE SISTEMAS;00100 ANALISTA DE SISTEMAS;Não;"));
+
+        var (arquivo, conteudo) = _pipeline.State.Reports[(summary.RunId, VinculacaoReport.TipoLinhas)];
+        arquivo.Should().Be("vinculacao-empresa1-20261005-120000.json");
+        var json = JsonDocument.Parse(conteudo).RootElement;
+        json.GetArrayLength().Should().Be(1);
+        json[0].GetProperty("matricula").GetString().Should().Be("1-00007811");
+        json[0].GetProperty("cpf").GetString().Should().Be("529.***.***-25", "o CPF vai mascarado também para a tela");
+        json[0].GetProperty("resultado").GetString().Should().Be(ResultadosVinculacao.SemAlteracao);
+        json[0].GetProperty("nomeDp").GetString().Should().Be("MARIA DA SILVA");
+        json[0].GetProperty("nomesConferem").GetString().Should().Be("Sim");
+        json[0].GetProperty("cargoDp").GetString().Should().Be("00100 ANALISTA DE SISTEMAS");
+        json[0].GetProperty("cargoMuda").GetBoolean().Should().BeFalse();
     }
 
     [Fact]

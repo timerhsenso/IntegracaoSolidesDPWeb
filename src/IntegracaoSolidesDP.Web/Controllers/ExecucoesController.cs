@@ -51,6 +51,17 @@ public sealed class ExecucoesController(PainelRepository painel, EmpresasReposit
         return File(bytes, "text/csv; charset=utf-8", relatorio.Arquivo);
     }
 
+    /// <summary>
+    /// Linhas do relatório de vinculação (JSON gravado pelo serviço em toda simulação) para a grade do detalhe.
+    /// Ver na tela não fica na auditoria; baixar o CSV fica.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Vinculacao(Guid id)
+    {
+        var relatorio = await painel.RelatorioAsync(id, TiposRelatorio.VinculacaoLinhas, HttpContext.RequestAborted);
+        return relatorio is null ? NotFound() : Content(relatorio.Conteudo, "application/json; charset=utf-8");
+    }
+
     [HttpGet]
     public async Task<IActionResult> Itens(Guid id, string? entidade, string? status, bool pendencias = false) =>
         Json(await painel.ItensAsync(id, entidade, status, pendencias, DataTablesRequest.From(Request.Query), HttpContext.RequestAborted));

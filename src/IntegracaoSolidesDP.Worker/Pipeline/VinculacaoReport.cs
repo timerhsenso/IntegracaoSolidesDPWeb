@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 
 namespace IntegracaoSolidesDP.Worker.Pipeline;
 
@@ -71,8 +72,13 @@ public sealed record VinculacaoLinha
 /// </summary>
 public static class VinculacaoReport
 {
-    /// <summary>Tipo em solidesdp.run_relatorio.tipo.</summary>
+    /// <summary>Tipo em solidesdp.run_relatorio.tipo: o CSV para baixar.</summary>
     public const string Tipo = "vinculacao";
+
+    /// <summary>Tipo em solidesdp.run_relatorio.tipo: as mesmas linhas em JSON, para a tela da Web.</summary>
+    public const string TipoLinhas = "vinculacao-linhas";
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private const string Cabecalho =
         "Matrícula;Nome no RHSenso;CPF;Filial;Resultado;Cadastro no DP;Nome no DP;Nomes conferem;" +
@@ -81,15 +87,26 @@ public static class VinculacaoReport
     public static string NomeArquivo(int cdempresa, DateTimeOffset inicioLocal) =>
         string.Create(CultureInfo.InvariantCulture, $"vinculacao-empresa{cdempresa}-{inicioLocal:yyyyMMdd-HHmmss}.csv");
 
+    /// <summary>O mesmo nome do CSV, com .json.</summary>
+    public static string NomeArquivoLinhas(int cdempresa, DateTimeOffset inicioLocal) =>
+        Path.ChangeExtension(NomeArquivo(cdempresa, inicioLocal), ".json");
+
+    /// <summary>
+    /// As linhas do CSV, na mesma ordem e já com o CPF mascarado e a conferência de nomes, para a tela de vinculação da Web.
+    /// Chaves em camelCase: matricula, nome, cpf, filial, resultado, cadastroDp, nomeDp, nomesConferem, codigoExternoDp,
+    /// codigoExternoFica, cargoDp, cargoRhSenso, cargoMuda, observacao.
+    /// </summary>
+    public static string ToJson(IEnumerable<VinculacaoLinha> linhas) =>
+        JsonSerializer.Serialize(
+            Ordenar(linhas).Select(l => new LinhaJson(
+                l.Rotulo, l.Nome, MascararCpf(l.Cpf), l.Filial, l.Resultado, l.CadastroDp, l.NomeDp, NomesConferem(l.Nome, l.NomeDp),
+                l.CodigoExternoDp, l.CodigoExternoFica, l.CargoDp, l.CargoRhSenso, l.CargoMuda, l.Observacao)),
+            JsonOptions);
+
     public static string ToCsv(IEnumerable<VinculacaoLinha> linhas)
     {
         var csv = new StringBuilder(Cabecalho);
-        var ordenadas = linhas
-            .OrderBy(l => Posicao(l.Resultado))
-            .ThenBy(l => Normalizar(l.Nome ?? l.NomeDp), StringComparer.Ordinal)
-            .ThenBy(l => l.Rotulo, StringComparer.Ordinal);
-
-        foreach (var l in ordenadas)
+        foreach (var l in Ordenar(linhas))
         {
             csv.Append(RunReportWriter.Field(l.Rotulo)).Append(';')
                 .Append(RunReportWriter.Field(l.Nome)).Append(';')
@@ -109,6 +126,17 @@ public static class VinculacaoReport
 
         return csv.ToString();
     }
+
+    /// <summary>Primeiro o que precisa de decisão do RH; dentro de cada resultado, pelo nome (do RHSenso ou, sem ele, do DP).</summary>
+    private static IEnumerable<VinculacaoLinha> Ordenar(IEnumerable<VinculacaoLinha> linhas) =>
+        linhas
+            .OrderBy(l => Posicao(l.Resultado))
+            .ThenBy(l => Normalizar(l.Nome ?? l.NomeDp), StringComparer.Ordinal)
+            .ThenBy(l => l.Rotulo, StringComparer.Ordinal);
+
+    private sealed record LinhaJson(
+        string Matricula, string? Nome, string? Cpf, int? Filial, string Resultado, long? CadastroDp, string? NomeDp, string NomesConferem,
+        string? CodigoExternoDp, string? CodigoExternoFica, string? CargoDp, string? CargoRhSenso, bool? CargoMuda, string? Observacao);
 
     /// <summary>"Sim" quando os nomes são iguais sem acento, caixa e espaços extras; vazio se faltar um dos dois.</summary>
     public static string NomesConferem(string? nome, string? nomeDp)

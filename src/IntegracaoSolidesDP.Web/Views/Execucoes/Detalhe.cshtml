@@ -38,15 +38,19 @@
                     <dt class="col-5">Versão do serviço</dt><dd class="col-7">@(Model.VersaoServico ?? "—")</dd>
                     <dt class="col-5">Id</dt><dd class="col-7"><code>@e.RunId</code></dd>
                 </dl>
-                @if (Model.Relatorios.Contains("vinculacao"))
+                @if (Model.Relatorios.Contains(TiposRelatorio.Vinculacao))
                 {
                     <hr />
-                    <a class="btn btn-sm btn-outline-primary" asp-action="Relatorio" asp-route-id="@e.RunId" asp-route-tipo="vinculacao">
+                    <a class="btn btn-sm btn-outline-primary" asp-action="Relatorio" asp-route-id="@e.RunId" asp-route-tipo="@TiposRelatorio.Vinculacao">
                         <i class="bi bi-filetype-csv"></i> Baixar relatório de vinculação
                     </a>
                     <div class="form-text">
-                        Uma linha por pessoa: nome no RHSenso e no Sólides DP, se vai vincular pelo CPF, criar ou ficar pendente,
-                        o Código Externo e o cargo que mudam. Para o RH conferir antes do envio real (abre no Excel).
+                        Uma linha por pessoa: nome no RHSenso e no Sólides DP, se vai vincular pelo CPF, criar, desligar ou ficar pendente,
+                        quem está só no Sólides DP, o Código Externo e o cargo que mudam. Para o RH conferir antes do envio real (abre no Excel).
+                        @if (Model.Relatorios.Contains(TiposRelatorio.VinculacaoLinhas))
+                        {
+                            <a href="#vinculacao">A mesma lista aparece abaixo, nesta tela.</a>
+                        }
                     </div>
                 }
             </div>
@@ -79,6 +83,10 @@
         </div>
     </div>
 </div>
+@if (Model.Relatorios.Contains(TiposRelatorio.VinculacaoLinhas))
+{
+    <partial name="_Vinculacao" model="e.RunId" />
+}
 <div class="card">
     <div class="card-header">Itens da execução</div>
     <div class="card-body">

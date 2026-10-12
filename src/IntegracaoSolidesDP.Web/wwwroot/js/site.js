@@ -199,6 +199,8 @@
 
     window.app = {
         esc, data, dia, duracao, badge, resumo, linkHistorico, grid, dialogo, confirmar, pedirMotivo, avisar,
+        // Textos do DataTables em português, para grades que não usam app.grid (ex.: dados já na página).
+        idioma,
         entidade: t => esc(rotulos.entidades[t] || t),
         acao: a => esc(rotulos.acoes[a] || a),
         comando: c => esc(rotulos.comandos[c] || c),
