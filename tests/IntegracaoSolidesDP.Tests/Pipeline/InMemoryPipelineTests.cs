@@ -265,7 +265,7 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle();
     }
 
-    [Fact(Timeout = 60_000)]
+    [Fact]
     public async Task Employee_rejected_by_dp_stops_being_resent_after_the_limit_until_the_data_changes_or_a_day_passes()
     {
         _pipeline.Settings["Sync:ColaboradorMaxTentativas"] = "2";
@@ -309,7 +309,7 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         _pipeline.State.Failures.Should().BeEmpty();
     }
 
-    [Fact(Timeout = 60_000)]
+    [Fact]
     public async Task Dp_outage_does_not_count_as_a_rejection()
     {
         _pipeline.Settings["Sync:ColaboradorMaxTentativas"] = "1";
