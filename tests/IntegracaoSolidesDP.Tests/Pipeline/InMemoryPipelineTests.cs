@@ -372,6 +372,103 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
             "todo mundo já está ativo no DP: não há quem criar");
     }
 
+    [Fact]
+    public async Task Dry_run_lists_who_is_active_only_in_dp_with_what_the_payroll_says()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811", nome: "MARIA DA SILVA"));
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000002", cpf: TestData.Cpf2, nome: "JOÃO SANTOS",
+            situacao: "08", desligado: true, demissao: new DateTime(2025, 8, 31), causa: "21"));
+        var maria = await RegisterByHrAsync("00007811", "MARIA DA SILVA", TestData.Cpf1);
+        var joao = await RegisterByHrAsync("00000002", "JOAO SANTOS", TestData.Cpf2);
+        var semRhSenso = await RegisterByHrAsync("00000009", "SO NO DP", TestData.Cpf3);
+        var outroCpf = await RegisterByHrAsync("7811", "OUTRO CPF", TestData.Cpf4);
+        await _pipeline.Fake.ClearRequestsAsync(Ct);
+
+        var summary = await _pipeline.RunAsync(dryRun: true, ct: Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        (await _pipeline.WritesAsync(Ct)).Should().BeEmpty();
+        _pipeline.State.Items[summary.RunId].Should().ContainSingle(i => i.Status == ItemStatuses.Warning)
+            .Which.Message.Should().StartWith("so_no_dp: 3 cadastro(s) ativo(s) no Sólides DP");
+        var linhas = _pipeline.State.Reports[(summary.RunId, VinculacaoReport.Tipo)].Conteudo
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        linhas.Should().HaveCount(5);
+        linhas[1].Should().StartWith(FormattableString.Invariant(
+                $"1-00000002;JOÃO SANTOS;111.***.***-35;;Só no Sólides DP;{joao};JOAO SANTOS;Sim;00000002;"))
+            .And.Contain("desligado no RHSenso em 31/08/2025 (PEDIDO_DEMISSAO_COLABORADOR)")
+            .And.Contain("desligar no Sólides DP");
+        linhas[2].Should().StartWith(FormattableString.Invariant($";;123.***.***-09;;Só no Sólides DP;{outroCpf};OUTRO CPF;;7811;"))
+            .And.Contain("o Código Externo 7811 é a matrícula 1-00007811 do RHSenso, que tem outro CPF");
+        linhas[3].Should().StartWith(FormattableString.Invariant($";;390.***.***-05;;Só no Sólides DP;{semRhSenso};SO NO DP;;00000009;"))
+            .And.Contain("CPF não aparece entre os colaboradores ativos do RHSenso");
+        linhas[4].Should().StartWith(FormattableString.Invariant($"1-00007811;MARIA DA SILVA;529.***.***-25;1;Vincular pelo CPF;{maria};"));
+        (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().OnlyContain(e => !e.Fired, "a simulação não desliga ninguém");
+    }
+
+    [Fact]
+    public async Task Pilot_does_not_list_everyone_else_as_only_in_dp()
+    {
+        _pipeline.Settings["Sync:ExternalIdAllowList:0"] = "00007811";
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811"));
+        await RegisterByHrAsync("00000009", "SO NO DP", TestData.Cpf3);
+
+        var summary = await _pipeline.RunAsync(dryRun: true, ct: Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        _pipeline.State.Reports[(summary.RunId, VinculacaoReport.Tipo)].Conteudo
+            .Should().NotContain(ResultadosVinculacao.SoNoDp);
+    }
+
+    [Fact]
+    public async Task Dry_run_shows_the_dismissal_of_a_linked_employee_as_desligar()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811", nome: "MARIA DA SILVA"));
+        var manual = await RegisterByHrAsync("00007811", "MARIA DA SILVA", TestData.Cpf1);
+        await _pipeline.RunAsync(ct: Ct);
+        _pipeline.Source.Employees[0] = _pipeline.Source.Employees[0] with
+        {
+            Situacao = "08", SituacaoDeDesligamento = true, DataDemissao = new DateTime(2026, 10, 2), CausaRescisao = "21",
+        };
+
+        var summary = await _pipeline.RunAsync(dryRun: true, ct: Ct);
+
+        summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
+        var linhas = _pipeline.State.Reports[(summary.RunId, VinculacaoReport.Tipo)].Conteudo
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        linhas.Should().HaveCount(2, "quem a integração vai desligar não aparece de novo como \"Só no Sólides DP\"");
+        linhas[1].Should().StartWith(FormattableString.Invariant($"1-00007811;MARIA DA SILVA;529.***.***-25;;Desligar;{manual};"))
+            .And.Contain("desligado no RHSenso em 02/10/2026 (PEDIDO_DEMISSAO_COLABORADOR)");
+    }
+
+    [Fact]
+    public async Task Dismissals_above_the_limit_are_not_sent()
+    {
+        _pipeline.Settings["Sync:MaxDismissalsPerRun"] = "1";
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001"));
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000002", cpf: TestData.Cpf2));
+        (await _pipeline.RunAsync(ct: Ct)).Status.Should().Be(RunStatuses.Completed);
+        for (var i = 0; i < 2; i++)
+        {
+            _pipeline.Source.Employees[i] = _pipeline.Source.Employees[i] with
+            {
+                Situacao = "08", SituacaoDeDesligamento = true, DataDemissao = new DateTime(2026, 10, 2), CausaRescisao = "21",
+            };
+        }
+
+        await _pipeline.Fake.ClearRequestsAsync(Ct);
+        var simulacao = await _pipeline.RunAsync(dryRun: true, ct: Ct);
+        var real = await _pipeline.RunAsync(ct: Ct);
+
+        _pipeline.State.Items[simulacao.RunId].Should().Contain(i => i.Status == ItemStatuses.Warning
+            && i.Message!.StartsWith("max_dismissals_exceeded: 2 desligamentos > Sync:MaxDismissalsPerRun (1).", StringComparison.Ordinal));
+        real.Status.Should().Be(RunStatuses.CompletedWithErrors);
+        _pipeline.State.Items[real.RunId].Should().ContainSingle(i => i.Status == ItemStatuses.Failed)
+            .Which.Message.Should().StartWith("max_dismissals_exceeded: 2 desligamentos");
+        (await _pipeline.WritesAsync(Ct)).Should().NotContain(w => w.Path == "/employee/dismiss");
+        (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().OnlyContain(e => !e.Fired);
+        _pipeline.State.Employee(1, TestData.Cpf1)!.Status.Should().NotBe(EntityStatuses.Dismissed);
+    }
+
     private async Task DismissByHrAsync(long tangerinoId, DateOnly data)
     {
         using var hr = _pipeline.DpAsHr();

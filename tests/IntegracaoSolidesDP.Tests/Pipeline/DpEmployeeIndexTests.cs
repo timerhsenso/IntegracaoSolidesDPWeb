@@ -16,6 +16,7 @@ public sealed class DpEmployeeIndexTests
         ]);
 
         index.Count.Should().Be(2, "desligados não contam");
+        index.Todos.Select(e => e.Id).Should().Equal([1L, 2L], "a lista completa também é só dos ativos");
         index.ByCpf(TestData.Cpf1).Should().ContainSingle().Which.Id.Should().Be(1);
         index.ByCodigoExterno("00007811").Should().ContainSingle().Which.Id.Should().Be(1);
         index.ByCpf(TestData.Cpf3).Should().BeEmpty();

@@ -24,8 +24,29 @@ public sealed class VinculacaoReportTests
     [InlineData("José  da Silva", "JOSE DA SILVA", "Sim")]
     [InlineData("MARIA DA SILVA", "MARIA SILVA", "Não, conferir")]
     [InlineData("MARIA", null, "")]
+    [InlineData("", "MARIA", "")]
     public void Names_are_compared_without_accents_case_or_extra_spaces(string nome, string? nomeDp, string esperado) =>
         VinculacaoReport.NomesConferem(nome, nomeDp).Should().Be(esperado);
+
+    [Fact]
+    public void Only_in_dp_and_dismissals_come_right_after_the_pending_items_sorted_by_the_dp_name_when_there_is_no_payroll_name()
+    {
+        var csv = VinculacaoReport.ToCsv(
+        [
+            new VinculacaoLinha { Rotulo = "15-00000005", Nome = "EDU", Resultado = ResultadosVinculacao.Criar },
+            new VinculacaoLinha { Rotulo = "15-00000004", Nome = "DORA", Resultado = ResultadosVinculacao.Desligar },
+            new VinculacaoLinha { Rotulo = string.Empty, NomeDp = "ZECA", Resultado = ResultadosVinculacao.SoNoDp },
+            new VinculacaoLinha { Rotulo = string.Empty, NomeDp = "BIA", Resultado = ResultadosVinculacao.SoNoDp },
+            new VinculacaoLinha { Rotulo = "15-00000001", Nome = "ANA", Resultado = ResultadosVinculacao.Pendencia },
+        ]);
+
+        var linhas = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Skip(1).ToList();
+        linhas.Select(l => l.Split(';')[4]).Should().Equal(
+            ResultadosVinculacao.Pendencia, ResultadosVinculacao.SoNoDp, ResultadosVinculacao.SoNoDp,
+            ResultadosVinculacao.Desligar, ResultadosVinculacao.Criar);
+        linhas.Select(l => l.Split(';')[6]).Should().Equal(string.Empty, "BIA", "ZECA", string.Empty, string.Empty);
+        linhas[1].Should().StartWith(";;;;Só no Sólides DP;;BIA;;", "sem matrícula, nome nem CPF do RHSenso, e sem conferência de nomes");
+    }
 
     [Fact]
     public void Cpf_is_masked() =>

@@ -13,6 +13,7 @@ internal static class TestData
     public const string Cpf1 = "52998224725";
     public const string Cpf2 = "11144477735";
     public const string Cpf3 = "39053344705";
+    public const string Cpf4 = "12345678909";
     public const string Pis1 = "12345678919";
 
     public static EmployeeRow Employee(

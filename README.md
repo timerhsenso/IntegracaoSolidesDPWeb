@@ -53,13 +53,13 @@ Tudo o que é incluído ou alterado no RHSenso vai, num sentido só, para o Sól
   - **Não duplica.** O POST de férias não tem chave idempotente. Por isso o worker grava `pending` antes de enviar, não faz retry automático, e reconcilia pelo marcador `RHSenso:{feria2.id}` em `observation`.
 - **Travas de segurança.**
   - `Sync:DryRun=true` por padrão.
-  - `Sync:MaxCreatesPerRun` e `Sync:MaxCancellationsPerRun` limitam o que uma execução pode fazer.
+  - `Sync:MaxCreatesPerRun`, `Sync:MaxCancellationsPerRun` e `Sync:MaxDismissalsPerRun` limitam o que uma execução pode fazer (acima do limite, nada daquela etapa é enviado; na simulação, só um aviso).
   - A execução aborta se o banco devolver 0 colaboradores.
   - Há um lock por instância e empresa (`sp_getapplock`).
   - Se a matrícula já for o Código Externo de **outro** colaborador ativo no DP, a criação é bloqueada (`codigo_externo_em_uso`).
   - Se o CPF não estiver ativo no DP mas existir lá **desligado**, a criação é bloqueada (`cpf_desligado_no_dp`): o RH readmite no DP e a execução seguinte vincula pelo CPF. A lista de desligados (`find-all?showFired=1`) só é lida quando alguém seria criado.
   - O dry-run nunca grava no DP. Com token, ele só consulta quem já está lá para mostrar quem seria vinculado e quem seria criado.
-  - **Relatório de vinculação.** Toda simulação gera `reports/vinculacao-empresa{N}-{data}.csv` (também em `solidesdp.run_relatorio`, para baixar no detalhe da execução na Web): uma linha por pessoa, com nome no RHSenso e no DP, CPF mascarado, resultado (pendência, criar, vincular pelo CPF, atualizar, sem alteração, fora do escopo), Código Externo e cargo antes e depois.
+  - **Relatório de vinculação.** Toda simulação gera `reports/vinculacao-empresa{N}-{data}.csv` (também em `solidesdp.run_relatorio`, para baixar no detalhe da execução na Web): uma linha por pessoa, com nome no RHSenso e no DP, CPF mascarado, resultado (pendência, só no Sólides DP, desligar, criar, vincular pelo CPF, atualizar, sem alteração, fora do escopo), Código Externo e cargo antes e depois. Com token, lista também quem está **ativo só no Sólides DP** (sem colaborador ativo com o mesmo CPF no RHSenso), dizendo se a pessoa foi desligada ou transferida no RHSenso: a integração não desliga esses cadastros, o RH decide.
   - Fora de Production, a API real só é usada com opt-in explícito.
 
 ## Configuração
@@ -67,7 +67,7 @@ Tudo o que é incluído ou alterado no RHSenso vai, num sentido só, para o Sól
 Toda chave pode vir do `appsettings.json`, de uma variável de ambiente (`Sync__DryRun=false`) ou da linha de comando (`--Sync:DryRun=false`).
 
 Com a **gestão pela Web ligada**, as chaves `Sync` se dividem em duas partes:
-- **Regras gerais** (tela *Regras gerais*, valem para todas as empresas): `TiposColaborador`, `SituacaoTransferido`, `SituacoesIgnoradas`, `MotivoDemissaoMap`, `Ferias*` (menos `FeriasMotivoId`) e as travas `MaxCreatesPerRun`/`MaxCancellationsPerRun`.
+- **Regras gerais** (tela *Regras gerais*, valem para todas as empresas): `TiposColaborador`, `SituacaoTransferido`, `SituacoesIgnoradas`, `MotivoDemissaoMap`, `Ferias*` (menos `FeriasMotivoId`) e as travas `MaxCreatesPerRun`/`MaxCancellationsPerRun`/`MaxDismissalsPerRun`.
 - **Por empresa** (tela *Empresas*, cada empresa é uma conta do DP): habilitada, simulação (`DryRun`), go-live (obrigatória para o envio real), filiais, piloto (`ExternalIdAllowList`), token, escala, regra de ponto, `FeriasMotivoId`, `CompanyMode` (padrão `ResolveByCnpj`) e `CreateMissingCompanies`.
 - Não existe simulação geral: para parar todas as empresas, use **Desativar** no Painel. Sem empresa habilitada, nada é sincronizado.
 
@@ -100,7 +100,7 @@ Com a gestão desligada, vale a tabela abaixo inteira, para uma só empresa.
 | `Sync:FeriasEnviarProgramadas` | `false` | Envia as férias "Programadas" como `PENDENTE`. |
 | `Sync:FeriasMotivoId` | descoberto | Id do motivo FÉRIAS no DP. |
 | `Sync:FeriasEndDateMode` | `InicioDoDiaSeguinte` | Como calcular o `endDate` (calibrar com o DP real). |
-| `Sync:MaxCreatesPerRun` / `Sync:MaxCancellationsPerRun` | `300` / `20` | Travas de segurança. |
+| `Sync:MaxCreatesPerRun` / `Sync:MaxCancellationsPerRun` / `Sync:MaxDismissalsPerRun` | `300` / `20` / `20` | Travas de segurança. |
 
 ## Gestão pela Web
 

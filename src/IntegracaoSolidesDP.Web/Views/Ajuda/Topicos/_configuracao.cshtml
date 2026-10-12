@@ -52,6 +52,14 @@
     Campo(nameof(ConfiguracaoForm.MaxCancellationsPerRun), @<text>
         <p class="mb-1">Mesmo princípio, para a exclusão de lançamentos de férias no Sólides DP (férias reprogramadas ou apagadas no RHSenso).</p>
     </text>);
+    Campo(nameof(ConfiguracaoForm.MaxDismissalsPerRun), @<text>
+        <p class="mb-1">
+            Mesmo princípio, para os desligamentos no Sólides DP. Um desligamento indevido tira a pessoa do ponto, então o limite é baixo.
+            Se uma execução passar do limite (por exemplo, um fechamento de contratos com muitas demissões no mesmo dia), ninguém é desligado
+            e a falha aparece em Pendências: confira as demissões no RHSenso, aumente o valor, rode de novo e volte ao normal depois.
+            Na simulação o limite não bloqueia, mas aparece um aviso quando ele seria ultrapassado.
+        </p>
+    </text>);
 }
 
 <h4>Quem entra</h4>

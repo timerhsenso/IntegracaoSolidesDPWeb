@@ -24,9 +24,9 @@ public sealed class SyncOptionsValidator : IValidateOptions<SyncOptions>
             errors.Add("Sync:FeriasJanelaDias deve estar entre 0 e 3650.");
         }
 
-        if (options.MaxCreatesPerRun < 0 || options.MaxCancellationsPerRun < 0)
+        if (options.MaxCreatesPerRun < 0 || options.MaxCancellationsPerRun < 0 || options.MaxDismissalsPerRun < 0)
         {
-            errors.Add("Sync:MaxCreatesPerRun e Sync:MaxCancellationsPerRun não podem ser negativos.");
+            errors.Add("Sync:MaxCreatesPerRun, Sync:MaxCancellationsPerRun e Sync:MaxDismissalsPerRun não podem ser negativos.");
         }
 
         if (options.FeriasMaxTentativas < 1)

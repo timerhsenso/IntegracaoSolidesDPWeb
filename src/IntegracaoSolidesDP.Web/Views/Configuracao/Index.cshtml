@@ -127,15 +127,20 @@
                     <div class="card-header">Travas de segurança</div>
                     <div class="card-body">
                         <div class="row g-2">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label asp-for="Form.MaxCreatesPerRun" class="form-label"></label>
                                 <input asp-for="Form.MaxCreatesPerRun" class="form-control" />
                                 <dica-campo for="Form.MaxCreatesPerRun" />
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label asp-for="Form.MaxCancellationsPerRun" class="form-label"></label>
                                 <input asp-for="Form.MaxCancellationsPerRun" class="form-control" />
                                 <dica-campo for="Form.MaxCancellationsPerRun" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Form.MaxDismissalsPerRun" class="form-label"></label>
+                                <input asp-for="Form.MaxDismissalsPerRun" class="form-control" />
+                                <dica-campo for="Form.MaxDismissalsPerRun" />
                             </div>
                         </div>
                         <div class="form-text">Valem para cada execução, e cada execução é de uma empresa.</div>

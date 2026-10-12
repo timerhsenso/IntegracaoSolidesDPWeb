@@ -13,16 +13,26 @@ public static class ResultadosVinculacao
     public const string SemAlteracao = "Sem alteração (já vinculado)";
     public const string ForaDoEscopo = "Fora do escopo";
 
+    /// <summary>Já vinculado e com demissão ou transferência no RHSenso: a integração desliga no Sólides DP.</summary>
+    public const string Desligar = "Desligar";
+
+    /// <summary>
+    /// Ativo no Sólides DP sem colaborador ativo correspondente no RHSenso. A integração não mexe nesse cadastro
+    /// (só desliga quem ela vinculou): o RH decide se desliga no DP ou corrige o RHSenso.
+    /// </summary>
+    public const string SoNoDp = "Só no Sólides DP";
+
     /// <summary>Ordem do relatório: primeiro o que precisa de decisão do RH.</summary>
-    public static readonly IReadOnlyList<string> Ordem = [Pendencia, Criar, Vincular, Atualizar, ForaDoEscopo, SemAlteracao];
+    public static readonly IReadOnlyList<string> Ordem = [Pendencia, SoNoDp, Desligar, Criar, Vincular, Atualizar, ForaDoEscopo, SemAlteracao];
 }
 
 /// <summary>Uma pessoa do RHSenso no relatório de vinculação, ao lado do cadastro dela no Sólides DP.</summary>
 public sealed record VinculacaoLinha
 {
-    /// <summary>"{empresa}-{matrícula}".</summary>
+    /// <summary>"{empresa}-{matrícula}"; vazio quando a pessoa só existe no Sólides DP.</summary>
     public required string Rotulo { get; init; }
 
+    /// <summary>Nome no RHSenso (vazio quando a pessoa só existe no Sólides DP).</summary>
     public string? Nome { get; init; }
 
     /// <summary>CPF só com dígitos; sai mascarado no CSV.</summary>
@@ -55,7 +65,8 @@ public sealed record VinculacaoLinha
 
 /// <summary>
 /// Relatório de vinculação: CSV para o RH do cliente conferir, antes do envio real, o que a integração faria com cada
-/// pessoa (vincular a um cadastro que já existe no Sólides DP, criar, pendência, fora do escopo). Gerado em toda
+/// pessoa (vincular a um cadastro que já existe no Sólides DP, criar, desligar, pendência, fora do escopo) e quem está
+/// ativo no Sólides DP sem colaborador ativo no RHSenso ("Só no Sólides DP", só com token). Gerado em toda
 /// simulação; fica na pasta de relatórios do serviço e em solidesdp.run_relatorio (a Web oferece para baixar).
 /// </summary>
 public static class VinculacaoReport
@@ -75,7 +86,7 @@ public static class VinculacaoReport
         var csv = new StringBuilder(Cabecalho);
         var ordenadas = linhas
             .OrderBy(l => Posicao(l.Resultado))
-            .ThenBy(l => Normalizar(l.Nome), StringComparer.Ordinal)
+            .ThenBy(l => Normalizar(l.Nome ?? l.NomeDp), StringComparer.Ordinal)
             .ThenBy(l => l.Rotulo, StringComparer.Ordinal);
 
         foreach (var l in ordenadas)
@@ -99,10 +110,10 @@ public static class VinculacaoReport
         return csv.ToString();
     }
 
-    /// <summary>"Sim" quando os nomes são iguais sem acento, caixa e espaços extras; vazio sem cadastro no DP.</summary>
+    /// <summary>"Sim" quando os nomes são iguais sem acento, caixa e espaços extras; vazio se faltar um dos dois.</summary>
     public static string NomesConferem(string? nome, string? nomeDp)
     {
-        if (string.IsNullOrWhiteSpace(nomeDp))
+        if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(nomeDp))
         {
             return string.Empty;
         }

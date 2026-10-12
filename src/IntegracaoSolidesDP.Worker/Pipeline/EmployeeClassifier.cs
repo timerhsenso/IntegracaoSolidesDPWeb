@@ -47,6 +47,7 @@ public static class EmployeeClassifier
         var outOfScope = new Dictionary<string, EmployeeRow>(StringComparer.Ordinal);
         var labels = new Dictionary<string, string>(StringComparer.Ordinal);
         var keyByMatricula = new Dictionary<string, string>(StringComparer.Ordinal);
+        var cpfsAtivos = new HashSet<string>(StringComparer.Ordinal);
 
         // Sem CPF válido não há identidade: só vira pendência se a linha estiver ativa e em escopo.
         foreach (var row in considered.Where(r => r.Chave is null && IsCurrent(r) && escopo.Inclui(r.Cdfilial) && InPilot([r], null)))
@@ -73,6 +74,10 @@ public static class EmployeeClassifier
             }
 
             labels[cpf] = (current.FirstOrDefault() ?? group.OrderByDescending(r => r.DataAdmissao).First()).Rotulo;
+            if (current.Count > 0)
+            {
+                cpfsAtivos.Add(cpf);
+            }
 
             if (!InPilot(group, cpf))
             {
@@ -137,6 +142,7 @@ public static class EmployeeClassifier
             KeyByMatricula = keyByMatricula,
             Labels = labels,
             NomesPorRotulo = nomes,
+            CpfsAtivosNoRhSenso = cpfsAtivos,
         };
     }
 

@@ -160,6 +160,126 @@ public sealed class EmployeeStep(
 
             await UpsertAsync(context, candidate, decision, ct);
         }
+
+        await SoNoDpAsync(context, plan, states, ct);
+    }
+
+    /// <summary>
+    /// Na simulação com token: quem está ATIVO no Sólides DP sem colaborador ativo correspondente no RHSenso (pelo CPF).
+    /// A integração não desliga esse cadastro (só desliga quem ela vinculou); o relatório mostra o que o RHSenso diz
+    /// da pessoa para o RH decidir. Com piloto preenchido não se aplica: fora do piloto todo mundo pareceria "só no DP".
+    /// </summary>
+    private async Task SoNoDpAsync(SyncContext context, EmployeePlan plan, Dictionary<string, EntityState> states, CancellationToken ct)
+    {
+        if (!context.DryRun || !context.CanQueryDp || Options.ExternalIdAllowList.Count > 0)
+        {
+            return;
+        }
+
+        var ativos = await EnsureIndexAsync(context, ct);
+        var saidas = plan.Departures.ToDictionary(d => d.Key, StringComparer.Ordinal);
+        var vinculos = states.Values
+            .Where(s => s.RemoteId is not null)
+            .GroupBy(s => s.RemoteId!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+        var total = 0;
+        foreach (var dp in ativos.Todos)
+        {
+            var cpf = Documents.NormalizeCpf(dp.Cpf).Value;
+            if (cpf is not null && plan.CpfsAtivosNoRhSenso.Contains(cpf))
+            {
+                continue;
+            }
+
+            Departure? saida = null;
+            if (cpf is not null && saidas.TryGetValue(cpf, out var encontrada))
+            {
+                // Já vinculado: o DismissalStep desliga (linha "Desligar"); não é decisão do RH.
+                if (IsLinked(states.GetValueOrDefault(cpf)))
+                {
+                    continue;
+                }
+
+                saida = encontrada;
+            }
+
+            vinculos.TryGetValue(dp.Id, out var vinculo);
+            context.Vinculacao.Add(new VinculacaoLinha
+            {
+                Rotulo = saida?.Label ?? string.Empty,
+                Nome = saida is null ? null : plan.NomesPorRotulo.GetValueOrDefault(saida.Label),
+                Cpf = cpf,
+                Resultado = ResultadosVinculacao.SoNoDp,
+                CadastroDp = dp.Id,
+                NomeDp = dp.Name?.Trim(),
+                CodigoExternoDp = dp.ExternalId?.Trim(),
+                CargoDp = CargoDp(dp.JobRole),
+                Observacao = Join(SoNoDpMotivo(context, plan, cpf, saida, dp), SoNoDpVinculo(vinculo)),
+            });
+            total++;
+        }
+
+        if (total > 0)
+        {
+            context.Add(new RunItem(EntityTypes.Employee, "-", ItemActions.None, ItemStatuses.Warning,
+                Message: FormattableString.Invariant(
+                    $"so_no_dp: {total} cadastro(s) ativo(s) no Sólides DP sem colaborador ativo no RHSenso; a integração não mexe neles. Ver \"Só no Sólides DP\" no relatório de vinculação.")));
+        }
+    }
+
+    /// <summary>O que o RHSenso diz do CPF de quem está ativo só no Sólides DP.</summary>
+    private static string SoNoDpMotivo(SyncContext context, EmployeePlan plan, string? cpf, Departure? saida, EmployeeDto dp)
+    {
+        if (cpf is null)
+        {
+            return "CPF vazio ou inválido no Sólides DP: não dá para comparar com o RHSenso; corrigir o CPF no DP";
+        }
+
+        if (saida is not null)
+        {
+            var quando = saida.Date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+            var futuro = saida.Date > context.Today;
+            return saida.IsTransfer
+                ? $"transferido para outra empresa no RHSenso em {quando}; desligar nesta conta do Sólides DP" +
+                  (futuro ? " nessa data" : string.Empty) + " (na conta da nova empresa a pessoa é vinculada pelo CPF)"
+                : $"desligado no RHSenso em {quando} ({saida.Reason}); a integração só desliga quem ela vinculou: desligar no Sólides DP" +
+                  (futuro ? " nessa data" : string.Empty);
+        }
+
+        if (EmployeeMapper.Clean(dp.ExternalId) is { } codigo && MatriculaComCodigo(plan, codigo) is { } matricula)
+        {
+            return FormattableString.Invariant(
+                $"o Código Externo {codigo} é a matrícula {context.Cdempresa}-{matricula} do RHSenso, que tem outro CPF: conferir o CPF no Sólides DP ou no RHSenso");
+        }
+
+        return "CPF não aparece entre os colaboradores ativos do RHSenso nesta empresa (considerando os tipos de colaborador e as situações configurados): " +
+               "conferir se a pessoa deve continuar no ponto";
+    }
+
+    /// <summary>Quem a integração já vinculou e agora aparece só no DP: CPF trocado no RHSenso ou readmitido no DP.</summary>
+    private static string? SoNoDpVinculo(EntityState? vinculo) => vinculo switch
+    {
+        null => null,
+        { Status: EntityStatuses.Dismissed } => "a integração já desligou este cadastro, mas ele está ativo no Sólides DP (readmitido lá?)",
+        { } outro => $"vinculado pela integração à matrícula {outro.Matricula ?? "?"}: conferir se o CPF foi alterado no RHSenso",
+    };
+
+    /// <summary>Matrícula do RHSenso igual ao Código Externo do DP, também sem os zeros à esquerda ("7811" = "00007811").</summary>
+    private static string? MatriculaComCodigo(EmployeePlan plan, string codigo)
+    {
+        if (plan.KeyByMatricula.ContainsKey(codigo))
+        {
+            return codigo;
+        }
+
+        if (!codigo.All(char.IsAsciiDigit))
+        {
+            return null;
+        }
+
+        var semZeros = codigo.TrimStart('0');
+        return plan.KeyByMatricula.Keys.FirstOrDefault(m =>
+            m.All(char.IsAsciiDigit) && string.Equals(m.TrimStart('0'), semZeros, StringComparison.Ordinal));
     }
 
     /// <summary>Carrega uma vez por execução os colaboradores ativos da conta no DP.</summary>
@@ -576,8 +696,12 @@ public sealed class DpEmployeeIndex
     private readonly Dictionary<string, List<EmployeeDto>> _byCpf = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<EmployeeDto>> _byCodigo = new(StringComparer.Ordinal);
     private readonly HashSet<long> _ids = [];
+    private readonly List<EmployeeDto> _todos = [];
 
     public int Count { get; private set; }
+
+    /// <summary>Todos os ativos da conta, na ordem em que o DP devolveu.</summary>
+    public IReadOnlyList<EmployeeDto> Todos => _todos;
 
     /// <summary>O cadastro (id do DP) está entre os ativos.</summary>
     public bool Contains(long id) => _ids.Contains(id);
@@ -589,6 +713,7 @@ public sealed class DpEmployeeIndex
         {
             index.Count++;
             index._ids.Add(employee.Id);
+            index._todos.Add(employee);
             if (Documents.NormalizeCpf(employee.Cpf).Value is { } cpf)
             {
                 Add(index._byCpf, cpf, employee);

@@ -117,6 +117,12 @@ public sealed record EmployeePlan(
     /// <summary>CPFs ativos e em escopo (as chaves do estado).</summary>
     public IReadOnlySet<string> ActiveKeys { get; } = Active.Select(r => r.Chave!).ToHashSet(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Todo CPF com vínculo ativo na empresa no RHSenso, inclusive fora do escopo, fora do piloto ou com pendência
+    /// (CPF ativo duplicado): quem está no DP com um desses CPFs não é "Só no Sólides DP".
+    /// </summary>
+    public IReadOnlySet<string> CpfsAtivosNoRhSenso { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
     /// <summary>Ativos numa filial que não está marcada: não são enviados nem desligados.</summary>
     public IReadOnlyDictionary<string, EmployeeRow> OutOfScope { get; init; } = new Dictionary<string, EmployeeRow>(StringComparer.Ordinal);
 

@@ -129,8 +129,12 @@
             <td>Linha duplicada da mesma matrícula no RHSenso. A integração usou a mais recente. Só informativo.</td>
         </tr>
         <tr>
-            <td><code>max_creates_exceeded</code> / <code>max_cancellations_exceeded</code></td>
-            <td>A trava segurou a etapa e nada dela foi enviado. Confira se o volume faz sentido (carga inicial de uma empresa?). Se fizer, um Admin aumenta o limite temporariamente.</td>
+            <td><code>max_creates_exceeded</code> / <code>max_cancellations_exceeded</code> / <code>max_dismissals_exceeded</code></td>
+            <td>A trava segurou a etapa e nada dela foi enviado. Confira se o volume faz sentido (carga inicial de uma empresa? muitas demissões no mesmo dia?). Se fizer, um Admin aumenta o limite temporariamente. Na simulação aparece só como aviso.</td>
+        </tr>
+        <tr>
+            <td><code>so_no_dp</code></td>
+            <td>Aviso da simulação: há cadastros ativos no Sólides DP sem colaborador ativo no RHSenso. Baixe o relatório de vinculação e veja as linhas <em>Só no Sólides DP</em>. A integração não desliga essas pessoas.</td>
         </tr>
         <tr>
             <td><code>programada ... (enviada quando for liberada)</code></td>

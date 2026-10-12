@@ -83,6 +83,9 @@ public sealed class SyncOptions
     /// <summary>Trava: não cancela mais férias que isto numa execução.</summary>
     public int MaxCancellationsPerRun { get; set; } = 20;
 
+    /// <summary>Trava: se uma execução for desligar mais colaboradores que isto, não desliga nenhum.</summary>
+    public int MaxDismissalsPerRun { get; set; } = 20;
+
     /// <summary>Pasta dos relatórios CSV/JSON de cada execução (relativa ao executável).</summary>
     public string ReportDirectory { get; set; } = "reports";
 }

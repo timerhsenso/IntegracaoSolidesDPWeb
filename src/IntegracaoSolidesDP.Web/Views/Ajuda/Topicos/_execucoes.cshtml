@@ -34,10 +34,22 @@
 <dl class="ajuda-def">
     <dt>Resultado</dt>
     <dd>
-        <strong>Pendência</strong> (não vai até alguém resolver: o motivo está na última coluna), <strong>Criar</strong>
+        <strong>Pendência</strong> (não vai até alguém resolver: o motivo está na última coluna),
+        <strong>Só no Sólides DP</strong> (veja abaixo), <strong>Desligar</strong> (já vinculado e demitido ou transferido no
+        RHSenso: a integração desliga no Sólides DP), <strong>Criar</strong>
         (não existe no Sólides DP), <strong>Vincular pelo CPF</strong> (já existe no Sólides DP, cadastrado à mão: passa a ser
         atualizado pelo RHSenso), <strong>Atualizar</strong> / <strong>Sem alteração</strong> (já vinculado antes) e
         <strong>Fora do escopo</strong> (filial não marcada).
+    </dd>
+    <dt>Só no Sólides DP</dt>
+    <dd>
+        Cadastro <strong>ativo</strong> no Sólides DP sem colaborador ativo com o mesmo CPF no RHSenso (só aparece quando a empresa
+        tem token, porque é preciso consultar o Sólides DP). A integração <strong>não mexe</strong> nesses cadastros: ela só
+        desliga quem ela mesma vinculou. A última coluna diz o que o RHSenso sabe da pessoa: <em>desligado no RHSenso em ...</em>
+        ou <em>transferido</em> (o RH desliga no Sólides DP), <em>o Código Externo é a matrícula de outro CPF</em> (um dos dois CPFs
+        está errado) ou <em>CPF não aparece entre os ativos do RHSenso</em> (cadastro feito só no Sólides DP, ou tipo de colaborador
+        fora das regras). Não aparece quando o campo Piloto da empresa está preenchido.
+        Nessas linhas, a matrícula e o nome do RHSenso ficam vazios quando o RHSenso não tem a pessoa.
     </dd>
     <dt>Nome no RHSenso × Nome no DP</dt>
     <dd>Para conferir se o CPF ligou a pessoa certa. A coluna <em>Nomes conferem</em> compara sem acento e sem diferença de maiúsculas.</dd>

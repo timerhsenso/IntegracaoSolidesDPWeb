@@ -507,7 +507,7 @@ Get-Content C:\Services\IntegracaoSolidesDP\logs\*.log -Tail 50</code></pre>
     <h3>6.3 Relatórios de execução</h3>
     <ul>
         <li>Cada execução grava <code>reports/run-*.csv</code> (abre no Excel) e <code>reports/run-*.json</code>, com os itens com falha, bloqueados e ignorados e o motivo de cada um.</li>
-        <li>Cada <strong>simulação</strong> grava também <code>reports/vinculacao-empresa{N}-*.csv</code>, o relatório de vinculação para o RH (uma linha por pessoa: nome no RHSenso e no Sólides DP, CPF mascarado, vincular pelo CPF / criar / pendência / fora do escopo, Código Externo e cargo antes e depois). O mesmo arquivo fica em <code>solidesdp.run_relatorio</code> e é baixado na Web, no detalhe da execução (fica na auditoria como <code>RELATORIO_BAIXADO</code>).</li>
+        <li>Cada <strong>simulação</strong> grava também <code>reports/vinculacao-empresa{N}-*.csv</code>, o relatório de vinculação para o RH (uma linha por pessoa: nome no RHSenso e no Sólides DP, CPF mascarado, vincular pelo CPF / criar / desligar / pendência / fora do escopo, Código Externo e cargo antes e depois; com token, também os cadastros ativos <strong>só no Sólides DP</strong>, com o que o RHSenso diz da pessoa). O mesmo arquivo fica em <code>solidesdp.run_relatorio</code> e é baixado na Web, no detalhe da execução (fica na auditoria como <code>RELATORIO_BAIXADO</code>).</li>
         <li>A pasta <strong>não é limpa automaticamente</strong>. Com execução a cada 30 minutos, são cerca de 100 arquivos por dia. Recomenda-se uma tarefa de limpeza mensal, mantendo 90 dias, por exemplo:</li>
     </ul>
 <pre><code>Get-ChildItem C:\Services\IntegracaoSolidesDP\reports -File |
@@ -567,6 +567,8 @@ WHERE instance_name = 'default' ORDER BY versao DESC;</code></pre>
                 <td class="quebra">Saída HTTPS bloqueada, proxy ou certificado. Teste no servidor: <code>Test-NetConnection employer.tangerino.com.br -Port 443</code>.</td></tr>
             <tr><td class="quebra"><code>source_empty</code>: nenhum colaborador lido</td>
                 <td class="quebra">Connection string apontando para outro banco, ou filtros da empresa (piloto, filiais) que não casam com nada. A trava impede que um banco vazio leve a desligamentos em massa.</td></tr>
+            <tr><td class="quebra"><code>max_dismissals_exceeded</code>: nenhum desligamento enviado</td>
+                <td class="quebra">A execução ia desligar mais colaboradores que <code>Sync:MaxDismissalsPerRun</code> (padrão 20, tela Regras gerais). Confira as demissões no RHSenso; se estiverem certas, aumente o limite, rode de novo e volte ao valor normal.</td></tr>
             <tr><td class="quebra">"tabelas ausentes em dbo" no <code>--check-config</code></td>
                 <td class="quebra">O login não tem leitura no <code>dbo</code> ou o banco não é o do RHSenso. Revise o <code>db_datareader</code> do login.</td></tr>
             <tr><td class="quebra">Erro de permissão ao criar tabelas <code>solidesdp</code></td>

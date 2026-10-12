@@ -50,6 +50,10 @@ public sealed class ConfiguracaoForm
     [Display(Name = "Máximo de férias canceladas por execução", Description = "Trava: se uma execução for excluir mais férias que isto, nenhuma é excluída e fica uma falha em Pendências.")]
     public int MaxCancellationsPerRun { get; set; } = 20;
 
+    [Range(0, 100000, ErrorMessage = "Informe um número não negativo.")]
+    [Display(Name = "Máximo de desligamentos por execução", Description = "Trava: se uma execução for desligar mais colaboradores que isto no Sólides DP, nenhum é desligado e fica uma falha em Pendências.")]
+    public int MaxDismissalsPerRun { get; set; } = 20;
+
     [Required(ErrorMessage = "Descreva o motivo da alteração.")]
     [StringLength(500, ErrorMessage = "Use até 500 caracteres.")]
     [Display(Name = "Motivo da alteração")]
@@ -67,6 +71,7 @@ public sealed class ConfiguracaoForm
         FeriasMaxTentativas = options.FeriasMaxTentativas,
         MaxCreatesPerRun = options.MaxCreatesPerRun,
         MaxCancellationsPerRun = options.MaxCancellationsPerRun,
+        MaxDismissalsPerRun = options.MaxDismissalsPerRun,
     };
 
     /// <summary>
@@ -88,6 +93,7 @@ public sealed class ConfiguracaoForm
         options.FeriasMaxTentativas = FeriasMaxTentativas;
         options.MaxCreatesPerRun = MaxCreatesPerRun;
         options.MaxCancellationsPerRun = MaxCancellationsPerRun;
+        options.MaxDismissalsPerRun = MaxDismissalsPerRun;
         return options;
     }
 
