@@ -51,4 +51,5 @@ public static class AcoesAuditoria
     public const string EmpresaAlterada = "EMPRESA_ALTERADA";
     public const string EmpresaTokenCadastrado = "EMPRESA_TOKEN_CADASTRADO";
     public const string EmpresaTokenRemovido = "EMPRESA_TOKEN_REMOVIDO";
+    public const string RelatorioBaixado = "RELATORIO_BAIXADO";
 }

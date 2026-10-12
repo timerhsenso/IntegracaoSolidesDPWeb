@@ -84,6 +84,30 @@ public sealed class PainelRepository(ConnectionFactory connections, IOptions<Web
             $"SELECT {ExecucaoColunas} FROM solidesdp.runs WHERE run_id = @RunId", new { RunId = runId }, cancellationToken: ct));
     }
 
+    /// <summary>Tipos de relatório gravados pelo serviço para a execução. Vazio com o serviço numa versão que não grava relatórios.</summary>
+    public async Task<IReadOnlyList<string>> RelatoriosAsync(Guid runId, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        var rows = await connection.QueryAsync<string>(new CommandDefinition("""
+            IF OBJECT_ID(N'solidesdp.run_relatorio', N'U') IS NOT NULL
+                SELECT tipo FROM solidesdp.run_relatorio WHERE run_id = @RunId ORDER BY tipo;
+            ELSE
+                SELECT CAST(NULL AS varchar(32)) AS tipo WHERE 1 = 0;
+            """, new { RunId = runId }, cancellationToken: ct));
+        return rows.AsList();
+    }
+
+    public async Task<RelatorioExecucao?> RelatorioAsync(Guid runId, string tipo, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        return await connection.QueryFirstOrDefaultAsync<RelatorioExecucao>(new CommandDefinition("""
+            IF OBJECT_ID(N'solidesdp.run_relatorio', N'U') IS NOT NULL
+                SELECT arquivo AS Arquivo, conteudo AS Conteudo FROM solidesdp.run_relatorio WHERE run_id = @RunId AND tipo = @Tipo;
+            ELSE
+                SELECT CAST(NULL AS nvarchar(200)) AS Arquivo, CAST(NULL AS nvarchar(max)) AS Conteudo WHERE 1 = 0;
+            """, new { RunId = runId, Tipo = tipo }, cancellationToken: ct));
+    }
+
     public async Task<Execucao?> ExecucaoEmAndamentoAsync(CancellationToken ct)
     {
         await using var connection = await connections.OpenAsync(ct);

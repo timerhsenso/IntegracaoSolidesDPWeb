@@ -26,6 +26,30 @@
         Clique no código do registro para ver o histórico dele.
     </li>
 </ul>
+<h4 id="relatorio-vinculacao">Relatório de vinculação</h4>
+<p>
+    Toda <strong>simulação</strong> gera, no detalhe da execução, o botão <em>Baixar relatório de vinculação</em>: um arquivo
+    (CSV, abre no Excel) com uma linha por pessoa, feito para o RH do cliente conferir antes do envio real.
+</p>
+<dl class="ajuda-def">
+    <dt>Resultado</dt>
+    <dd>
+        <strong>Pendência</strong> (não vai até alguém resolver: o motivo está na última coluna), <strong>Criar</strong>
+        (não existe no Sólides DP), <strong>Vincular pelo CPF</strong> (já existe no Sólides DP, cadastrado à mão: passa a ser
+        atualizado pelo RHSenso), <strong>Atualizar</strong> / <strong>Sem alteração</strong> (já vinculado antes) e
+        <strong>Fora do escopo</strong> (filial não marcada).
+    </dd>
+    <dt>Nome no RHSenso × Nome no DP</dt>
+    <dd>Para conferir se o CPF ligou a pessoa certa. A coluna <em>Nomes conferem</em> compara sem acento e sem diferença de maiúsculas.</dd>
+    <dt>Código Externo e cargo</dt><dd>O que está hoje no Sólides DP e o que fica depois do envio. <em>Muda o cargo</em> = Sim: o cargo do RHSenso passa a valer a partir do dia do envio.</dd>
+    <dt>CPF</dt><dd>Sai mascarado (529.***.***-25): o arquivo circula por e-mail.</dd>
+</dl>
+<div class="alert alert-warning small">
+    <i class="bi bi-exclamation-triangle"></i> <strong>Desligado no Sólides DP:</strong> se a pessoa não está ativa no Sólides DP mas
+    existe lá <strong>desligada</strong> (por exemplo, um ex-funcionário readmitido no RHSenso), a integração <strong>não cria</strong>
+    outro cadastro, para não duplicar. Ela fica como pendência (<code>cpf_desligado_no_dp</code>) até o RH readmitir no Sólides DP;
+    na execução seguinte, a pessoa é vinculada pelo CPF.
+</div>
 <div class="alert alert-light border small mb-0">
     <i class="bi bi-info-circle"></i> Registros <strong>Sem alteração</strong> entram só na contagem, não na grade de itens. Numa execução
     normal do dia a dia quase tudo é "Sem alteração", e a grade mostra só o que realmente mudou.

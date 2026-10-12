@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Options;
+using IntegracaoSolidesDP.Worker.Pipeline;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
 
@@ -310,6 +311,77 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
 
         summary.Status.Should().Be(RunStatuses.Completed, summary.Error);
         (await _pipeline.Fake.GetStateAsync(Ct)).Adjustments.Should().ContainSingle().Which.EmployeeId.Should().Be(manual);
+    }
+
+    [Fact]
+    public async Task Dry_run_writes_the_linking_report_with_one_line_per_person()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811", nome: "MARIA DA SILVA"));
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000002", cpf: TestData.Cpf2, nome: "JOÃO SANTOS"));
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000003", cpf: TestData.Cpf3, nome: "ANA LIMA"));
+        var maria = await RegisterByHrAsync("", "MARIA SILVA", TestData.Cpf1);
+        var joao = await RegisterByHrAsync("00000777", "JOAO SANTOS", TestData.Cpf2);
+        await DismissByHrAsync(joao, new DateOnly(2024, 5, 31));
+        await _pipeline.Fake.ClearRequestsAsync(Ct);
+
+        var summary = await _pipeline.RunAsync(dryRun: true, ct: Ct);
+
+        (await _pipeline.WritesAsync(Ct)).Should().BeEmpty();
+        var (arquivo, csv) = _pipeline.State.Reports[(summary.RunId, VinculacaoReport.Tipo)];
+        arquivo.Should().Be("vinculacao-empresa1-20261005-120000.csv");
+        var linhas = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        linhas.Should().HaveCount(4);
+        linhas[0].Should().StartWith("Matrícula;Nome no RHSenso;CPF;Filial;Resultado;Cadastro no DP;Nome no DP;Nomes conferem;");
+        // Primeiro o que precisa de decisão do RH.
+        linhas[1].Should().StartWith(FormattableString.Invariant($"1-00000002;JOÃO SANTOS;111.***.***-35;1;Pendência;{joao};JOAO SANTOS;Sim;00000777;"))
+            .And.Contain("cpf_desligado_no_dp").And.Contain("desligado em 31/05/2024");
+        linhas[2].Should().StartWith("1-00000003;ANA LIMA;390.***.***-05;1;Criar;;;;;00000003;;00100 ANALISTA DE SISTEMAS;;");
+        linhas[3].Should().StartWith(FormattableString.Invariant(
+            $"1-00007811;MARIA DA SILVA;529.***.***-25;1;Vincular pelo CPF;{maria};MARIA SILVA;Não, conferir;;00007811;;00100 ANALISTA DE SISTEMAS;Sim;"));
+    }
+
+    [Fact]
+    public async Task Someone_dismissed_in_dp_is_not_created_again_in_a_real_run()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000002", cpf: TestData.Cpf2));
+        var antigo = await RegisterByHrAsync("00000777", "JOAO SANTOS", TestData.Cpf2);
+        await DismissByHrAsync(antigo, new DateOnly(2024, 5, 31));
+        await _pipeline.Fake.ClearRequestsAsync(Ct);
+
+        var summary = await _pipeline.RunAsync(ct: Ct);
+
+        summary.Status.Should().Be(RunStatuses.CompletedWithErrors);
+        summary.Counts["employee"]["blocked"].Should().Be(1);
+        _pipeline.State.Items[summary.RunId].Single(i => i.EntityType == EntityTypes.Employee).Message
+            .Should().StartWith(FormattableString.Invariant($"cpf_desligado_no_dp: este CPF está DESLIGADO no Sólides DP (cadastro {antigo}, desligado em 31/05/2024)"));
+        (await _pipeline.WritesAsync(Ct)).Should().NotContain(w => w.Path == "/employee/register");
+        (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle().Which.Fired.Should().BeTrue();
+        _pipeline.State.Reports.Should().BeEmpty("o relatório de vinculação é só da simulação");
+    }
+
+    [Fact]
+    public async Task Dismissed_list_is_read_only_when_someone_would_be_created()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00007811"));
+        await RegisterByHrAsync("", "MARIA", TestData.Cpf1);
+        await _pipeline.Fake.ClearRequestsAsync(Ct);
+
+        await _pipeline.RunAsync(dryRun: true, ct: Ct);
+
+        (await _pipeline.Fake.GetRequestsAsync(Ct)).Should().NotContain(r => r.Path == "/employee/find-all" && r.Query?.Contains("showFired=1", StringComparison.Ordinal) == true,
+            "todo mundo já está ativo no DP: não há quem criar");
+    }
+
+    private async Task DismissByHrAsync(long tangerinoId, DateOnly data)
+    {
+        using var hr = _pipeline.DpAsHr();
+        var response = await hr.PostAsJsonAsync("/employee/dismiss", new
+        {
+            tangerinoId,
+            resignationDate = TestData.Dates.StartOfDay(data),
+            resignationReason = "PEDIDO_DEMISSAO_COLABORADOR",
+        }, Ct);
+        response.IsSuccessStatusCode.Should().BeTrue(await response.Content.ReadAsStringAsync(Ct));
     }
 
     private static string Rules() =>

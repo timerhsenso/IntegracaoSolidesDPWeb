@@ -21,6 +21,10 @@ public sealed class EpochDates(TimeZoneInfo zone)
 
     public long EndOfDay(DateOnly date) => StartOfDay(date.AddDays(1)) - 1;
 
+    /// <summary>Dia (no fuso configurado) de uma data em epoch ms vinda do Sólides DP.</summary>
+    public DateOnly ToDate(long epochMillis) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeMilliseconds(epochMillis), Zone).DateTime);
+
     public DateOnly Today(TimeProvider clock) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), Zone).DateTime);
 }

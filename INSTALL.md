@@ -243,7 +243,7 @@ Os comandos abaixo valem para as três formas. No Windows, use `IntegracaoSolide
    - Preencha `WorkScheduleExternalId` e `PunchRuleExternalId`.
    - Confira se os CNPJs das filiais existem no DP.
    - Confira se existe o motivo **FÉRIAS**.
-3. **Simular:** com `DryRun: true`, rode `--dry-run` ou deixe o serviço rodar. O relatório sai em `reports/run-*.csv`, que abre no Excel. **O RH da ADN revisa esse relatório.**
+3. **Simular:** com `DryRun: true`, rode `--dry-run` ou deixe o serviço rodar. O relatório sai em `reports/run-*.csv`, que abre no Excel. Para o RH, use o **relatório de vinculação** (`reports/vinculacao-empresa{N}-*.csv`, ou o botão no detalhe da execução na Web): uma linha por pessoa, com o nome no RHSenso e no DP, se vai vincular pelo CPF, criar ou ficar pendente, e o Código Externo e o cargo que mudam. **O RH da ADN revisa esse relatório.**
 4. **Piloto com 2 ou 3 pessoas:** configure `"DryRun": false, "ExternalIdAllowList": ["14-00901482", "..."]` (o formato é `{empresa}-{matrícula}`) e rode `--run-once`. Confira no app.tangerino.com.br:
    - [ ] o colaborador foi criado com cargo, local, empresa, escala e regra corretos;
    - [ ] uma segunda execução não altera nada (tudo `unchanged` no relatório);
@@ -259,7 +259,7 @@ Os comandos abaixo valem para as três formas. No Windows, use `IntegracaoSolide
 | O quê | Onde |
 |---|---|
 | Logs | Pasta `logs` da instalação, `journalctl` no Linux ou `docker logs`. Web: `C:\inetpub\IntegracaoSolidesDP.Web\logs` |
-| Relatório de cada execução | Pasta `reports`: `run-*.csv` com os itens `failed`, `blocked`, `skipped` e o motivo de cada um |
+| Relatório de cada execução | Pasta `reports`: `run-*.csv` com os itens `failed`, `blocked`, `skipped` e o motivo de cada um; nas simulações, também `vinculacao-*.csv` (uma linha por pessoa, para o RH) |
 | Histórico no banco | `SELECT * FROM solidesdp.runs ORDER BY started_at DESC` |
 | Conferência semanal | `--reconcile`: lista os enviados que não existem mais no DP (`--repair` reenvia) |
 | Versão instalada | `--version` |

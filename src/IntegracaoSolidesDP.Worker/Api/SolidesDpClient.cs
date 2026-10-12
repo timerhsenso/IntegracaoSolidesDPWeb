@@ -36,6 +36,9 @@ public interface ISolidesDpClient
     /// <summary>Colaboradores ativos (não demitidos) da conta, todas as páginas.</summary>
     Task<ApiResult<IReadOnlyList<EmployeeDto>>> FindAllEmployeesAsync(CancellationToken ct);
 
+    /// <summary>Todos os colaboradores da conta, inclusive os desligados (showFired=1), todas as páginas.</summary>
+    Task<ApiResult<IReadOnlyList<EmployeeDto>>> FindAllEmployeesIncludingFiredAsync(CancellationToken ct);
+
     Task<ApiResult<EmployeeDto>> RegisterEmployeeAsync(EmployeeRequest request, CancellationToken ct);
 
     Task<ApiResult<JsonElement?>> DismissEmployeeAsync(DismissRequest request, CancellationToken ct);
@@ -110,6 +113,9 @@ public sealed class SolidesDpClient(IHttpClientFactory factory, SolidesDpClientS
 
     public Task<ApiResult<IReadOnlyList<EmployeeDto>>> FindAllEmployeesAsync(CancellationToken ct) =>
         GetAllPagesAsync<EmployeeDto>("employee/find-all?showFired=0", "page", "size", static e => e, ct);
+
+    public Task<ApiResult<IReadOnlyList<EmployeeDto>>> FindAllEmployeesIncludingFiredAsync(CancellationToken ct) =>
+        GetAllPagesAsync<EmployeeDto>("employee/find-all?showFired=1", "page", "size", static e => e, ct);
 
     public Task<ApiResult<EmployeeDto>> RegisterEmployeeAsync(EmployeeRequest request, CancellationToken ct) =>
         // allowUpdate=true torna o POST um upsert por externalId: o retry é seguro.

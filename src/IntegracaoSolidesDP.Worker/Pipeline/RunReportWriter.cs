@@ -85,11 +85,7 @@ public sealed class RunReportWriter(IOptions<SyncOptions> options, ILogger<RunRe
     {
         try
         {
-            var directory = Path.IsPathRooted(options.Value.ReportDirectory)
-                ? options.Value.ReportDirectory
-                : Path.Combine(AppContext.BaseDirectory, options.Value.ReportDirectory);
-            Directory.CreateDirectory(directory);
-
+            var directory = ReportDirectory();
             var stamp = summary.StartedAt.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
             var prefix = Path.Combine(directory, $"run-{stamp}-empresa{summary.Cdempresa}-{(summary.DryRun ? "dryrun" : "real")}-{summary.RunId:N}");
 
@@ -116,7 +112,33 @@ public sealed class RunReportWriter(IOptions<SyncOptions> options, ILogger<RunRe
         }
     }
 
-    private static string Field(string? value)
+    /// <summary>Grava outro relatório da execução (ex.: o de vinculação) na pasta de relatórios. Null se não conseguiu.</summary>
+    public async Task<string?> WriteFileAsync(string fileName, string csv, CancellationToken ct)
+    {
+        try
+        {
+            var path = Path.Combine(ReportDirectory(), fileName);
+            await File.WriteAllTextAsync(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), ct);
+            return path;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Não foi possível gravar o relatório {Arquivo}", fileName);
+            return null;
+        }
+    }
+
+    private string ReportDirectory()
+    {
+        var directory = Path.IsPathRooted(options.Value.ReportDirectory)
+            ? options.Value.ReportDirectory
+            : Path.Combine(AppContext.BaseDirectory, options.Value.ReportDirectory);
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
+    /// <summary>Campo de CSV (separador ";"), com aspas quando precisa e sem virar data no Excel.</summary>
+    internal static string Field(string? value)
     {
         if (string.IsNullOrEmpty(value))
         {

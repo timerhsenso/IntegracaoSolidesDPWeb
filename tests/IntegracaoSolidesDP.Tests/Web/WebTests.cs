@@ -1,5 +1,6 @@
 using System.Net;
 using IntegracaoSolidesDP.Tests.Sql;
+using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Identity;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.State;
@@ -155,6 +156,44 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
 
         response.Headers.Location!.ToString().Should().Contain("/Conta/AcessoNegado");
         (await db.QueryAsync<int>("SELECT COUNT(*) FROM solidesdp.configuracao")).Should().Equal(0);
+    }
+
+    [Fact]
+    public async Task Simulation_offers_the_linking_report_for_download_and_the_download_is_audited()
+    {
+        var store = new SqlStateStore(db.Connections, TimeProvider.System);
+        var runId = await store.StartRunAsync("default", 15, dryRun: true, "web", Ct);
+        await store.FinishRunAsync(runId, RunStatuses.Completed, "{}", null, Ct);
+        await store.SaveRunReportAsync(runId, "vinculacao", "vinculacao-empresa15-20261011-212019.csv", "Matrícula;Nome no RHSenso\n15-00000930;CLÁUDIO\n", Ct);
+        var login = await _web.CriarUsuarioAsync(Perfis.Consulta);
+        var client = await _web.EntrarAsync(login);
+
+        var detalhe = WebUtility.HtmlDecode(await client.GetStringAsync($"/Execucoes/Detalhe/{runId}", Ct));
+        var resposta = await client.GetAsync($"/Execucoes/Relatorio/{runId}?tipo=vinculacao", Ct);
+
+        detalhe.Should().Contain("Baixar relatório de vinculação");
+        resposta.StatusCode.Should().Be(HttpStatusCode.OK);
+        resposta.Content.Headers.ContentType!.MediaType.Should().Be("text/csv");
+        resposta.Content.Headers.ContentDisposition!.ToString().Should().Contain("vinculacao-empresa15-20261011-212019.csv");
+        var bytes = await resposta.Content.ReadAsByteArrayAsync(Ct);
+        bytes.Take(3).Should().Equal(new byte[] { 0xEF, 0xBB, 0xBF }, "BOM para o Excel abrir a acentuação");
+        System.Text.Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3).Should().Contain("CLÁUDIO");
+        (await Auditoria(login)).Should().Contain(AcoesAuditoria.RelatorioBaixado);
+    }
+
+    [Fact]
+    public async Task Run_without_report_has_no_download()
+    {
+        var store = new SqlStateStore(db.Connections, TimeProvider.System);
+        var runId = await store.StartRunAsync("default", 15, dryRun: false, "web", Ct);
+        await store.FinishRunAsync(runId, RunStatuses.Completed, "{}", null, Ct);
+        var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Consulta));
+
+        var detalhe = WebUtility.HtmlDecode(await client.GetStringAsync($"/Execucoes/Detalhe/{runId}", Ct));
+        var resposta = await client.GetAsync($"/Execucoes/Relatorio/{runId}?tipo=vinculacao", Ct);
+
+        detalhe.Should().NotContain("Baixar relatório de vinculação");
+        resposta.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     private Task<IReadOnlyList<string>> Auditoria(string login) =>

@@ -29,6 +29,11 @@ public sealed class JobRoleStep(ISolidesDpClient api, ISourceReader source, ISta
 
         foreach (var row in rows.OrderBy(r => r.Cdcargo, StringComparer.Ordinal))
         {
+            if (!string.IsNullOrWhiteSpace(row.Descricao))
+            {
+                context.JobRoleDescriptions[row.Cdcargo] = row.Descricao.Trim();
+            }
+
             var payload = JobRoleMapper.Map(row);
             if (payload is null)
             {

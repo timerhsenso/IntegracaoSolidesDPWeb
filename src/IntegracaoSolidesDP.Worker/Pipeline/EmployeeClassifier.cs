@@ -35,6 +35,12 @@ public static class EmployeeClassifier
             .Where(r => r.Situacao is null || !ignored.Contains(r.Situacao))
             .ToList();
 
+        var nomes = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var row in considered)
+        {
+            nomes[row.Rotulo] = row.Nome?.Trim();
+        }
+
         var active = new List<EmployeeRow>();
         var departures = new List<Departure>();
         var skipped = new List<RunItem>();
@@ -130,6 +136,7 @@ public static class EmployeeClassifier
             OutOfScope = outOfScope,
             KeyByMatricula = keyByMatricula,
             Labels = labels,
+            NomesPorRotulo = nomes,
         };
     }
 

@@ -27,6 +27,9 @@ public interface IStateStore
 
     Task AddItemsAsync(Guid runId, IReadOnlyCollection<RunItem> items, CancellationToken ct);
 
+    /// <summary>Grava (ou substitui) um relatório da execução, ex.: o de vinculação, para a Web oferecer para baixar.</summary>
+    Task SaveRunReportAsync(Guid runId, string tipo, string arquivo, string conteudo, CancellationToken ct);
+
     /// <summary>Vínculos de um tipo (colaborador, cargo, local) na conta da empresa, pela chave da integração.</summary>
     Task<Dictionary<string, EntityState>> LoadEntityStatesAsync(int cdempresa, string entityType, CancellationToken ct);
 
@@ -85,6 +88,16 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
             );
             CREATE INDEX ix_solidesdp_run_items_run ON solidesdp.run_items(run_id, id);
         END;
+
+        IF OBJECT_ID(N'solidesdp.run_relatorio', N'U') IS NULL
+        CREATE TABLE solidesdp.run_relatorio (
+            run_id    uniqueidentifier  NOT NULL CONSTRAINT fk_solidesdp_run_relatorio_run REFERENCES solidesdp.runs(run_id),
+            tipo      varchar(32)       NOT NULL,
+            arquivo   nvarchar(200)     NOT NULL,
+            conteudo  nvarchar(max)     NOT NULL,
+            criado_em datetimeoffset(7) NOT NULL,
+            CONSTRAINT pk_solidesdp_run_relatorio PRIMARY KEY (run_id, tipo)
+        );
 
         IF OBJECT_ID(N'solidesdp.colaborador_vinculo', N'U') IS NULL
         CREATE TABLE solidesdp.colaborador_vinculo (
@@ -177,6 +190,10 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
         ("runs", null, "Uma linha por execução da sincronização (por empresa)."),
         ("runs", "cdempresa", "Empresa (conta do Sólides DP) da execução; NULL = execução que parou antes de chegar a uma empresa."),
         ("run_items", null, "Itens de cada execução (os sem alteração ficam só na contagem de runs.summary_json)."),
+        ("run_relatorio", null, "Relatórios gerados por uma execução para baixar na Web (ex.: vinculação, gerado em toda simulação)."),
+        ("run_relatorio", "tipo", "vinculacao = uma linha por pessoa: vincular pelo CPF, criar, pendência ou fora do escopo."),
+        ("run_relatorio", "arquivo", "Nome do arquivo (o mesmo gravado na pasta de relatórios do serviço)."),
+        ("run_relatorio", "conteudo", "Conteúdo CSV (separador ponto e vírgula)."),
         ("colaborador_vinculo", null, "Vínculo de cada colaborador (CPF) com o cadastro dele na conta do Sólides DP da empresa."),
         ("colaborador_vinculo", "cpf", "CPF só com dígitos: a identidade do colaborador dentro da conta."),
         ("colaborador_vinculo", "tangerino_id", "Id do colaborador no Sólides DP."),
@@ -314,6 +331,18 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
             transaction,
             cancellationToken: ct));
         await transaction.CommitAsync(ct);
+    }
+
+    public async Task SaveRunReportAsync(Guid runId, string tipo, string arquivo, string conteudo, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        await connection.ExecuteAsync(new CommandDefinition("""
+            DELETE FROM solidesdp.run_relatorio WHERE run_id = @RunId AND tipo = @Tipo;
+            INSERT INTO solidesdp.run_relatorio (run_id, tipo, arquivo, conteudo, criado_em)
+            VALUES (@RunId, @Tipo, @Arquivo, @Conteudo, @Agora);
+            """,
+            new { RunId = runId, Tipo = tipo, Arquivo = arquivo, Conteudo = conteudo, Agora = clock.GetUtcNow() },
+            cancellationToken: ct));
     }
 
     public async Task<Dictionary<string, EntityState>> LoadEntityStatesAsync(int cdempresa, string entityType, CancellationToken ct)

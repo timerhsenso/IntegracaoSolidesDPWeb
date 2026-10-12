@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Management;
@@ -13,8 +14,10 @@ namespace IntegracaoSolidesDP.Worker.Pipeline.Steps;
 /// <list type="bullet">
 /// <item>já vinculado (solidesdp.colaborador_vinculo) → atualiza pelo id do DP (tangerinoId);</item>
 /// <item>sem vínculo, mas o CPF já está ativo no DP (cadastro manual do RH) → vincula e atualiza;</item>
+/// <item>sem vínculo e CPF DESLIGADO no DP → pendência: criar de novo duplicaria a pessoa (o RH readmite no DP);</item>
 /// <item>sem vínculo e CPF ausente no DP → cria, com o Código Externo = matrícula.</item>
 /// </list>
+/// Na simulação, cada pessoa também vira uma linha do relatório de vinculação (<see cref="VinculacaoReport"/>).
 /// O Código Externo de quem já existe segue a regra do <see cref="CodigoExterno"/>. Escala e regra de ponto são
 /// obrigatórias no DTO: na criação vão os padrões do config; na atualização reenviamos o que já está no DP.
 /// </summary>
@@ -31,6 +34,10 @@ public sealed class EmployeeStep(
     {
         var states = await state.LoadEntityStatesAsync(context.Cdempresa, EntityTypes.Employee, ct);
         ReportOutOfScope(context, plan, states);
+        if (context.DryRun)
+        {
+            VinculacaoDoPlano(context, plan);
+        }
 
         var candidates = new List<Candidate>();
         foreach (var row in plan.Active.OrderBy(r => r.Nomatric, StringComparer.Ordinal))
@@ -56,8 +63,9 @@ public sealed class EmployeeStep(
             var mapping = mapper.Map(row, Options.GoLiveDate, companyId);
             if (!mapping.IsValid)
             {
-                context.Add(new RunItem(EntityTypes.Employee, label, ItemActions.None, ItemStatuses.Skipped,
-                    Message: string.Join("; ", mapping.Errors.Concat(mapping.Warnings))));
+                var motivo = string.Join("; ", mapping.Errors.Concat(mapping.Warnings));
+                context.Add(new RunItem(EntityTypes.Employee, label, ItemActions.None, ItemStatuses.Skipped, Message: motivo));
+                Vinculacao(context, Linha(context, row, ResultadosVinculacao.Pendencia) with { Observacao = motivo });
                 continue;
             }
 
@@ -76,6 +84,7 @@ public sealed class EmployeeStep(
             if (blockers.Count > 0)
             {
                 context.Add(new RunItem(EntityTypes.Employee, label, ItemActions.None, ItemStatuses.Blocked, Message: string.Join("; ", blockers)));
+                Vinculacao(context, Linha(context, row, ResultadosVinculacao.Pendencia) with { Observacao = string.Join("; ", blockers) });
                 continue;
             }
 
@@ -83,10 +92,15 @@ public sealed class EmployeeStep(
             candidates.Add(new Candidate(row, key, label, payload, HashOf(payload), warnings, current));
         }
 
-        // Sem vínculo: antes de decidir criar, procura o CPF entre os ativos da conta no DP.
+        // Sem vínculo: antes de decidir criar, procura o CPF entre os ativos da conta no DP e, se não estiver
+        // ativo, entre os desligados (criar de novo duplicaria a pessoa).
         if (candidates.Any(c => !IsLinked(c.Current)) && context.CanQueryDp)
         {
-            await EnsureIndexAsync(context, ct);
+            var ativos = await EnsureIndexAsync(context, ct);
+            if (candidates.Any(c => !IsLinked(c.Current) && ativos.ByCpf(c.Key).Count == 0))
+            {
+                await EnsureDesligadosAsync(context, ct);
+            }
         }
 
         var decisions = new List<(Candidate Candidate, Decision Decision)>();
@@ -96,6 +110,14 @@ public sealed class EmployeeStep(
             if (decision.Blocked is { } blocked)
             {
                 context.Add(new RunItem(EntityTypes.Employee, candidate.Label, ItemActions.None, ItemStatuses.Blocked, Message: blocked));
+                Vinculacao(context, Linha(context, candidate.Row, ResultadosVinculacao.Pendencia) with
+                {
+                    CadastroDp = decision.Remote?.Id,
+                    NomeDp = decision.Remote?.Name?.Trim(),
+                    CodigoExternoDp = decision.Remote?.ExternalId?.Trim(),
+                    CargoDp = CargoDp(decision.Remote?.JobRole),
+                    Observacao = blocked,
+                });
                 continue;
             }
 
@@ -118,6 +140,7 @@ public sealed class EmployeeStep(
             if (unchanged)
             {
                 context.Add(new RunItem(EntityTypes.Employee, candidate.Label, ItemActions.None, ItemStatuses.Unchanged));
+                Vinculacao(context, LinhaDecidida(context, candidate, decision, ResultadosVinculacao.SemAlteracao));
                 continue;
             }
 
@@ -126,6 +149,12 @@ public sealed class EmployeeStep(
                 context.Add(new RunItem(EntityTypes.Employee, candidate.Label,
                     decision.Kind == DecisionKind.Create ? ItemActions.Create : ItemActions.Update, ItemStatuses.DryRun,
                     Message: Describe(candidate, decision, context.CanQueryDp)));
+                Vinculacao(context, LinhaDecidida(context, candidate, decision, decision.Kind switch
+                {
+                    DecisionKind.Create => ResultadosVinculacao.Criar,
+                    DecisionKind.Link => ResultadosVinculacao.Vincular,
+                    _ => ResultadosVinculacao.Atualizar,
+                }));
                 continue;
             }
 
@@ -153,10 +182,31 @@ public sealed class EmployeeStep(
         return context.DpEmployees;
     }
 
+    /// <summary>Carrega uma vez por execução os colaboradores desligados da conta no DP (só quando alguém seria criado).</summary>
+    public async Task<DpDesligadosIndex> EnsureDesligadosAsync(SyncContext context, CancellationToken ct)
+    {
+        if (context.DpDesligados is { } loaded)
+        {
+            return loaded;
+        }
+
+        var ativos = await EnsureIndexAsync(context, ct);
+        var all = await api.FindAllEmployeesIncludingFiredAsync(ct);
+        ReferenceResolver.ThrowIfUnauthorized(all);
+        if (!all.IsSuccess || all.Value is null)
+        {
+            throw new SyncAbortedException(
+                $"Falha ao listar os colaboradores desligados do Sólides DP (necessário para não recriar quem já existe lá): {all.Outcome} {all.Message}");
+        }
+
+        context.DpDesligados = DpDesligadosIndex.From(all.Value, ativos);
+        return context.DpDesligados;
+    }
+
     private static bool IsLinked(EntityState? current) =>
         current is { RemoteId: not null } && current.Status != EntityStatuses.Dismissed;
 
-    private static Decision Decide(SyncContext context, Candidate candidate)
+    private Decision Decide(SyncContext context, Candidate candidate)
     {
         if (IsLinked(candidate.Current))
         {
@@ -179,6 +229,13 @@ public sealed class EmployeeStep(
         if (sameCpf.Count == 1)
         {
             return new Decision(DecisionKind.Link, sameCpf[0].Id, sameCpf[0]);
+        }
+
+        // Não está ativo, mas existe DESLIGADO na conta (ex-funcionário readmitido no RHSenso, ou desligado à mão no DP):
+        // criar outro cadastro duplicaria a pessoa. O RH readmite no DP e a próxima execução vincula pelo CPF.
+        if (context.DpDesligados?.ByCpf(candidate.Key) is [var desligado, ..])
+        {
+            return new Decision(DecisionKind.Create, null, desligado, Desligado(desligado));
         }
 
         // O register com allowUpdate procura pelo externalId: se a matrícula já for o Código Externo de OUTRO
@@ -213,7 +270,7 @@ public sealed class EmployeeStep(
             else if (found.Outcome == ApiOutcome.NotFound && kind == DecisionKind.Update)
             {
                 // O cadastro vinculado sumiu do DP (apagado lá): procura o CPF de novo; sem ele, cria.
-                await EnsureIndexAsync(context, ct);
+                await EnsureDesligadosAsync(context, ct);
                 var again = Decide(context, candidate with { Current = null });
                 if (again.Blocked is { } blocked)
                 {
@@ -325,6 +382,117 @@ public sealed class EmployeeStep(
             stored?.PunchRuleDate ?? effective);
     }
 
+    private string Desligado(EmployeeDto desligado)
+    {
+        var quando = desligado.ResignationDate is { } ms
+            ? ", desligado em " + dates.ToDate(ms).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+            : string.Empty;
+        return FormattableString.Invariant(
+            $"cpf_desligado_no_dp: este CPF está DESLIGADO no Sólides DP (cadastro {desligado.Id}{quando}); a integração não cria outro cadastro para não duplicar a pessoa. ") +
+            "Readmita no Sólides DP (a próxima execução vincula pelo CPF) ou fale com a RHSenso";
+    }
+
+    /// <summary>Na simulação, quem ficou fora do envio já na separação do RHSenso (CPF inválido, duplicado, fora do escopo).</summary>
+    private static void VinculacaoDoPlano(SyncContext context, EmployeePlan plan)
+    {
+        foreach (var item in plan.Skipped.Where(i => i.EntityType == EntityTypes.Employee
+                                                     && i.Message?.StartsWith("superseded", StringComparison.Ordinal) != true))
+        {
+            context.Vinculacao.Add(new VinculacaoLinha
+            {
+                Rotulo = item.ExternalId,
+                Nome = plan.NomesPorRotulo.GetValueOrDefault(item.ExternalId),
+                Resultado = ResultadosVinculacao.Pendencia,
+                Observacao = item.Message,
+            });
+        }
+
+        foreach (var row in plan.OutOfScope.Values)
+        {
+            context.Vinculacao.Add(Linha(context, row, ResultadosVinculacao.ForaDoEscopo) with
+            {
+                Observacao = FormattableString.Invariant(
+                    $"ativo na filial {row.Cdfilial}, que não está marcada (ou está inativa): nada é enviado nem desligado"),
+            });
+        }
+    }
+
+    private static void Vinculacao(SyncContext context, VinculacaoLinha linha)
+    {
+        if (context.DryRun)
+        {
+            context.Vinculacao.Add(linha);
+        }
+    }
+
+    private static VinculacaoLinha Linha(SyncContext context, EmployeeRow row, string resultado) => new()
+    {
+        Rotulo = row.Rotulo,
+        Nome = row.Nome?.Trim(),
+        Cpf = row.Chave,
+        Filial = row.Cdfilial,
+        Resultado = resultado,
+        CargoRhSenso = CargoRhSenso(context, EmployeeMapper.Clean(row.Cargo)),
+    };
+
+    /// <summary>Linha de quem passou por todas as checagens: o que o envio faria e com qual cadastro do DP.</summary>
+    private static VinculacaoLinha LinhaDecidida(SyncContext context, Candidate candidate, Decision decision, string resultado)
+    {
+        var linha = Linha(context, candidate.Row, resultado) with
+        {
+            CargoRhSenso = CargoRhSenso(context, candidate.Payload.JobRoleExternalId),
+            Observacao = candidate.Warnings,
+        };
+        var matricula = candidate.Row.Nomatric.Trim();
+
+        switch (decision.Kind)
+        {
+            case DecisionKind.Link when decision.Remote is { } remote:
+                var cargoNoDp = remote.JobRole?.ExternalId?.Trim();
+                return linha with
+                {
+                    CadastroDp = remote.Id,
+                    NomeDp = remote.Name?.Trim(),
+                    CodigoExternoDp = remote.ExternalId?.Trim(),
+                    CodigoExternoFica = CodigoExterno.ParaEnviar(remote.ExternalId, candidate.Row.Nomatric),
+                    CargoDp = CargoDp(remote.JobRole),
+                    CargoMuda = !string.Equals(cargoNoDp, candidate.Payload.JobRoleExternalId, StringComparison.Ordinal),
+                };
+            case DecisionKind.Create:
+                return linha with
+                {
+                    CodigoExternoFica = matricula,
+                    Observacao = context.CanQueryDp
+                        ? candidate.Warnings
+                        : Join("sem token: o Sólides DP não foi consultado; pode virar vínculo pelo CPF", candidate.Warnings),
+                };
+            default:
+                // Já vinculado: o cadastro e o Código Externo são os guardados no vínculo.
+                return linha with
+                {
+                    CadastroDp = candidate.Current?.RemoteId,
+                    CodigoExternoDp = candidate.Current?.CodigoExterno,
+                    CodigoExternoFica = candidate.Current?.CodigoExterno,
+                };
+        }
+    }
+
+    private static string? CargoRhSenso(SyncContext context, string? codigo) =>
+        codigo is null ? null
+        : context.JobRoleDescriptions.TryGetValue(codigo, out var descricao) ? $"{codigo} {descricao}"
+        : codigo;
+
+    private static string? CargoDp(JobRoleDto? cargo)
+    {
+        if (cargo is null)
+        {
+            return null;
+        }
+
+        var texto = string.Join(' ', new[] { cargo.ExternalId?.Trim(), cargo.Description?.Trim() }.Where(t => !string.IsNullOrEmpty(t)));
+        return texto.Length == 0 ? null : texto;
+    }
+
     /// <summary>Ativo numa filial fora do escopo e já vinculado: avisa que nada é enviado nem desligado.</summary>
     private static void ReportOutOfScope(SyncContext context, EmployeePlan plan, Dictionary<string, EntityState> states)
     {
@@ -407,8 +575,12 @@ public sealed class DpEmployeeIndex
 {
     private readonly Dictionary<string, List<EmployeeDto>> _byCpf = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<EmployeeDto>> _byCodigo = new(StringComparer.Ordinal);
+    private readonly HashSet<long> _ids = [];
 
     public int Count { get; private set; }
+
+    /// <summary>O cadastro (id do DP) está entre os ativos.</summary>
+    public bool Contains(long id) => _ids.Contains(id);
 
     public static DpEmployeeIndex From(IEnumerable<EmployeeDto> employees)
     {
@@ -416,6 +588,7 @@ public sealed class DpEmployeeIndex
         foreach (var employee in employees.Where(e => e.Fired != true))
         {
             index.Count++;
+            index._ids.Add(employee.Id);
             if (Documents.NormalizeCpf(employee.Cpf).Value is { } cpf)
             {
                 Add(index._byCpf, cpf, employee);
@@ -443,4 +616,48 @@ public sealed class DpEmployeeIndex
 
         list.Add(employee);
     }
+}
+
+/// <summary>
+/// Colaboradores DESLIGADOS de uma conta do Sólides DP, por CPF: quem não está ativo mas já existe lá não é criado de novo.
+/// Desligado = está na lista com os demitidos (showFired=1) e não está na de ativos; não depende do campo "fired" vir
+/// preenchido na resposta.
+/// </summary>
+public sealed class DpDesligadosIndex
+{
+    private readonly Dictionary<string, List<EmployeeDto>> _byCpf = new(StringComparer.Ordinal);
+
+    public int Count { get; private set; }
+
+    /// <param name="todos">Colaboradores da conta, inclusive os desligados (find-all com showFired=1).</param>
+    /// <param name="ativos">Os ativos da mesma conta (find-all com showFired=0).</param>
+    public static DpDesligadosIndex From(IEnumerable<EmployeeDto> todos, DpEmployeeIndex ativos)
+    {
+        var index = new DpDesligadosIndex();
+        foreach (var employee in todos.Where(e => !ativos.Contains(e.Id) && e.Fired != false))
+        {
+            if (Documents.NormalizeCpf(employee.Cpf).Value is not { } cpf)
+            {
+                continue;
+            }
+
+            index.Count++;
+            if (!index._byCpf.TryGetValue(cpf, out var list))
+            {
+                index._byCpf[cpf] = list = [];
+            }
+
+            list.Add(employee);
+        }
+
+        // O desligamento mais recente primeiro (é o que aparece na mensagem).
+        foreach (var list in index._byCpf.Values)
+        {
+            list.Sort((a, b) => Nullable.Compare(b.ResignationDate, a.ResignationDate));
+        }
+
+        return index;
+    }
+
+    public IReadOnlyList<EmployeeDto> ByCpf(string cpf) => _byCpf.TryGetValue(cpf, out var list) ? list : [];
 }

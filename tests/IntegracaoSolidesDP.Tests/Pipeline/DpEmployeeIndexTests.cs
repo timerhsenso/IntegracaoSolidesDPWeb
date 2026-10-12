@@ -33,4 +33,22 @@ public sealed class DpEmployeeIndexTests
 
         index.ByCpf(TestData.Cpf1).Should().HaveCount(2);
     }
+
+    [Fact]
+    public void Dismissed_are_the_ones_listed_with_the_fired_but_not_among_the_active()
+    {
+        var ativos = DpEmployeeIndex.From([new EmployeeDto { Id = 1, Cpf = TestData.Cpf1 }]);
+
+        var desligados = DpDesligadosIndex.From(
+        [
+            new EmployeeDto { Id = 1, Cpf = TestData.Cpf1 },
+            new EmployeeDto { Id = 2, Cpf = TestData.Cpf2, Fired = true, ResignationDate = 1_000 },
+            new EmployeeDto { Id = 3, Cpf = TestData.Cpf2, ResignationDate = 2_000 },
+            new EmployeeDto { Id = 4, Cpf = TestData.Cpf3, Fired = false },
+        ], ativos);
+
+        desligados.ByCpf(TestData.Cpf1).Should().BeEmpty("está ativo");
+        desligados.ByCpf(TestData.Cpf2).Select(e => e.Id).Should().Equal([3L, 2L], "sem o campo fired também conta; o desligamento mais recente primeiro");
+        desligados.ByCpf(TestData.Cpf3).Should().BeEmpty("fired = false e fora da lista de ativos: inconsistência da API, não é tratado como desligado");
+    }
 }

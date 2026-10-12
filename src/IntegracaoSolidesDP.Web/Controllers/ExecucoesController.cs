@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Infrastructure;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace IntegracaoSolidesDP.Web.Controllers;
 
 [ExigeGestaoPreparada]
-public sealed class ExecucoesController(PainelRepository painel, EmpresasRepository empresas) : Controller
+public sealed class ExecucoesController(PainelRepository painel, EmpresasRepository empresas, Auditoria auditoria) : Controller
 {
     public async Task<IActionResult> Index() => View(await empresas.EmpresasAtivasAsync(HttpContext.RequestAborted));
 
@@ -23,7 +24,30 @@ public sealed class ExecucoesController(PainelRepository painel, EmpresasReposit
             return NotFound();
         }
 
-        return View(new ExecucaoDetalheViewModel { Execucao = execucao, Contagens = Contagens(execucao.ResumoJson) });
+        return View(new ExecucaoDetalheViewModel
+        {
+            Execucao = execucao,
+            Contagens = Contagens(execucao.ResumoJson),
+            Relatorios = await painel.RelatoriosAsync(id, HttpContext.RequestAborted),
+        });
+    }
+
+    /// <summary>Baixa um relatório da execução (CSV com BOM, para o Excel abrir a acentuação). Fica na auditoria.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Relatorio(Guid id, string tipo)
+    {
+        var relatorio = await painel.RelatorioAsync(id, tipo, HttpContext.RequestAborted);
+        if (relatorio is null)
+        {
+            return NotFound();
+        }
+
+        await auditoria.RegistrarAsync(AcoesAuditoria.RelatorioBaixado, $"{relatorio.Arquivo} (execução {id})", ct: HttpContext.RequestAborted);
+        var conteudo = Encoding.UTF8.GetBytes(relatorio.Conteudo);
+        var bytes = new byte[Encoding.UTF8.Preamble.Length + conteudo.Length];
+        Encoding.UTF8.Preamble.CopyTo(bytes);
+        conteudo.CopyTo(bytes, Encoding.UTF8.Preamble.Length);
+        return File(bytes, "text/csv; charset=utf-8", relatorio.Arquivo);
     }
 
     [HttpGet]

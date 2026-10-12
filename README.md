@@ -57,7 +57,9 @@ Tudo o que é incluído ou alterado no RHSenso vai, num sentido só, para o Sól
   - A execução aborta se o banco devolver 0 colaboradores.
   - Há um lock por instância e empresa (`sp_getapplock`).
   - Se a matrícula já for o Código Externo de **outro** colaborador ativo no DP, a criação é bloqueada (`codigo_externo_em_uso`).
+  - Se o CPF não estiver ativo no DP mas existir lá **desligado**, a criação é bloqueada (`cpf_desligado_no_dp`): o RH readmite no DP e a execução seguinte vincula pelo CPF. A lista de desligados (`find-all?showFired=1`) só é lida quando alguém seria criado.
   - O dry-run nunca grava no DP. Com token, ele só consulta quem já está lá para mostrar quem seria vinculado e quem seria criado.
+  - **Relatório de vinculação.** Toda simulação gera `reports/vinculacao-empresa{N}-{data}.csv` (também em `solidesdp.run_relatorio`, para baixar no detalhe da execução na Web): uma linha por pessoa, com nome no RHSenso e no DP, CPF mascarado, resultado (pendência, criar, vincular pelo CPF, atualizar, sem alteração, fora do escopo), Código Externo e cargo antes e depois.
   - Fora de Production, a API real só é usada com opt-in explícito.
 
 ## Configuração

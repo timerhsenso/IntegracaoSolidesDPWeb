@@ -37,6 +37,17 @@
                     </dd>
                     <dt class="col-5">Id</dt><dd class="col-7"><code>@e.RunId</code></dd>
                 </dl>
+                @if (Model.Relatorios.Contains("vinculacao"))
+                {
+                    <hr />
+                    <a class="btn btn-sm btn-outline-primary" asp-action="Relatorio" asp-route-id="@e.RunId" asp-route-tipo="vinculacao">
+                        <i class="bi bi-filetype-csv"></i> Baixar relatório de vinculação
+                    </a>
+                    <div class="form-text">
+                        Uma linha por pessoa: nome no RHSenso e no Sólides DP, se vai vincular pelo CPF, criar ou ficar pendente,
+                        o Código Externo e o cargo que mudam. Para o RH conferir antes do envio real (abre no Excel).
+                    </div>
+                }
             </div>
         </div>
     </div>

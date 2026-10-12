@@ -178,6 +178,10 @@ public sealed record EmployeeDto
     /// <summary>Cargo atual no Sólides DP.</summary>
     [JsonPropertyName("jobRoleDTO")]
     public JobRoleDto? JobRole { get; init; }
+
+    /// <summary>Data do desligamento no Sólides DP (epoch ms), quando o colaborador está desligado.</summary>
+    [JsonConverter(typeof(EpochMillisFlexibleConverter))]
+    public long? ResignationDate { get; init; }
 }
 
 /// <summary>

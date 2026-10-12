@@ -21,6 +21,13 @@ public sealed record Execucao
     public TimeSpan? Duracao => Fim - Inicio;
 }
 
+/// <summary>Relatório gravado pelo serviço para uma execução (solidesdp.run_relatorio), ex.: o de vinculação.</summary>
+public sealed record RelatorioExecucao
+{
+    public string Arquivo { get; init; } = string.Empty;
+    public string Conteudo { get; init; } = string.Empty;
+}
+
 public sealed record ItemExecucao
 {
     public long Id { get; init; }

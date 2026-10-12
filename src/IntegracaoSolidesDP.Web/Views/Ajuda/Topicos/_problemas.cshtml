@@ -101,6 +101,10 @@
             <td>Há mais de um cadastro ativo com o mesmo CPF no Sólides DP. Desligue ou corrija o cadastro errado lá; a próxima execução vincula o certo.</td>
         </tr>
         <tr>
+            <td><code>cpf_desligado_no_dp</code></td>
+            <td>A pessoa não está ativa no Sólides DP, mas existe lá <strong>desligada</strong> (ex-funcionário readmitido no RHSenso, ou desligado à mão no DP). Para não duplicar, a integração não cria outro cadastro. Readmita a pessoa no Sólides DP: a próxima execução vincula pelo CPF.</td>
+        </tr>
+        <tr>
             <td><code>codigo_externo_em_uso</code></td>
             <td>A pessoa não existe no Sólides DP, mas a matrícula dela já é o Código Externo de <strong>outra</strong> pessoa lá. Confira no Sólides DP qual cadastro está certo antes de seguir.</td>
         </tr>

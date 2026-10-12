@@ -52,6 +52,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
             IF OBJECT_ID('solidesdp.local_vinculo') IS NOT NULL DROP TABLE solidesdp.local_vinculo;
             IF OBJECT_ID('solidesdp.ferias_vinculo') IS NOT NULL DROP TABLE solidesdp.ferias_vinculo;
             IF OBJECT_ID('solidesdp.auditoria') IS NOT NULL DROP TABLE solidesdp.auditoria;
+            IF OBJECT_ID('solidesdp.run_relatorio') IS NOT NULL DROP TABLE solidesdp.run_relatorio;
             IF OBJECT_ID('solidesdp.run_items') IS NOT NULL DROP TABLE solidesdp.run_items;
             IF OBJECT_ID('solidesdp.runs') IS NOT NULL DROP TABLE solidesdp.runs;
             IF OBJECT_ID('solidesdp.entity_state') IS NOT NULL DROP TABLE solidesdp.entity_state;

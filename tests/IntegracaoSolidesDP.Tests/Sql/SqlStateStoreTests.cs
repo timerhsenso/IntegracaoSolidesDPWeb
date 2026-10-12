@@ -23,7 +23,7 @@ public sealed class SqlStateStoreTests(SqlServerFixture db) : IAsyncLifetime
 
         var tables = await db.QueryAsync<string>("SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID('solidesdp')");
         tables.Should().BeEquivalentTo([
-            "meta", "runs", "run_items", "colaborador_vinculo", "cargo_vinculo", "local_vinculo", "ferias_vinculo",
+            "meta", "runs", "run_items", "run_relatorio", "colaborador_vinculo", "cargo_vinculo", "local_vinculo", "ferias_vinculo",
             "entity_state", "vacation_state",
         ]);
     }
@@ -40,6 +40,20 @@ public sealed class SqlStateStoreTests(SqlServerFixture db) : IAsyncLifetime
               AND ep.minor_id = COLUMNPROPERTY(OBJECT_ID(N'solidesdp.colaborador_vinculo'), N'cpf', 'ColumnId')
             """);
         descricao.Should().ContainSingle().Which.Should().Contain("CPF");
+    }
+
+    [Fact]
+    public async Task Run_report_is_saved_and_a_second_save_replaces_it()
+    {
+        await _store.EnsureSchemaAsync(Ct);
+        var runId = await _store.StartRunAsync("default", 15, dryRun: true, "teste", Ct);
+
+        await _store.SaveRunReportAsync(runId, "vinculacao", "a.csv", "primeiro", Ct);
+        await _store.SaveRunReportAsync(runId, "vinculacao", "b.csv", "segundo, com acentuação", Ct);
+
+        var rows = await db.QueryAsync<(string, string)>(
+            "SELECT arquivo, conteudo FROM solidesdp.run_relatorio WHERE run_id = @runId", new { runId });
+        rows.Should().Equal(("b.csv", "segundo, com acentuação"));
     }
 
     [Fact]

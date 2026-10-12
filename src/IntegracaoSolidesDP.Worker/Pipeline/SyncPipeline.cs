@@ -203,11 +203,38 @@ public sealed class SyncPipeline(
         var reportPath = await reports.WriteAsync(summary, context.Items, CancellationToken.None);
         summary = summary with { ReportPath = reportPath };
         await state.FinishRunAsync(runId, status, JsonSerializer.Serialize(summary.Counts), error, CancellationToken.None);
+        await SalvarVinculacaoAsync(summary, context);
 
         logger.LogInformation("Execução {RunId} da empresa {Empresa} terminou: {Status} {Counts} relatório {Report}",
             runId, empresa.Cdempresa, status, JsonSerializer.Serialize(summary.Counts), reportPath);
         ct.ThrowIfCancellationRequested();
         return summary;
+    }
+
+    /// <summary>
+    /// Relatório de vinculação da simulação: na pasta de relatórios e em solidesdp.run_relatorio (para baixar na Web).
+    /// Falhar aqui não muda o resultado da execução, que já foi gravado.
+    /// </summary>
+    private async Task SalvarVinculacaoAsync(RunSummary summary, SyncContext context)
+    {
+        if (context.Vinculacao.Count == 0 || summary.Cdempresa is not { } cdempresa)
+        {
+            return;
+        }
+
+        var csv = VinculacaoReport.ToCsv(context.Vinculacao);
+        var arquivo = VinculacaoReport.NomeArquivo(cdempresa, TimeZoneInfo.ConvertTime(summary.StartedAt, dates.Zone));
+        try
+        {
+            await state.SaveRunReportAsync(summary.RunId, VinculacaoReport.Tipo, arquivo, csv, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Não foi possível gravar no banco o relatório de vinculação da execução {RunId}", summary.RunId);
+        }
+
+        var path = await reports.WriteFileAsync(arquivo, csv, CancellationToken.None);
+        logger.LogInformation("Relatório de vinculação da empresa {Empresa}: {Linhas} pessoas, {Arquivo}", cdempresa, context.Vinculacao.Count, path ?? arquivo);
     }
 
     /// <summary>

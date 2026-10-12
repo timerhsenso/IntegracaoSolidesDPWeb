@@ -26,6 +26,15 @@ public sealed class SyncContext(Guid runId, int cdempresa, bool dryRun, DateOnly
     /// <summary>Colaboradores ativos da conta no DP, por CPF e por Código Externo (carregado na primeira necessidade).</summary>
     public DpEmployeeIndex? DpEmployees { get; set; }
 
+    /// <summary>Colaboradores desligados da conta no DP, por CPF (carregado só quando alguém seria criado).</summary>
+    public DpDesligadosIndex? DpDesligados { get; set; }
+
+    /// <summary>Relatório de vinculação (só na simulação): uma linha por pessoa.</summary>
+    public List<VinculacaoLinha> Vinculacao { get; } = [];
+
+    /// <summary>Código do cargo do RHSenso → descrição (cargo1), para o relatório de vinculação.</summary>
+    public Dictionary<string, string> JobRoleDescriptions { get; } = new(StringComparer.Ordinal);
+
     public IReadOnlyList<RunItem> Items => _items;
 
     /// <summary>Algum item falhou ou foi bloqueado: a execução termina como completed_with_errors.</summary>
@@ -116,6 +125,9 @@ public sealed record EmployeePlan(
 
     /// <summary>CPF → rótulo "{empresa}-{matrícula}" usado no relatório.</summary>
     public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>Rótulo "{empresa}-{matrícula}" → nome no RHSenso (inclusive de quem virou pendência), para o relatório de vinculação.</summary>
+    public IReadOnlyDictionary<string, string?> NomesPorRotulo { get; init; } = new Dictionary<string, string?>(StringComparer.Ordinal);
 
     public string LabelFor(string key) => Labels.TryGetValue(key, out var label) ? label : key;
 }

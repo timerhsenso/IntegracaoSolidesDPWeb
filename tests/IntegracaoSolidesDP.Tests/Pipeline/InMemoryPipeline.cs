@@ -174,6 +174,8 @@ internal sealed class MemoryState : IStateStore
 
     public Dictionary<Guid, List<RunItem>> Items { get; } = [];
 
+    public Dictionary<(Guid RunId, string Tipo), (string Arquivo, string Conteudo)> Reports { get; } = [];
+
     public Task EnsureSchemaAsync(CancellationToken ct) => Task.CompletedTask;
 
     public Task<IAsyncDisposable?> TryAcquireRunLockAsync(string instanceName, int cdempresa, CancellationToken ct) =>
@@ -200,6 +202,12 @@ internal sealed class MemoryState : IStateStore
     public Task AddItemsAsync(Guid runId, IReadOnlyCollection<RunItem> items, CancellationToken ct)
     {
         Items[runId] = items.ToList();
+        return Task.CompletedTask;
+    }
+
+    public Task SaveRunReportAsync(Guid runId, string tipo, string arquivo, string conteudo, CancellationToken ct)
+    {
+        Reports[(runId, tipo)] = (arquivo, conteudo);
         return Task.CompletedTask;
     }
 

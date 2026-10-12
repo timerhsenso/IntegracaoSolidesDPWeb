@@ -32,6 +32,9 @@ public sealed class ExecucaoDetalheViewModel
     public required Execucao Execucao { get; init; }
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> Contagens { get; init; } =
         new Dictionary<string, IReadOnlyDictionary<string, int>>();
+
+    /// <summary>Relatórios para baixar (ex.: "vinculacao").</summary>
+    public IReadOnlyList<string> Relatorios { get; init; } = [];
 }
 
 public sealed record MigradosViewModel(string Tipo)
