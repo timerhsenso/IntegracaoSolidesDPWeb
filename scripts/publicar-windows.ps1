@@ -7,7 +7,8 @@
       IntegracaoSolidesDP-<versão>-win-x64.zip      serviço  + install-service.ps1 / uninstall-service.ps1
       IntegracaoSolidesDP.Web-<versão>-win-x64.zip  Web/IIS  + install-web.ps1 / uninstall-web.ps1
       SHA256SUMS.txt                                para conferir a integridade no servidor
-    Os dois pacotes levam o INSTALL.md e o deploy\windows\permissoes-sql.sql.
+    Os dois pacotes levam o INSTALL.md, o CHANGELOG.md e o deploy\windows\permissoes-sql.sql.
+    A versão precisa ter a sua seção no CHANGELOG.md ("## 1.0.15 — dd/mm/aaaa"): sem ela o pacote não é gerado.
     Self-contained: o servidor não precisa do .NET instalado para o serviço; para a Web basta o
     ASP.NET Core Hosting Bundle (que instala o módulo do IIS).
 
@@ -34,12 +35,20 @@ if ($Versao -notmatch '^\d+\.\d+\.\d+$') {
     throw "Versão inválida: '$Versao' (use MAJOR.MINOR.PATCH, ex.: 1.0.15)."
 }
 
+# Nenhuma versão sai sem dizer o que mudou: a Web mostra o CHANGELOG.md em Ajuda > Novidades.
+$changelog = Join-Path $raiz 'CHANGELOG.md'
+$secao = '^##\s+' + [regex]::Escape($Versao) + '(\s|$)'
+if (-not (Test-Path $changelog) -or -not (Select-String -Path $changelog -Pattern $secao -Quiet)) {
+    throw "O CHANGELOG.md não tem a seção da versão $Versao. Acrescente '## $Versao — $(Get-Date -Format dd/MM/yyyy)' com o que mudou e gere de novo."
+}
+
 $temp = Join-Path $Saida "temp"
 if (Test-Path $temp) { Remove-Item -Recurse -Force $temp }
 New-Item -ItemType Directory -Force -Path $temp | Out-Null
 
 $comuns = @(
     (Join-Path $raiz 'INSTALL.md'),
+    (Join-Path $raiz 'CHANGELOG.md'),
     (Join-Path $raiz 'deploy\windows\permissoes-sql.sql')
 )
 

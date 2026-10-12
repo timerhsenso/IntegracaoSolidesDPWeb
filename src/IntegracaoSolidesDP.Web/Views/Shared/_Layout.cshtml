@@ -42,8 +42,8 @@
             <div class="nav-titulo">Suporte</div>
             <a class="nav-link @Ativo("Ajuda")" asp-controller="Ajuda" asp-action="Index"><i class="bi bi-question-circle"></i> Ajuda</a>
         </nav>
-        <div class="app-versao" title="Versões instaladas. Web e serviço devem ser do mesmo pacote.">
-            Web @Versoes.Web · Serviço @(versaoServico ?? "—")
+        <div class="app-versao" title="Versões instaladas. Web e serviço devem ser do mesmo pacote. Clique para ver as novidades.">
+            <a asp-controller="Ajuda" asp-action="Novidades" class="text-reset text-decoration-none">Web @Versoes.Web · Serviço @(versaoServico ?? "—")</a>
             @if (versaoServico is not null && versaoServico != Versoes.Web)
             {
                 <i class="bi bi-exclamation-triangle-fill text-warning" title="Web e serviço em versões diferentes: atualize os dois com o mesmo pacote."></i>

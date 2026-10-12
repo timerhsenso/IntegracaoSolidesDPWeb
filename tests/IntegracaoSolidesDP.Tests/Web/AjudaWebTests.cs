@@ -39,6 +39,18 @@ public sealed class AjudaWebTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task News_page_lists_the_versions_and_is_linked_from_the_version_in_the_menu()
+    {
+        var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Consulta));
+
+        var response = await client.GetAsync("/Ajuda/Novidades", Ct);
+        var html = await response.Content.ReadAsStringAsync(Ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        html.Should().Contain($"data-versao=\"{Novidades.Todas[0].Versao}\"").And.Contain("href=\"/Ajuda/Novidades\"");
+    }
+
+    [Fact]
     public async Task Help_documents_every_configuration_field_and_every_audit_action()
     {
         var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Consulta));

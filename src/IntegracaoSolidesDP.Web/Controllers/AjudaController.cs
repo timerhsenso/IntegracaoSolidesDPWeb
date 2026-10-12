@@ -17,6 +17,9 @@ public sealed class AjudaController : Controller
 
     public IActionResult Index() => View();
 
+    /// <summary>O que mudou em cada versão (CHANGELOG.md embutido).</summary>
+    public IActionResult Novidades() => View(Infrastructure.Novidades.Todas);
+
     /// <summary>
     /// O PDF vai embutido na dll, e não em wwwroot, para não ficar acessível sem login: traz
     /// nomes de chaves, comandos e caminhos do servidor.

@@ -1,0 +1,51 @@
+@model IReadOnlyList<VersaoNovidades>
+@inject VersoesSistema Versoes
+@{
+    ViewData["Title"] = "Novidades";
+    var versaoServico = await Versoes.ServicoAsync(Context.RequestAborted);
+}
+<p class="small text-body-secondary">
+    O que mudou em cada versão, a mais nova primeiro. Instaladas agora: Web <strong>@Versoes.Web</strong>,
+    serviço <strong>@(versaoServico ?? "—")</strong>.
+    @if (versaoServico is not null && versaoServico != Versoes.Web)
+    {
+        <span class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> Web e serviço em versões diferentes: atualize os dois com o mesmo pacote.</span>
+    }
+</p>
+@if (Model.Count == 0)
+{
+    <div class="alert alert-secondary">O histórico de versões não veio neste pacote.</div>
+}
+@foreach (var versao in Model)
+{
+    var daWeb = versao.Versao is not null && versao.Versao == Versoes.Web;
+    var doServico = versao.Versao is not null && versao.Versao == versaoServico;
+    <div class="card mb-3 @(daWeb || doServico ? "border-primary" : "")" data-versao="@versao.Versao">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+            <strong>@versao.Titulo</strong>
+            @if (daWeb)
+            {
+                <span class="badge text-bg-primary">instalada na Web</span>
+            }
+            @if (doServico)
+            {
+                <span class="badge text-bg-primary">instalada no serviço</span>
+            }
+        </div>
+        <div class="card-body">
+            @foreach (var texto in versao.Textos)
+            {
+                <p class="small">@texto</p>
+            }
+            @if (versao.Itens.Count > 0)
+            {
+                <ul class="mb-0">
+                    @foreach (var item in versao.Itens)
+                    {
+                        <li>@item</li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}

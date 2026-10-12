@@ -10,7 +10,7 @@ Há três formas de instalar o serviço. Escolha **uma**. A aplicação Web de g
 | [Serviço Linux (systemd)](#b-serviço-linux-systemd) | Servidor Linux x64 (Ubuntu, Debian, RHEL…) | `IntegracaoSolidesDP-<versão>-linux-x64.tar.gz` |
 | [Docker](#c-docker) | Quem já opera containers | imagem `ghcr.io/rhsenso/integracaosolidesdp:<versão>` |
 
-Os pacotes Windows e Linux são *self-contained*: **não precisa instalar o .NET**. Os pacotes Windows (serviço e Web) são gerados com `scripts\publicar-windows.ps1`.
+Os pacotes Windows e Linux são *self-contained*: **não precisa instalar o .NET**. Os pacotes Windows (serviço e Web) são gerados com `scripts\publicar-windows.ps1`. Cada versão precisa da sua seção no [CHANGELOG.md](CHANGELOG.md) (`## 1.0.3 — dd/mm/aaaa` e o que mudou): sem ela o script não gera o pacote. Na Web, o histórico aparece em Ajuda › Novidades (clique na versão, no rodapé do menu).
 
 ## 1. Pré-requisitos
 

@@ -18,6 +18,38 @@ public sealed class AjudaTests
     }
 
     [Fact]
+    public void Changelog_sections_items_and_paragraphs_are_read_ignoring_the_header()
+    {
+        var secoes = Novidades.Interpretar("""
+            # Novidades
+            Texto do cabeçalho, ignorado.
+
+            ## 1.0.3 — 20/10/2026
+            Ajustes da homologação.
+            - Primeiro item.
+            - Segundo item.
+
+            ## 1.0.1 e anteriores
+            - Item antigo.
+            """);
+
+        secoes.Should().HaveCount(2);
+        secoes[0].Should().Match<VersaoNovidades>(s => s.Titulo == "1.0.3 — 20/10/2026" && s.Versao == "1.0.3");
+        secoes[0].Itens.Should().Equal("Primeiro item.", "Segundo item.");
+        secoes[0].Textos.Should().Equal("Ajustes da homologação.");
+        secoes[1].Versao.Should().Be("1.0.1");
+        secoes[1].Itens.Should().Equal("Item antigo.");
+    }
+
+    [Fact]
+    public void The_changelog_goes_inside_the_web_and_the_newest_version_comes_first_with_items()
+    {
+        Novidades.Todas.Should().NotBeEmpty("o CHANGELOG.md da raiz vai embutido na dll da Web");
+        Novidades.Todas[0].Versao.Should().NotBeNull();
+        Novidades.Todas[0].Itens.Should().NotBeEmpty();
+    }
+
+    [Fact]
     public void Every_configuration_field_has_a_short_hint()
     {
         var campos = typeof(ConfiguracaoForm).GetProperties(BindingFlags.Public | BindingFlags.Instance)
