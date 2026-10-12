@@ -4,6 +4,12 @@ Uma seção por versão, a mais nova primeiro. O título é `## <versão> — <d
 só gera o pacote de uma versão que tenha a sua seção aqui, e a Web mostra este arquivo em Ajuda › Novidades.
 Escreva para quem usa: o que mudou na tela e no comportamento, não o código.
 
+## 1.0.4 — 12/10/2026
+
+- Instalação: o cliente escolhe a pasta. Na primeira instalação, os instaladores do serviço e da Web perguntam a pasta (Enter aceita a sugerida) ou recebem -InstallDir. Nas atualizações usam a pasta onde o sistema já está.
+- O instalador recusa instalar na própria pasta onde o zip foi extraído (o zip da versão seguinte sobrescreveria a configuração).
+- Desinstalar com -RemoveFiles apaga a pasta onde o sistema está instalado, e não a pasta padrão.
+
 ## 1.0.3 — 12/10/2026
 
 Conferência DP x RHSenso e histórico de versões.
