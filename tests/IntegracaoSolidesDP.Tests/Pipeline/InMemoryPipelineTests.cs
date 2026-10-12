@@ -265,7 +265,7 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle();
     }
 
-    [Fact]
+    [Fact(Timeout = 60_000)]
     public async Task Employee_rejected_by_dp_stops_being_resent_after_the_limit_until_the_data_changes_or_a_day_passes()
     {
         _pipeline.Settings["Sync:ColaboradorMaxTentativas"] = "2";
@@ -309,12 +309,16 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         _pipeline.State.Failures.Should().BeEmpty();
     }
 
-    [Fact]
+    [Fact(Timeout = 60_000)]
     public async Task Dp_outage_does_not_count_as_a_rejection()
     {
         _pipeline.Settings["Sync:ColaboradorMaxTentativas"] = "1";
         _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001"));
-        await _pipeline.Fake.AddFaultAsync(new FaultRule { Method = "POST", Path = "/employee/register", Kind = FaultKind.Status, Status = 503, Times = -1 }, Ct);
+        // Retry-After 0: os retries do 503 usam o relógio da DI (FakeTimeProvider, parado); sem isso a espera nunca termina.
+        await _pipeline.Fake.AddFaultAsync(new FaultRule
+        {
+            Method = "POST", Path = "/employee/register", Kind = FaultKind.Status, Status = 503, RetryAfterSeconds = 0, Times = -1,
+        }, Ct);
 
         var summary = await _pipeline.RunAsync(ct: Ct);
 
