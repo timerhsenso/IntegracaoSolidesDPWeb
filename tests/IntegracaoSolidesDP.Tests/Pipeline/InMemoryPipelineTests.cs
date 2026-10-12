@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using IntegracaoSolidesDP.Worker.Management;
+using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Pipeline;
 using IntegracaoSolidesDP.Worker.Source;
@@ -125,7 +126,7 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
 
         var summary = await _pipeline.RunAsync(ct: Ct);
 
-        summary.Status.Should().Be(RunStatuses.CompletedWithErrors);
+        summary.Status.Should().Be(RunStatuses.CompletedWithPending);
         summary.Counts["employee"]["blocked"].Should().Be(1);
         (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle().Which.Name.Should().Be("OUTRA PESSOA");
     }
@@ -264,6 +265,28 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_failed_company_is_announced_by_email_when_notifications_are_on()
+    {
+        _pipeline.Source.Empresas.Add(new EmpresaRow { Cdempresa = 15, Nome = "ADN 15" });
+        _pipeline.Management.Configure(
+            [new EmpresaConfiguracao { Cdempresa = 15, Habilitada = true, DryRun = false, GoLiveDate = GoLive }],
+            new Dictionary<int, string>(),
+            Rules());
+        _pipeline.Settings["Gestao:Habilitada"] = "true";
+        _pipeline.Notificacoes.Configuracao = new ConfiguracaoNotificacao { Ativo = true, Servidor = "smtp.teste", Remetente = "avisos@adn.com.br" };
+        _pipeline.Notificacoes.Destinatarios.Add(new DestinatarioNotificacao { Id = 1, Email = "ti@adn.com.br", RecebeFalhas = true });
+
+        var summary = await _pipeline.RunAsync(ct: Ct);
+        await _pipeline.RunAsync(ct: Ct);
+
+        summary.Status.Should().Be(RunStatuses.Failed);
+        var email = _pipeline.Emails.Enviados.Should().ContainSingle("a segunda falha seguida não repete o aviso").Subject.Mensagem;
+        email.Para.Should().Equal("ti@adn.com.br");
+        email.Assunto.Should().Contain("Empresa 15");
+        email.Html.Should().Contain("token");
+    }
+
+    [Fact]
     public async Task Disabled_company_and_company_inactive_in_the_payroll_are_skipped()
     {
         _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001", empresa: 1));
@@ -351,7 +374,7 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
 
         var summary = await _pipeline.RunAsync(ct: Ct);
 
-        summary.Status.Should().Be(RunStatuses.CompletedWithErrors);
+        summary.Status.Should().Be(RunStatuses.CompletedWithPending);
         summary.Counts["employee"]["blocked"].Should().Be(1);
         _pipeline.State.Items[summary.RunId].Single(i => i.EntityType == EntityTypes.Employee).Message
             .Should().StartWith(FormattableString.Invariant($"cpf_desligado_no_dp: este CPF está DESLIGADO no Sólides DP (cadastro {antigo}, desligado em 31/05/2024)"));

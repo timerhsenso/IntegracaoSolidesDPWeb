@@ -1,4 +1,5 @@
 using IntegracaoSolidesDP.Worker.Management;
+using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Pipeline;
 using Microsoft.Extensions.Options;
@@ -13,6 +14,7 @@ public sealed class SyncWorker(
     IServiceScopeFactory scopes,
     ExecutionSchedule schedule,
     CommandProcessor commands,
+    Notificador notificador,
     IOptions<ManagementOptions> management,
     TimeProvider clock,
     ILogger<SyncWorker> logger) : BackgroundService
@@ -36,6 +38,8 @@ public sealed class SyncWorker(
             if (managed)
             {
                 await ProcessCommandsAsync(stoppingToken);
+                // Resumo diário das pendências: confere a hora a cada ciclo; envia uma vez por dia.
+                await notificador.ResumoSeDevidoAsync(stoppingToken);
             }
 
             var now = clock.GetUtcNow();

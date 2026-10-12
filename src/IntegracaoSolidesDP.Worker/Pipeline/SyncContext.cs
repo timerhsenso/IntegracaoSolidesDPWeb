@@ -44,8 +44,14 @@ public sealed class SyncContext(Guid runId, int cdempresa, bool dryRun, DateOnly
 
     public IReadOnlyList<RunItem> Items => _items;
 
-    /// <summary>Algum item falhou ou foi bloqueado: a execução termina como completed_with_errors.</summary>
-    public bool HasErrors { get; private set; }
+    /// <summary>Algum item falhou ou foi bloqueado (falha ou pendência).</summary>
+    public bool HasErrors => HasFailures || HasPending;
+
+    /// <summary>Algum item falhou: a execução termina como completed_with_errors.</summary>
+    public bool HasFailures { get; private set; }
+
+    /// <summary>Algum item ficou bloqueado (pendência de cadastro): sem falhas, a execução termina como completed_with_pending.</summary>
+    public bool HasPending { get; private set; }
 
     /// <summary>CNPJ (só dígitos) → id da empresa no DP.</summary>
     public Dictionary<string, long> CompanyIdsByCnpj { get; } = new(StringComparer.Ordinal);
@@ -63,9 +69,13 @@ public sealed class SyncContext(Guid runId, int cdempresa, bool dryRun, DateOnly
     public void Add(RunItem item)
     {
         _items.Add(item);
-        if (item.Status is ItemStatuses.Failed or ItemStatuses.Blocked)
+        if (item.Status == ItemStatuses.Failed)
         {
-            HasErrors = true;
+            HasFailures = true;
+        }
+        else if (item.Status == ItemStatuses.Blocked)
+        {
+            HasPending = true;
         }
     }
 
@@ -77,7 +87,7 @@ public sealed class SyncContext(Guid runId, int cdempresa, bool dryRun, DateOnly
         }
     }
 
-    public void MarkError() => HasErrors = true;
+    public void MarkError() => HasFailures = true;
 }
 
 public static class ItemStatuses

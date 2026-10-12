@@ -88,6 +88,9 @@ public static class CommandTypes
     public const string Reconcile = "RECONCILE";
 
     public static readonly IReadOnlyList<string> All = [Run, DryRun, CheckConfig, Discover, Reconcile];
+
+    /// <summary>E-mail de teste para os destinatários ativos (pedido pela tela Notificações; fora de <see cref="All"/>).</summary>
+    public const string TestarEmail = "TESTAR_EMAIL";
 }
 
 /// <summary>Valores de solidesdp.comando.status.</summary>

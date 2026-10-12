@@ -33,6 +33,7 @@ public static class AjudaTopicos
         new("configuracao", "Regras gerais", "bi-sliders", "Configuracao"),
         new("usuarios", "Usuários", "bi-person-gear", "Usuarios"),
         new("auditoria", "Auditoria", "bi-journal-text", "Auditoria"),
+        new("notificacoes", "Notificações por e-mail", "bi-envelope", "Notificacoes"),
         new("regras", "Como a integração decide", "bi-diagram-3"),
         new("status", "Glossário de status", "bi-tags"),
         new("problemas", "Deu problema, e agora?", "bi-life-preserver"),
@@ -57,7 +58,8 @@ public static class AjudaStatus
         [
             new("running", "O serviço está sincronizando agora.", "Aguarde. Se ficar assim depois de o serviço parar, a próxima execução marca como Falhou."),
             new("completed", "Terminou e todos os itens foram tratados sem falha nem bloqueio."),
-            new("completed_with_errors", "Terminou, mas algum item falhou ou ficou bloqueado. O restante foi enviado normalmente.", "Veja Pendências."),
+            new("completed_with_pending", "Terminou sem nenhuma falha, mas há pendências de cadastro (itens bloqueados, como CPF desligado no Sólides DP). O restante foi enviado normalmente.", "Veja Pendências: quem resolve é o RH, no RHSenso ou no Sólides DP."),
+            new("completed_with_errors", "Terminou, mas algum item falhou (recusa do Sólides DP, erro de comunicação, trava de segurança). O restante foi enviado normalmente.", "Veja Pendências e a mensagem de cada item com falha."),
             new("failed", "A execução parou antes do fim: banco fora do ar, token inválido, configuração inválida ou serviço interrompido.", "Abra a execução e leia o erro no topo."),
         ]),
         new("Item de uma execução", "O que aconteceu com cada registro (colaborador, cargo, local, férias) em uma execução.",

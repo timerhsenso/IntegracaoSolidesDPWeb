@@ -14,7 +14,7 @@ Os pacotes Windows e Linux são *self-contained*: **não precisa instalar o .NET
 
 ## 1. Pré-requisitos
 
-- **Rede:** acesso ao SQL Server do RHSenso e saída HTTPS para `employer.tangerino.com.br:443`.
+- **Rede:** acesso ao SQL Server do RHSenso e saída HTTPS para `employer.tangerino.com.br:443`. Para os avisos por e-mail (opcional), saída para o servidor SMTP da empresa na porta 587 (ex.: `smtp.skymail.net.br:587`).
 - **Token do Sólides DP:** gerado em Empregador → Integrações. Se o menu não aparecer, peça ao suporte da Sólides.
 - **Logins SQL de privilégio mínimo.** O script `permissoes-sql.sql` (vem nos pacotes; no repositório, em `deploy/windows`) cria os dois logins. Abra no SSMS como sysadmin, troque as duas senhas no início e execute:
 

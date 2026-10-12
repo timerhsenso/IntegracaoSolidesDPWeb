@@ -42,7 +42,7 @@ public sealed class PainelController(PainelRepository painel, GestaoService gest
                     return new ExecucoesDoDia(
                         dia,
                         doDia.Count(e => e.Status == RunStatuses.Completed),
-                        doDia.Count(e => e.Status == RunStatuses.CompletedWithErrors),
+                        doDia.Count(e => e.Status is RunStatuses.CompletedWithErrors or RunStatuses.CompletedWithPending),
                         doDia.Count(e => e.Status == RunStatuses.Failed));
                 })
                 .ToList(),

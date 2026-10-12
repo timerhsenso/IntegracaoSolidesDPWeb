@@ -115,8 +115,13 @@ Com `Gestao:Habilitada=true`, o serviço passa a ser operado pela aplicação We
 - **Ativar/desativar** também é uma versão da configuração. Desativada, a integração não faz execuções reais (agendadas ou pedidas); o dry-run continua permitido.
 - **Fila de comandos.** A Web grava o pedido em `solidesdp.comando` e o serviço o atende, um por vez, entre as execuções: `EXECUTAR`, `EXECUTAR_DRYRUN`, `CHECK_CONFIG`, `DISCOVER` e `RECONCILE` (só conferência; o `--repair` continua sendo pela linha de comando). Só o serviço fala com a API do Sólides DP.
 - **Rastreio.** `solidesdp.runs` grava quem pediu (`solicitado_por`) e a versão da configuração usada (`config_versao`).
+- **Avisos por e-mail** (tela Notificações, só Admin). SMTP próprio (senha cifrada com a chave dos tokens), destinatários de todas as empresas ou de uma só.
+  - **Falha** (`failed` ou `completed_with_errors`): avisada na hora, só na mudança OK → falha; lembrete a cada N horas (padrão 24) e aviso de "voltou ao normal".
+  - **Pendências** (`completed_with_pending`: itens bloqueados, CPF inválido/duplicado): resumo diário no horário configurado (padrão 08:00, dias úteis), só com as novas.
+  - Simulações não avisam, salvo opção. Tabelas `solidesdp.notificacao_*`; o teste é o comando `TESTAR_EMAIL`. System.Net.Mail: STARTTLS (587); SSL direto (465) não é suportado.
 
 Independentemente da gestão:
+- execução sem falha mas com itens bloqueados (pendência de cadastro do RH) termina `completed_with_pending`; com algum item que falhou, `completed_with_errors`;
 - os itens `unchanged` entram só na contagem da execução (`summary_json`), não em `solidesdp.run_items`;
 - execuções que ficaram `running` por uma parada abrupta são marcadas como `failed` na execução seguinte.
 
@@ -133,6 +138,7 @@ ASP.NET Core MVC (Bootstrap 5 + DataTables) para acompanhar e operar a integraç
 | Pedidos ao serviço | Operador | Executar agora, simular (dry-run), verificar configuração, consultar o DP, conferir enviados |
 | Empresas | Admin altera | Cada empresa (conta do DP): habilitada, simulação, go-live, filiais, piloto, token cifrado e ids da conta; pedidos só da empresa |
 | Regras gerais | Admin altera | Regras que valem para todas as empresas, versionadas, com histórico e diferenças entre versões; ativar/desativar |
+| Notificações | Admin | Avisos por e-mail: servidor SMTP, horário do resumo, lembrete, destinatários e últimos envios; e-mail de teste |
 | Usuários e Auditoria | Admin | Usuários (nunca excluídos, só desativados) e tudo o que foi feito na Web |
 | Ajuda | todos | Manual de uso: roteiro de implantação, cada tela, regras, glossário de status e solução de problemas. Cada tela tem um botão **Ajuda** com o seu trecho, e cada campo das Regras gerais tem dica e link para o manual. O Admin baixa também o manual técnico em PDF |
 

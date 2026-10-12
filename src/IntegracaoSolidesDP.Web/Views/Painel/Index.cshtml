@@ -184,7 +184,7 @@
                             <tr>
                                 <td class="text-nowrap small" style="width: 6.5rem">@F.Dia(dia.Dia)</td>
                                 <td>
-                                    <div class="barra-dia" title="@dia.Concluidas concluídas, @dia.ComErros com erros, @dia.Falhas falhas">
+                                    <div class="barra-dia" title="@dia.Concluidas concluídas, @dia.ComErros com pendências ou erros, @dia.Falhas falhas">
                                         <span class="bg-success" style="width: @Formatador.Percentual(dia.Concluidas, maximoDia)"></span>
                                         <span class="bg-warning" style="width: @Formatador.Percentual(dia.ComErros, maximoDia)"></span>
                                         <span class="bg-danger" style="width: @Formatador.Percentual(dia.Falhas, maximoDia)"></span>
@@ -197,7 +197,7 @@
                 </table>
                 <div class="small text-body-secondary mt-2">
                     <span class="legenda bg-success"></span> concluídas
-                    <span class="legenda bg-warning ms-2"></span> com erros
+                    <span class="legenda bg-warning ms-2"></span> com pendências ou erros
                     <span class="legenda bg-danger ms-2"></span> falhas
                 </div>
             </div>

@@ -2,6 +2,7 @@ using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Commands;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
+using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Pipeline;
 using IntegracaoSolidesDP.Worker.Pipeline.Steps;
@@ -50,6 +51,9 @@ public static class ServiceRegistration
         services.AddSingleton<ISourceReader, SqlSourceReader>();
         services.AddSingleton<IStateStore, SqlStateStore>();
         services.AddSingleton<IManagementStore, SqlManagementStore>();
+        services.AddSingleton<INotificacaoStore, SqlNotificacaoStore>();
+        services.AddSingleton<IEnviadorEmail, SmtpEnviadorEmail>();
+        services.AddSingleton<Notificador>();
         services.AddSingleton<ITokenProtector>(sp => new TokenProtector(new TokenProtectionOptions
         {
             ChaveBase64 = sp.GetRequiredService<IOptions<ManagementOptions>>().Value.ChaveTokens,

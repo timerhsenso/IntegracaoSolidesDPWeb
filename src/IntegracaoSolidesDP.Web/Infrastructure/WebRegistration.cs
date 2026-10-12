@@ -1,6 +1,7 @@
 using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Identity;
 using IntegracaoSolidesDP.Worker.Management;
+using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Source;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -23,6 +24,7 @@ public static class WebRegistration
         // (e não no registro) para valer a configuração final, inclusive a dos testes.
         services.AddSingleton(sp => new ConnectionFactory(ConnectionString(sp.GetRequiredService<IConfiguration>())));
         services.AddSingleton<IManagementStore, SqlManagementStore>();
+        services.AddSingleton<INotificacaoStore, SqlNotificacaoStore>();
         services.AddSingleton<ITokenProtector>(sp => new TokenProtector(new TokenProtectionOptions
         {
             ChaveBase64 = sp.GetRequiredService<IOptions<WebOptions>>().Value.ChaveTokens,

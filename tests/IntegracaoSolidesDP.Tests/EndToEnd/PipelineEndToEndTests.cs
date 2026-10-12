@@ -205,7 +205,7 @@ public sealed class PipelineEndToEndTests(SqlServerFixture db) : IAsyncLifetime
 
         var summary = await _harness.RunAsync(Ct);
 
-        summary.Status.Should().Be(RunStatuses.CompletedWithErrors);
+        summary.Status.Should().Be(RunStatuses.CompletedWithPending, "só há item bloqueado (pendência de cadastro), nenhuma falha");
         summary.Counts["employee"]["blocked"].Should().Be(1);
         (await _harness.Fake.GetStateAsync(Ct)).Employees.Select(e => e.ExternalId).Should().Equal("00000001");
     }

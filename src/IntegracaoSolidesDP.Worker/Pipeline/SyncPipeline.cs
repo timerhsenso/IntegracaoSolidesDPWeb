@@ -2,6 +2,7 @@ using System.Text.Json;
 using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
+using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Pipeline.Steps;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
@@ -33,6 +34,7 @@ public sealed class SyncPipeline(
     EmployeeStep employees,
     VacationStep vacations,
     RunReportWriter reports,
+    Notificador notificador,
     EpochDates dates,
     TimeProvider clock,
     ILogger<SyncPipeline> logger)
@@ -169,7 +171,9 @@ public sealed class SyncPipeline(
             await employees.ExecuteAsync(context, plan, ct);
             await vacations.ExecuteAsync(context, plan, ct);
 
-            status = context.HasErrors ? RunStatuses.CompletedWithErrors : RunStatuses.Completed;
+            status = context.HasFailures ? RunStatuses.CompletedWithErrors
+                : context.HasPending ? RunStatuses.CompletedWithPending
+                : RunStatuses.Completed;
         }
         catch (SyncAbortedException ex)
         {
@@ -204,6 +208,7 @@ public sealed class SyncPipeline(
         summary = summary with { ReportPath = reportPath };
         await state.FinishRunAsync(runId, status, JsonSerializer.Serialize(summary.Counts), error, CancellationToken.None);
         await SalvarVinculacaoAsync(summary, context);
+        await notificador.AposExecucaoAsync(summary, context.Items, CancellationToken.None);
 
         logger.LogInformation("Execução {RunId} da empresa {Empresa} terminou: {Status} {Counts} relatório {Report}",
             runId, empresa.Cdempresa, status, JsonSerializer.Serialize(summary.Counts), reportPath);
@@ -271,8 +276,10 @@ public sealed class SyncPipeline(
         var runId = await state.StartRunAsync(syncOptions.Configured.InstanceName, cdempresa, dryRun, request.Trigger, ct);
         await state.FinishRunAsync(runId, RunStatuses.Failed, "{}", error, CancellationToken.None);
         logger.LogError("Execução {RunId} abortada: {Error}", runId, error);
-        return new RunSummary(runId, RunStatuses.Failed, dryRun, started, clock.GetUtcNow(),
+        var summary = new RunSummary(runId, RunStatuses.Failed, dryRun, started, clock.GetUtcNow(),
             new Dictionary<string, IReadOnlyDictionary<string, int>>(), error, null, cdempresa);
+        await notificador.AposExecucaoAsync(summary, [], CancellationToken.None);
+        return summary;
     }
 
     private RunSummary NotRun(string status, bool dryRun, DateTimeOffset started, string reason, int? cdempresa) =>

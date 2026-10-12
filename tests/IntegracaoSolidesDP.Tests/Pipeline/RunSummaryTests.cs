@@ -35,6 +35,15 @@ public sealed class RunSummaryTests
     }
 
     [Fact]
+    public void Pending_items_without_failures_make_the_request_completed_with_pending()
+    {
+        RunSummary.Combine([Part(1, RunStatuses.Completed), Part(15, RunStatuses.CompletedWithPending)], false, Now, Now)
+            .Status.Should().Be(RunStatuses.CompletedWithPending);
+        RunSummary.Combine([Part(1, RunStatuses.CompletedWithPending), Part(15, RunStatuses.CompletedWithErrors)], false, Now, Now)
+            .Status.Should().Be(RunStatuses.CompletedWithErrors, "falha pesa mais que pendência");
+    }
+
+    [Fact]
     public void One_failed_company_makes_the_whole_request_completed_with_errors()
     {
         var combined = RunSummary.Combine([Part(1, RunStatuses.Completed), Part(15, RunStatuses.Failed, "config_invalid: sem token")], false, Now, Now);

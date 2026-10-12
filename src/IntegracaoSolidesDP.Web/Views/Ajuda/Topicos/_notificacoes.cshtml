@@ -1,0 +1,47 @@
+@* Ajuda › Notificações por e-mail *@
+<p>
+    Exclusiva do <span class="badge text-bg-dark">Admin</span>. Configura os avisos por e-mail: o servidor de e-mail (SMTP), quando avisar
+    e quem recebe. Quem envia é o serviço, depois de cada execução e no horário do resumo. Só funciona com a gestão pela Web ligada.
+</p>
+<h4>O que é avisado</h4>
+<dl class="ajuda-def">
+    <dt>Falha</dt>
+    <dd>
+        Execução que <strong>falhou</strong> (token recusado, Sólides DP fora do ar, banco inacessível) ou terminou <strong>com erros</strong>
+        (algum item recusado pelo Sólides DP, trava de segurança). O aviso sai <strong>na hora</strong>, mas só quando a empresa passa de OK
+        para falha: as execuções seguintes, a cada 30 minutos, não repetem o e-mail. Se a falha continuar, sai um <strong>lembrete</strong>
+        depois do tempo configurado (padrão: 24 horas). Quando a empresa volta a funcionar, sai um e-mail <strong>"voltou ao normal"</strong>.
+    </dd>
+    <dt>Resumo de pendências</dt>
+    <dd>
+        Pendências de cadastro (execução <em>concluída com pendências</em>): CPF desligado no Sólides DP, CPF inválido ou duplicado no
+        RHSenso, filial sem empresa no Sólides DP... Vão num <strong>resumo diário</strong>, no horário configurado, só com as pendências
+        <strong>novas</strong> desde o resumo anterior (e o total em aberto). Sem novidade, não há e-mail. Pendência resolvida que volta a
+        aparecer conta como nova.
+    </dd>
+    <dt>Simulações</dt>
+    <dd>Não avisam, a não ser que <em>Avisar também nas simulações</em> esteja ligado (útil durante a homologação).</dd>
+</dl>
+<h4>Servidor de e-mail</h4>
+<p>
+    Use os dados do provedor de e-mail da empresa (o mesmo do RHSenso serve). Porta <strong>587 com STARTTLS</strong> é o padrão; a
+    porta 465 (SSL direto) não é suportada. A senha é gravada <strong>cifrada</strong>, com a mesma chave dos tokens, e nunca volta para a
+    tela: para manter, deixe o campo em branco. Se o serviço estiver em outra máquina com outra chave, ele não consegue ler a senha e o
+    envio aparece como "Não enviado" com esse motivo: grave a senha de novo.
+</p>
+<p>
+    <strong>Endereço desta Web</strong> é usado nos links dos e-mails (ex.: abrir a execução que falhou). Use o endereço que as pessoas
+    usam para entrar, como <code>https://servidor:8443</code>.
+</p>
+<h4>Destinatários</h4>
+<p>
+    Cada destinatário recebe <strong>falhas</strong>, <strong>resumo de pendências</strong> ou os dois, de <strong>todas as empresas</strong>
+    ou de uma empresa só. Exemplo: o TI recebe as falhas de todas as empresas; o RH de cada empresa recebe o resumo só da sua.
+    Ninguém é apagado: <em>Desativar</em> para de enviar e mantém o histórico.
+</p>
+<h4>Testar</h4>
+<p>
+    <em>Enviar e-mail de teste</em> pede ao serviço um e-mail para todos os destinatários ativos, com a configuração <strong>gravada</strong>
+    (salve antes). O resultado aparece em Pedidos ao serviço e em <em>Últimos envios</em>, com o erro do servidor quando não sai
+    (senha errada, porta bloqueada, remetente recusado...).
+</p>

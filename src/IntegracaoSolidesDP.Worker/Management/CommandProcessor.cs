@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using IntegracaoSolidesDP.Worker.Commands;
+using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Pipeline;
 using IntegracaoSolidesDP.Worker.State;
@@ -64,7 +65,7 @@ public sealed class CommandProcessor(
                 {
                     var summary = await services.GetRequiredService<SyncPipeline>().RunAsync(
                         new RunRequest("web", command.Type == CommandTypes.DryRun ? true : null, command.RequestedBy, command.Cdempresa), ct);
-                    var ok = summary.Status is RunStatuses.Completed or RunStatuses.CompletedWithErrors;
+                    var ok = summary.Status is RunStatuses.Completed or RunStatuses.CompletedWithPending or RunStatuses.CompletedWithErrors;
                     return (ok ? CommandStatuses.Done : CommandStatuses.Failed,
                         summary.RunId == Guid.Empty ? (Guid?)null : summary.RunId,
                         Describe(summary));
@@ -83,6 +84,9 @@ public sealed class CommandProcessor(
                     };
                     return (exitCode == 0 ? CommandStatuses.Done : CommandStatuses.Failed, null, output.ToString());
                 }
+
+                case CommandTypes.TestarEmail:
+                    return (CommandStatuses.Done, null, await services.GetRequiredService<Notificador>().EnviarTesteAsync(ct));
 
                 default:
                     return (CommandStatuses.Failed, null, $"Tipo de comando desconhecido: {command.Type}");

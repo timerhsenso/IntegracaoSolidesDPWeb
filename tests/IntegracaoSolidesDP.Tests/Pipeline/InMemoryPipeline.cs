@@ -1,6 +1,8 @@
+using IntegracaoSolidesDP.Tests.Notificacoes;
 using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Infrastructure;
 using IntegracaoSolidesDP.Worker.Management;
+using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Pipeline;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
@@ -49,6 +51,11 @@ internal sealed class InMemoryPipeline : IAsyncDisposable
 
     public MemoryManagement Management { get; } = new();
 
+    /// <summary>Avisos por e-mail em memória (sem configuração = nada é enviado).</summary>
+    public MemoryNotificacaoStore Notificacoes { get; } = new();
+
+    public FakeEnviadorEmail Emails { get; } = new();
+
     public Dictionary<string, string?> Settings { get; } = new()
     {
         ["SolidesDP:BaseUrl"] = "http://solidesdp-fake",
@@ -93,6 +100,8 @@ internal sealed class InMemoryPipeline : IAsyncDisposable
         services.AddSingleton<ISourceReader>(Source);
         services.AddSingleton<IStateStore>(State);
         services.AddSingleton<IManagementStore>(Management);
+        services.AddSingleton<INotificacaoStore>(Notificacoes);
+        services.AddSingleton<IEnviadorEmail>(Emails);
         services.AddSingleton<ITokenProtector>(new PlainTokens());
 
         foreach (var name in new[] { SolidesDpClient.RetryClientName, SolidesDpClient.NoRetryClientName })

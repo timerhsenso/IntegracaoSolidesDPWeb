@@ -281,6 +281,8 @@
             <tr><td><code>solidesdp.empresa_token</code></td><td class="quebra">Token do Sólides DP de cada empresa, <strong>cifrado</strong>. Só recebe <code>INSERT</code>: vale a linha mais recente.</td><td>Web</td></tr>
             <tr><td><code>solidesdp.comando</code></td><td class="quebra">Fila de pedidos da Web e o resultado de cada um.</td><td>Web e serviço</td></tr>
             <tr><td><code>solidesdp.auditoria</code></td><td class="quebra">Tudo o que foi feito na Web.</td><td>Web</td></tr>
+            <tr><td><code>solidesdp.notificacao_config</code>, <code>notificacao_destinatario</code></td><td class="quebra">Avisos por e-mail: servidor SMTP (senha cifrada com a chave dos tokens), horário do resumo, lembrete e quem recebe.</td><td>Web grava, serviço lê</td></tr>
+            <tr><td><code>solidesdp.notificacao_estado</code>, <code>notificacao_pendencia</code>, <code>notificacao_envio</code></td><td class="quebra">Situação de cada empresa (para avisar só na mudança), pendências abertas (para o resumo diário) e cada e-mail enviado ou tentado, com o erro.</td><td>Serviço</td></tr>
             <tr><td><code>solidesdp_auth.*</code></td><td class="quebra">Usuários, perfis e chaves de proteção do cookie (ASP.NET Core Identity).</td><td>Web</td></tr>
         </tbody>
     </table>
@@ -449,7 +451,7 @@
         <thead><tr><th>Código</th><th>Significado</th></tr></thead>
         <tbody>
             <tr><td><code>0</code></td><td class="quebra">Sucesso. Em <code>--run-once</code>/<code>--dry-run</code>: execução <em>Concluída</em> sem erros.</td></tr>
-            <tr><td><code>1</code></td><td class="quebra">Falha. <code>--check-config</code>/<code>--discover</code>: algum <code>[ERRO]</code>. <code>--run-once</code>/<code>--dry-run</code>: execução concluída com erros, falhou ou não foi realizada (lock ou integração desativada). A última linha mostra o status e o caminho do relatório.</td></tr>
+            <tr><td><code>1</code></td><td class="quebra">Falha. <code>--check-config</code>/<code>--discover</code>: algum <code>[ERRO]</code>. <code>--run-once</code>/<code>--dry-run</code>: execução concluída com pendências ou com erros, falhou ou não foi realizada (lock ou integração desativada). A última linha mostra o status e o caminho do relatório.</td></tr>
             <tr><td><code>2</code></td><td class="quebra">Configuração do servidor inválida (a lista de problemas sai no console), ou <code>--reconcile</code> encontrou ausentes ou não verificáveis.</td></tr>
         </tbody>
     </table>
@@ -567,6 +569,8 @@ WHERE instance_name = 'default' ORDER BY versao DESC;</code></pre>
                 <td class="quebra">Saída HTTPS bloqueada, proxy ou certificado. Teste no servidor: <code>Test-NetConnection employer.tangerino.com.br -Port 443</code>.</td></tr>
             <tr><td class="quebra"><code>source_empty</code>: nenhum colaborador lido</td>
                 <td class="quebra">Connection string apontando para outro banco, ou filtros da empresa (piloto, filiais) que não casam com nada. A trava impede que um banco vazio leve a desligamentos em massa.</td></tr>
+            <tr><td class="quebra">E-mail de aviso não chega</td>
+                <td class="quebra">Veja <em>Últimos envios</em> na tela Notificações: o erro do servidor aparece lá. Senha errada ou remetente diferente do usuário: corrija e grave. "Senha do SMTP não pôde ser lida": a Web e o serviço estão com chaves diferentes (<code>Web:ChaveTokens</code> × <code>Gestao:ChaveTokens</code>); grave a senha de novo. Tempo esgotado: libere a saída para o SMTP na porta 587 (<code>Test-NetConnection smtp.skymail.net.br -Port 587</code>). Sem nenhum envio registrado: confira se os avisos estão ligados e se há destinatário ativo.</td></tr>
             <tr><td class="quebra"><code>max_dismissals_exceeded</code>: nenhum desligamento enviado</td>
                 <td class="quebra">A execução ia desligar mais colaboradores que <code>Sync:MaxDismissalsPerRun</code> (padrão 20, tela Regras gerais). Confira as demissões no RHSenso; se estiverem certas, aumente o limite, rode de novo e volte ao valor normal.</td></tr>
             <tr><td class="quebra">"tabelas ausentes em dbo" no <code>--check-config</code></td>

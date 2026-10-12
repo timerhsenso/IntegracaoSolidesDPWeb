@@ -1,0 +1,245 @@
+@model NotificacoesViewModel
+@using IntegracaoSolidesDP.Worker.Notificacoes
+@{
+    ViewData["Title"] = "Notificações por e-mail";
+    var nomes = Model.Empresas.ToDictionary(e => e.Cdempresa, e => e.Nome);
+    string Empresa(int? cdempresa) => cdempresa is { } e ? (nomes.TryGetValue(e, out var nome) ? $"{e} - {nome}" : e.ToString(System.Globalization.CultureInfo.InvariantCulture)) : "Todas";
+    string Tipo(string tipo) => tipo switch
+    {
+        TiposNotificacao.Falha => "Falha",
+        TiposNotificacao.Lembrete => "Lembrete de falha",
+        TiposNotificacao.Normalizou => "Voltou ao normal",
+        TiposNotificacao.Resumo => "Resumo de pendências",
+        TiposNotificacao.Teste => "Teste",
+        _ => tipo,
+    };
+}
+<div class="alert alert-light border small">
+    <i class="bi bi-info-circle"></i>
+    <strong>Falhas</strong> (execução que falhou ou terminou com erros) são avisadas na hora, mas só quando a empresa passa de OK para
+    falha; se continuar, um lembrete a cada tantas horas; e um aviso quando volta ao normal.
+    <strong>Pendências</strong> de cadastro (CPF desligado no Sólides DP, PIS inválido...) vão num <strong>resumo diário</strong>, só com
+    as novas desde o resumo anterior. Quem envia é o serviço.
+</div>
+
+<form asp-action="Salvar" method="post" novalidate>
+    <div asp-validation-summary="All" class="alert alert-danger small"></div>
+    <div class="row g-3 mb-3">
+        <div class="col-xl-6">
+            <div class="card h-100">
+                <div class="card-header">Servidor de e-mail (SMTP)</div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-3">
+                        <input asp-for="Form.Ativo" class="form-check-input" role="switch" />
+                        <label asp-for="Form.Ativo" class="form-check-label fw-semibold"></label>
+                        <dica-campo for="Form.Ativo" ajuda="notificacoes" />
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-8 mb-2">
+                            <label asp-for="Form.Servidor" class="form-label"></label>
+                            <input asp-for="Form.Servidor" class="form-control" placeholder="smtp.exemplo.com.br" />
+                            <span asp-validation-for="Form.Servidor" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label asp-for="Form.Porta" class="form-label"></label>
+                            <input asp-for="Form.Porta" class="form-control" />
+                            <span asp-validation-for="Form.Porta" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label asp-for="Form.Usuario" class="form-label"></label>
+                            <input asp-for="Form.Usuario" class="form-control" autocomplete="off" />
+                            <dica-campo for="Form.Usuario" ajuda="notificacoes" />
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label asp-for="Form.Senha" class="form-label"></label>
+                            <input asp-for="Form.Senha" class="form-control" autocomplete="new-password"
+                                   placeholder="@(Model.TemSenha ? "•••••••• (gravada)" : "")" />
+                            <dica-campo for="Form.Senha" ajuda="notificacoes" />
+                            @if (Model.TemSenha)
+                            {
+                                <div class="form-check">
+                                    <input asp-for="Form.ApagarSenha" class="form-check-input" />
+                                    <label asp-for="Form.ApagarSenha" class="form-check-label small"></label>
+                                </div>
+                            }
+                        </div>
+                        <div class="col-md-8 mb-2">
+                            <label asp-for="Form.Remetente" class="form-label"></label>
+                            <input asp-for="Form.Remetente" class="form-control" placeholder="avisos@empresa.com.br" />
+                            <dica-campo for="Form.Remetente" ajuda="notificacoes" />
+                            <span asp-validation-for="Form.Remetente" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4 mb-2 d-flex align-items-end">
+                            <div class="form-check">
+                                <input asp-for="Form.StartTls" class="form-check-input" />
+                                <label asp-for="Form.StartTls" class="form-check-label"></label>
+                            </div>
+                        </div>
+                    </div>
+                    <dica-campo for="Form.StartTls" ajuda="notificacoes" />
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card h-100">
+                <div class="card-header">Quando avisar</div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-2">
+                            <label asp-for="Form.HoraResumo" class="form-label"></label>
+                            <input asp-for="Form.HoraResumo" type="time" asp-format="{0:hh\:mm}" class="form-control" />
+                            <dica-campo for="Form.HoraResumo" ajuda="notificacoes" />
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label asp-for="Form.LembreteHoras" class="form-label"></label>
+                            <input asp-for="Form.LembreteHoras" class="form-control" />
+                            <dica-campo for="Form.LembreteHoras" ajuda="notificacoes" />
+                            <span asp-validation-for="Form.LembreteHoras" class="text-danger small"></span>
+                        </div>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input asp-for="Form.SomenteDiasUteis" class="form-check-input" />
+                        <label asp-for="Form.SomenteDiasUteis" class="form-check-label"></label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input asp-for="Form.NotificarSimulacao" class="form-check-input" />
+                        <label asp-for="Form.NotificarSimulacao" class="form-check-label"></label>
+                        <dica-campo for="Form.NotificarSimulacao" ajuda="notificacoes" />
+                    </div>
+                    <div class="mb-2">
+                        <label asp-for="Form.UrlWeb" class="form-label"></label>
+                        <input asp-for="Form.UrlWeb" class="form-control" placeholder="https://servidor:8443" />
+                        <dica-campo for="Form.UrlWeb" ajuda="notificacoes" />
+                        <span asp-validation-for="Form.UrlWeb" class="text-danger small"></span>
+                    </div>
+                    @if (Model.Atual is { } atual)
+                    {
+                        <div class="form-text">
+                            Gravado por @atual.AtualizadoPor em @F.Data(atual.AtualizadoEm).
+                            @if (atual.UltimoResumo is { } ultimo)
+                            {
+                                <span>Último resumo processado: @F.Data(ultimo).</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar</button>
+    </div>
+</form>
+
+<div class="card mb-3">
+    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+        <span>Destinatários</span>
+        <form asp-action="Testar" method="post" class="ms-auto"
+              data-confirmar="O serviço envia agora um e-mail de teste para todos os destinatários ativos, com a configuração gravada (salve antes as alterações).">
+            <button type="submit" class="btn btn-sm btn-outline-primary" disabled="@(Model.Atual is not { Completa: true } || !Model.Destinatarios.Any(d => d.Ativo))">
+                <i class="bi bi-send"></i> Enviar e-mail de teste
+            </button>
+        </form>
+    </div>
+    <div class="card-body">
+        @if (Model.Destinatarios.Count == 0)
+        {
+            <p class="text-body-secondary small">Nenhum destinatário cadastrado: nenhum aviso é enviado.</p>
+        }
+        else
+        {
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr><th>E-mail</th><th>Empresa</th><th>Falhas</th><th>Resumo de pendências</th><th>Situação</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.Destinatarios)
+                    {
+                        <tr class="@(d.Ativo ? "" : "text-body-secondary")">
+                            <td>@d.Email</td>
+                            <td>@Empresa(d.Cdempresa)</td>
+                            <td>@(d.RecebeFalhas ? "Sim" : "Não")</td>
+                            <td>@(d.RecebeResumo ? "Sim" : "Não")</td>
+                            <td>@(d.Ativo ? "Ativo" : "Desativado")</td>
+                            <td class="text-end">
+                                <form asp-action="AlternarDestinatario" asp-route-id="@d.Id" method="post">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">@(d.Ativo ? "Desativar" : "Reativar")</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        <form asp-action="Destinatario" method="post" class="row g-2 align-items-end" novalidate>
+            <div class="col-md-4">
+                <label asp-for="NovoDestinatario.Email" class="form-label"></label>
+                <input asp-for="NovoDestinatario.Email" class="form-control" type="email" placeholder="pessoa@empresa.com.br" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="NovoDestinatario.Cdempresa" class="form-label"></label>
+                <select asp-for="NovoDestinatario.Cdempresa" class="form-select">
+                    <option value="">Todas as empresas</option>
+                    @foreach (var e in Model.Empresas)
+                    {
+                        <option value="@e.Cdempresa">@e.Cdempresa - @e.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="form-check">
+                    <input asp-for="NovoDestinatario.RecebeFalhas" class="form-check-input" />
+                    <label asp-for="NovoDestinatario.RecebeFalhas" class="form-check-label"></label>
+                </div>
+                <div class="form-check">
+                    <input asp-for="NovoDestinatario.RecebeResumo" class="form-check-input" />
+                    <label asp-for="NovoDestinatario.RecebeResumo" class="form-check-label"></label>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-plus-lg"></i> Incluir</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Últimos envios</div>
+    <div class="card-body">
+        @if (Model.Envios.Count == 0)
+        {
+            <p class="text-body-secondary small mb-0">Nenhum e-mail enviado ainda.</p>
+        }
+        else
+        {
+            <table class="table table-sm">
+                <thead>
+                    <tr><th>Quando</th><th>Tipo</th><th>Empresa</th><th>Para</th><th>Assunto</th><th>Resultado</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var envio in Model.Envios)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@F.Data(envio.EnviadoEm)</td>
+                            <td>@Tipo(envio.Tipo)</td>
+                            <td>@(envio.Cdempresa is int c && c > 0 ? c.ToString(System.Globalization.CultureInfo.InvariantCulture) : "—")</td>
+                            <td class="small">@envio.Para</td>
+                            <td class="small">@envio.Assunto</td>
+                            <td>
+                                @if (envio.Ok)
+                                {
+                                    <span class="badge text-bg-success">Enviado</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-danger">Não enviado</span>
+                                    <div class="small text-danger mensagem">@envio.Erro</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

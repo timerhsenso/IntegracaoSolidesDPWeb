@@ -39,6 +39,7 @@ public sealed record RunSummary(
             [] => RunStatuses.SkippedDisabled,
             _ when statuses.All(s => s == RunStatuses.Failed) => RunStatuses.Failed,
             _ when statuses.Any(s => s is RunStatuses.Failed or RunStatuses.CompletedWithErrors) => RunStatuses.CompletedWithErrors,
+            _ when statuses.Any(s => s == RunStatuses.CompletedWithPending) => RunStatuses.CompletedWithPending,
             _ when statuses.All(s => s == RunStatuses.SkippedLocked) => RunStatuses.SkippedLocked,
             _ when statuses.All(s => s is RunStatuses.SkippedLocked or RunStatuses.SkippedDisabled) => RunStatuses.SkippedDisabled,
             _ => RunStatuses.Completed,

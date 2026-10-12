@@ -166,6 +166,76 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
 
         IF COL_LENGTH(N'solidesdp.comando', N'cdempresa') IS NULL
             ALTER TABLE solidesdp.comando ADD cdempresa int NULL;
+
+        IF OBJECT_ID(N'solidesdp.notificacao_config', N'U') IS NULL
+            CREATE TABLE solidesdp.notificacao_config (
+                id                  tinyint           NOT NULL CONSTRAINT pk_solidesdp_notificacao_config PRIMARY KEY
+                                                      CONSTRAINT ck_solidesdp_notificacao_config_uma CHECK (id = 1),
+                ativo               bit               NOT NULL,
+                smtp_servidor       nvarchar(200)     NULL,
+                smtp_porta          int               NOT NULL,
+                smtp_usuario        nvarchar(200)     NULL,
+                smtp_senha          varbinary(max)    NULL,
+                remetente           nvarchar(200)     NULL,
+                starttls            bit               NOT NULL,
+                hora_resumo         time(0)           NOT NULL,
+                somente_dias_uteis  bit               NOT NULL,
+                lembrete_horas      int               NOT NULL,
+                notificar_simulacao bit               NOT NULL,
+                url_web             nvarchar(400)     NULL,
+                ultimo_resumo       datetimeoffset(7) NULL,
+                atualizado_por      nvarchar(64)      NOT NULL,
+                atualizado_em       datetimeoffset(7) NOT NULL
+            );
+
+        IF OBJECT_ID(N'solidesdp.notificacao_destinatario', N'U') IS NULL
+            CREATE TABLE solidesdp.notificacao_destinatario (
+                id              bigint IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_notificacao_destinatario PRIMARY KEY,
+                email           nvarchar(200)     NOT NULL,
+                cdempresa       int               NULL,
+                recebe_falhas   bit               NOT NULL,
+                recebe_resumo   bit               NOT NULL,
+                ativo           bit               NOT NULL,
+                criado_por      nvarchar(64)      NOT NULL,
+                criado_em       datetimeoffset(7) NOT NULL,
+                atualizado_por  nvarchar(64)      NULL,
+                atualizado_em   datetimeoffset(7) NULL
+            );
+
+        IF OBJECT_ID(N'solidesdp.notificacao_estado', N'U') IS NULL
+            CREATE TABLE solidesdp.notificacao_estado (
+                cdempresa     int               NOT NULL CONSTRAINT pk_solidesdp_notificacao_estado PRIMARY KEY,
+                em_falha      bit               NOT NULL,
+                falha_desde   datetimeoffset(7) NULL,
+                ultimo_aviso  datetimeoffset(7) NULL
+            );
+
+        IF OBJECT_ID(N'solidesdp.notificacao_pendencia', N'U') IS NULL
+            CREATE TABLE solidesdp.notificacao_pendencia (
+                cdempresa     int               NOT NULL,
+                chave         nvarchar(400)     NOT NULL,
+                rotulo        nvarchar(200)     NOT NULL,
+                mensagem      nvarchar(max)     NOT NULL,
+                primeira_vez  datetimeoffset(7) NOT NULL,
+                ultima_vez    datetimeoffset(7) NOT NULL,
+                resolvida_em  datetimeoffset(7) NULL,
+                CONSTRAINT pk_solidesdp_notificacao_pendencia PRIMARY KEY (cdempresa, chave)
+            );
+
+        IF OBJECT_ID(N'solidesdp.notificacao_envio', N'U') IS NULL
+        BEGIN
+            CREATE TABLE solidesdp.notificacao_envio (
+                id          bigint IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_notificacao_envio PRIMARY KEY,
+                enviado_em  datetimeoffset(7) NOT NULL,
+                tipo        varchar(16)       NOT NULL,
+                cdempresa   int               NULL,
+                para        nvarchar(max)     NOT NULL,
+                assunto     nvarchar(400)     NOT NULL,
+                ok          bit               NOT NULL,
+                erro        nvarchar(max)     NULL
+            );
+            CREATE INDEX ix_solidesdp_notificacao_envio_data ON solidesdp.notificacao_envio (enviado_em);
+        END;
         """;
 
     private const int UniqueKeyViolation = 2627;
@@ -463,6 +533,20 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
     /// <summary>MS_Description das tabelas da gestão (idempotente).</summary>
     private static readonly string Descricoes = DescricoesSql.Gerar(
     [
+        ("notificacao_config", null, "Avisos por e-mail (uma linha, id = 1): servidor SMTP, resumo diário das pendências e lembretes. Editada na Web (Notificações)."),
+        ("notificacao_config", "smtp_senha", "Senha do SMTP cifrada com a mesma chave dos tokens (Gestao:ChaveTokens / Web:ChaveTokens)."),
+        ("notificacao_config", "hora_resumo", "Hora local (Execution:TimeZone) do resumo diário das pendências."),
+        ("notificacao_config", "lembrete_horas", "Com a falha continuando, um lembrete a cada tantas horas."),
+        ("notificacao_config", "ultimo_resumo", "Quando o último resumo diário foi processado (enviado ou sem novidade)."),
+        ("notificacao_destinatario", null, "Quem recebe os avisos. cdempresa nulo = todas as empresas."),
+        ("notificacao_destinatario", "recebe_falhas", "1 = recebe na hora as falhas e o aviso de que voltou ao normal."),
+        ("notificacao_destinatario", "recebe_resumo", "1 = recebe o resumo diário das pendências novas."),
+        ("notificacao_estado", null, "Situação de cada empresa para os avisos de falha: o aviso sai só quando muda (ok → falha, falha → ok) e no lembrete."),
+        ("notificacao_pendencia", null, "Pendências (itens bloqueados ou ignorados por dado do RHSenso) vistas nas execuções, para o resumo diário."),
+        ("notificacao_pendencia", "chave", "entidade|registro|código do motivo: a mesma pendência tem sempre a mesma chave."),
+        ("notificacao_pendencia", "primeira_vez", "Quando apareceu (ou reapareceu depois de resolvida): define o que é novo no resumo."),
+        ("notificacao_pendencia", "resolvida_em", "Quando deixou de aparecer nas execuções. Nulo = em aberto."),
+        ("notificacao_envio", null, "E-mails enviados ou tentados (falha, lembrete, normalizou, resumo, teste), com o erro quando não saiu."),
         ("configuracao", null, "Versões da configuração da integração (só INSERT). A vigente é a de maior versão da instância."),
         ("configuracao_empresa", null, "Empresas do RHSenso (dbo.temp1) em cada versão da configuração. Cada empresa é uma conta do Sólides DP."),
         ("configuracao_empresa", "configuracao_id", "Versão (solidesdp.configuracao.id)."),

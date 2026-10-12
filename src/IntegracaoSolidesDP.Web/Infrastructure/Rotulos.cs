@@ -13,7 +13,8 @@ public static class Rotulos
         // Execuções (solidesdp.runs.status)
         ["running"] = new("Em andamento", "info"),
         ["completed"] = new("Concluída", "success"),
-        ["completed_with_errors"] = new("Concluída com erros", "warning"),
+        ["completed_with_pending"] = new("Concluída com pendências", "warning"),
+        ["completed_with_errors"] = new("Concluída com erros", "danger"),
         ["failed"] = new("Falhou", "danger"),
 
         // Itens (solidesdp.run_items.status) e estado
@@ -65,6 +66,7 @@ public static class Rotulos
         ["CHECK_CONFIG"] = "Verificar configuração",
         ["DISCOVER"] = "Consultar o Sólides DP",
         ["RECONCILE"] = "Conferir enviados",
+        ["TESTAR_EMAIL"] = "Testar e-mail",
     };
 
     public static readonly IReadOnlyDictionary<string, string> Origens = new Dictionary<string, string>(StringComparer.Ordinal)

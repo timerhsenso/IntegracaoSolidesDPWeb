@@ -41,6 +41,11 @@ public sealed class SqlServerFixture : IAsyncLifetime
         await using var connection = new SqlConnection(ConnectionString);
         await connection.ExecuteAsync("""
             DELETE FROM dbo.feria2; DELETE FROM dbo.func1; DELETE FROM dbo.test1; DELETE FROM dbo.temp1; DELETE FROM dbo.cargo1; DELETE FROM dbo.tcus1;
+            IF OBJECT_ID('solidesdp.notificacao_config') IS NOT NULL DROP TABLE solidesdp.notificacao_config;
+            IF OBJECT_ID('solidesdp.notificacao_destinatario') IS NOT NULL DROP TABLE solidesdp.notificacao_destinatario;
+            IF OBJECT_ID('solidesdp.notificacao_estado') IS NOT NULL DROP TABLE solidesdp.notificacao_estado;
+            IF OBJECT_ID('solidesdp.notificacao_pendencia') IS NOT NULL DROP TABLE solidesdp.notificacao_pendencia;
+            IF OBJECT_ID('solidesdp.notificacao_envio') IS NOT NULL DROP TABLE solidesdp.notificacao_envio;
             IF OBJECT_ID('solidesdp.comando') IS NOT NULL DROP TABLE solidesdp.comando;
             IF OBJECT_ID('solidesdp.empresa_token') IS NOT NULL DROP TABLE solidesdp.empresa_token;
             IF OBJECT_ID('solidesdp.configuracao_piloto') IS NOT NULL DROP TABLE solidesdp.configuracao_piloto;

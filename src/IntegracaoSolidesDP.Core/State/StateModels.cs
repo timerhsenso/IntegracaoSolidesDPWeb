@@ -96,7 +96,11 @@ public static class RunStatuses
 {
     public const string Running = "running";
     public const string Completed = "completed";
+    /// <summary>Algum item falhou (erro da API, recusa do Sólides DP, trava de segurança).</summary>
     public const string CompletedWithErrors = "completed_with_errors";
+
+    /// <summary>Nenhum item falhou, mas há pendências de cadastro (itens bloqueados): o RH resolve, a integração não errou.</summary>
+    public const string CompletedWithPending = "completed_with_pending";
     public const string Failed = "failed";
 
     /// <summary>Não executou: outra execução da instância estava em andamento (não grava em runs).</summary>
