@@ -25,7 +25,7 @@ public sealed class SqlStateStoreTests(SqlServerFixture db) : IAsyncLifetime
         var tables = await db.QueryAsync<string>("SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID('solidesdp')");
         tables.Should().BeEquivalentTo([
             "meta", "runs", "run_items", "run_relatorio", "colaborador_vinculo", "cargo_vinculo", "local_vinculo", "ferias_vinculo",
-            "entity_state", "vacation_state",
+            "colaborador_falha", "entity_state", "vacation_state",
         ]);
     }
 
@@ -149,6 +149,28 @@ public sealed class SqlStateStoreTests(SqlServerFixture db) : IAsyncLifetime
 
         (await _store.LoadVacationStatesAsync(15, Ct))[state.Feria2Id].Should().BeEquivalentTo(state, o => o.Excluding(s => s.UpdatedAt));
         (await _store.LoadVacationStatesAsync(1, Ct)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Employee_rejections_are_per_company_upserted_and_cleared()
+    {
+        var quando = new DateTimeOffset(2026, 10, 12, 9, 0, 0, TimeSpan.FromHours(-3));
+        var falha = new EmployeeFailure
+        {
+            ExternalId = TestData.Cpf1, PayloadHash = new string('c', 64), Attempts = 1, LastError = "PIS inválido",
+            FirstFailure = quando, LastFailure = quando,
+        };
+        await _store.UpsertEmployeeFailureAsync(15, falha, Ct);
+        await _store.UpsertEmployeeFailureAsync(15, falha with { Attempts = 2, LastFailure = quando.AddHours(1) }, Ct);
+        await _store.UpsertEmployeeFailureAsync(14, falha, Ct);
+
+        (await _store.LoadEmployeeFailuresAsync(15, Ct)).Should().ContainSingle().Which.Value
+            .Should().BeEquivalentTo(falha with { Attempts = 2, LastFailure = quando.AddHours(1) });
+
+        await _store.ClearEmployeeFailureAsync(15, TestData.Cpf1, Ct);
+
+        (await _store.LoadEmployeeFailuresAsync(15, Ct)).Should().BeEmpty();
+        (await _store.LoadEmployeeFailuresAsync(14, Ct)).Should().ContainKey(TestData.Cpf1, "cada empresa é uma conta");
     }
 
     [Fact]

@@ -243,6 +243,23 @@ internal sealed class MemoryState : IStateStore
         return Task.CompletedTask;
     }
 
+    public Dictionary<(int Cdempresa, string Cpf), EmployeeFailure> Failures { get; } = [];
+
+    public Task<Dictionary<string, EmployeeFailure>> LoadEmployeeFailuresAsync(int cdempresa, CancellationToken ct) =>
+        Task.FromResult(Failures.Where(f => f.Key.Cdempresa == cdempresa).ToDictionary(f => f.Key.Cpf, f => f.Value, StringComparer.Ordinal));
+
+    public Task UpsertEmployeeFailureAsync(int cdempresa, EmployeeFailure failure, CancellationToken ct)
+    {
+        Failures[(cdempresa, failure.ExternalId)] = failure;
+        return Task.CompletedTask;
+    }
+
+    public Task ClearEmployeeFailureAsync(int cdempresa, string externalId, CancellationToken ct)
+    {
+        Failures.Remove((cdempresa, externalId));
+        return Task.CompletedTask;
+    }
+
     public EntityState? Employee(int cdempresa, string cpf) => _entities.GetValueOrDefault((cdempresa, EntityTypes.Employee, cpf));
 
     private sealed class NoLock : IAsyncDisposable

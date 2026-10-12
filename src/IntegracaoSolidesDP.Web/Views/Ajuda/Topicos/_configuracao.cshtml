@@ -60,6 +60,15 @@
             Na simulação o limite não bloqueia, mas aparece um aviso quando ele seria ultrapassado.
         </p>
     </text>);
+    Campo(nameof(ConfiguracaoForm.ColaboradorMaxTentativas), @<text>
+        <p class="mb-1">
+            Quando o Sólides DP recusa o cadastro de um colaborador (CPF inválido na Receita, PIS inválido, campo obrigatório
+            faltando), reenviar os mesmos dados a cada 30 minutos não resolve e enche Pendências de falhas repetidas.
+            Depois deste número de recusas seguidas, o colaborador vira uma <em>pendência</em> com o erro do DP e a integração
+            só tenta de novo quando os dados dele mudam no RHSenso, ou uma vez por dia (caso a correção tenha sido feita
+            no Sólides DP). Só contam as recusas do DP: queda da API, demora ou erro 5xx não contam.
+        </p>
+    </text>);
 }
 
 <h4>Quem entra</h4>

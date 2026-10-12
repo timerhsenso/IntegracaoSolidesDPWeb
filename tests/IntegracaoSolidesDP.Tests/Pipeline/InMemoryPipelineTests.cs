@@ -6,6 +6,7 @@ using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Pipeline;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
+using SolidesDP.Fake.Configuration;
 
 namespace IntegracaoSolidesDP.Tests.Pipeline;
 
@@ -263,6 +264,68 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
         summary.Empresas.Single(e => e.Cdempresa == 15).Error.Should().Contain("não tem token");
         (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle();
     }
+
+    [Fact]
+    public async Task Employee_rejected_by_dp_stops_being_resent_after_the_limit_until_the_data_changes_or_a_day_passes()
+    {
+        _pipeline.Settings["Sync:ColaboradorMaxTentativas"] = "2";
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001", nome: "MARIA"));
+        await _pipeline.Fake.AddFaultAsync(new FaultRule
+        {
+            Method = "POST", Path = "/employee/register", Kind = FaultKind.ErrorInBody, Times = -1, Message = "PIS invalido",
+        }, Ct);
+
+        var primeira = await _pipeline.RunAsync(ct: Ct);
+        var segunda = await _pipeline.RunAsync(ct: Ct);
+
+        primeira.Status.Should().Be(RunStatuses.CompletedWithErrors, "a primeira recusa é falha (e avisa)");
+        primeira.Counts["employee"]["failed"].Should().Be(1);
+        segunda.Status.Should().Be(RunStatuses.CompletedWithPending, "no limite a recusa vira pendência");
+        UltimosItens().Single(i => i.EntityType == EntityTypes.Employee).Should().Match<RunItem>(i =>
+            i.Status == ItemStatuses.Blocked && i.Message!.StartsWith("recusado_pelo_dp", StringComparison.Ordinal) && i.Message.Contains("PIS invalido", StringComparison.Ordinal));
+        _pipeline.State.Failures[(1, TestData.Cpf1)].Attempts.Should().Be(2);
+
+        // Mesmos dados, menos de 24 h depois: nem tenta.
+        await _pipeline.Fake.ClearRequestsAsync(Ct);
+        var terceira = await _pipeline.RunAsync(ct: Ct);
+        terceira.Status.Should().Be(RunStatuses.CompletedWithPending);
+        (await RegistrosAsync()).Should().Be(0);
+
+        // Um dia depois tenta uma vez; recusou de novo: continua pendência, sem voltar a ser falha.
+        _pipeline.Clock.Advance(TimeSpan.FromHours(25));
+        var quarta = await _pipeline.RunAsync(ct: Ct);
+        quarta.Status.Should().Be(RunStatuses.CompletedWithPending);
+        (await RegistrosAsync()).Should().Be(1);
+        _pipeline.State.Failures[(1, TestData.Cpf1)].Attempts.Should().Be(3);
+
+        // O RH corrige o cadastro no RHSenso: dados novos são enviados na hora e a contagem some.
+        await _pipeline.Fake.ClearFaultsAsync(Ct);
+        _pipeline.Source.Employees.Clear();
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001", nome: "MARIA CORRIGIDA"));
+        var quinta = await _pipeline.RunAsync(ct: Ct);
+
+        quinta.Status.Should().Be(RunStatuses.Completed, quinta.Error);
+        (await _pipeline.Fake.GetStateAsync(Ct)).Employees.Should().ContainSingle().Which.Name.Should().Be("MARIA CORRIGIDA");
+        _pipeline.State.Failures.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Dp_outage_does_not_count_as_a_rejection()
+    {
+        _pipeline.Settings["Sync:ColaboradorMaxTentativas"] = "1";
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001"));
+        await _pipeline.Fake.AddFaultAsync(new FaultRule { Method = "POST", Path = "/employee/register", Kind = FaultKind.Status, Status = 503, Times = -1 }, Ct);
+
+        var summary = await _pipeline.RunAsync(ct: Ct);
+
+        summary.Status.Should().Be(RunStatuses.CompletedWithErrors);
+        _pipeline.State.Failures.Should().BeEmpty("queda da API não é recusa: a próxima execução tenta normalmente");
+    }
+
+    private IReadOnlyList<RunItem> UltimosItens() => _pipeline.State.Items[_pipeline.State.Runs[^1].RunId];
+
+    private async Task<int> RegistrosAsync() =>
+        (await _pipeline.WritesAsync(Ct)).Count(w => w.Path == "/employee/register");
 
     [Fact]
     public async Task A_failed_company_is_announced_by_email_when_notifications_are_on()

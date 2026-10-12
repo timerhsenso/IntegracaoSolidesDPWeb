@@ -142,6 +142,12 @@
                                 <input asp-for="Form.MaxDismissalsPerRun" class="form-control" />
                                 <dica-campo for="Form.MaxDismissalsPerRun" />
                             </div>
+                            <div class="col-md-4">
+                                <label asp-for="Form.ColaboradorMaxTentativas" class="form-label"></label>
+                                <input asp-for="Form.ColaboradorMaxTentativas" class="form-control" />
+                                <dica-campo for="Form.ColaboradorMaxTentativas" />
+                                <span asp-validation-for="Form.ColaboradorMaxTentativas" class="text-danger small"></span>
+                            </div>
                         </div>
                         <div class="form-text">Valem para cada execução, e cada execução é de uma empresa.</div>
                     </div>

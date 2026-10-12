@@ -34,6 +34,11 @@ public sealed class SyncOptionsValidator : IValidateOptions<SyncOptions>
             errors.Add("Sync:FeriasMaxTentativas deve ser pelo menos 1.");
         }
 
+        if (options.ColaboradorMaxTentativas < 1)
+        {
+            errors.Add("Sync:ColaboradorMaxTentativas deve ser pelo menos 1.");
+        }
+
         if (string.IsNullOrWhiteSpace(options.InstanceName) || options.InstanceName.Length > 64)
         {
             errors.Add("Sync:InstanceName deve ter entre 1 e 64 caracteres.");

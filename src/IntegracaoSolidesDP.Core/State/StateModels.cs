@@ -83,6 +83,21 @@ public sealed record VacationState
     public DateTimeOffset UpdatedAt { get; init; }
 }
 
+/// <summary>
+/// Recusas seguidas do Sólides DP ao cadastro de um colaborador (CPF), com os mesmos dados (<see cref="PayloadHash"/>).
+/// Some quando um envio dá certo; dados novos recomeçam a contagem.
+/// </summary>
+public sealed record EmployeeFailure
+{
+    /// <summary>CPF (a chave do colaborador na conta).</summary>
+    public required string ExternalId { get; init; }
+    public required string PayloadHash { get; init; }
+    public int Attempts { get; init; }
+    public string? LastError { get; init; }
+    public DateTimeOffset FirstFailure { get; init; }
+    public DateTimeOffset LastFailure { get; init; }
+}
+
 /// <summary>Uma linha do relatório de execução.</summary>
 public sealed record RunItem(
     string EntityType,

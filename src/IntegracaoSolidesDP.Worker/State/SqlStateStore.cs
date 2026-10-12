@@ -38,6 +38,14 @@ public interface IStateStore
     Task<Dictionary<Guid, VacationState>> LoadVacationStatesAsync(int cdempresa, CancellationToken ct);
 
     Task UpsertVacationStateAsync(int cdempresa, VacationState state, CancellationToken ct);
+
+    /// <summary>Recusas seguidas do DP por colaborador (CPF) da empresa.</summary>
+    Task<Dictionary<string, EmployeeFailure>> LoadEmployeeFailuresAsync(int cdempresa, CancellationToken ct);
+
+    Task UpsertEmployeeFailureAsync(int cdempresa, EmployeeFailure failure, CancellationToken ct);
+
+    /// <summary>O colaborador foi aceito pelo DP: as recusas anteriores deixam de contar.</summary>
+    Task ClearEmployeeFailureAsync(int cdempresa, string externalId, CancellationToken ct);
 }
 
 /// <summary>
@@ -158,6 +166,18 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
             CREATE INDEX ix_solidesdp_ferias_vinculo_empresa ON solidesdp.ferias_vinculo (cdempresa, cpf);
         END;
 
+        IF OBJECT_ID(N'solidesdp.colaborador_falha', N'U') IS NULL
+        CREATE TABLE solidesdp.colaborador_falha (
+            cdempresa       int               NOT NULL,
+            cpf             char(11)          NOT NULL,
+            payload_hash    char(64)          NOT NULL,
+            tentativas      int               NOT NULL,
+            ultimo_erro     nvarchar(max)     NULL,
+            primeira_falha  datetimeoffset(7) NOT NULL,
+            ultima_falha    datetimeoffset(7) NOT NULL,
+            CONSTRAINT pk_solidesdp_colaborador_falha PRIMARY KEY (cdempresa, cpf)
+        );
+
         -- Tabelas da versão anterior (chave empresa-matrícula). Continuam existindo para a Web até ela
         -- passar a ler as tabelas de vínculo; não são mais gravadas.
         IF OBJECT_ID(N'solidesdp.entity_state', N'U') IS NULL
@@ -214,6 +234,10 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
         ("ferias_vinculo", "tentativas", "Envios que falharam seguidos; no limite, o período só é tentado de novo se mudar."),
         ("ferias_vinculo", "inicio_epoch_ms", "Início enviado (epoch ms), para poder cancelar mesmo se a linha sumir do RHSenso."),
         ("ferias_vinculo", "fim_epoch_ms", "Fim enviado (epoch ms)."),
+        ("colaborador_falha", null, "Recusas seguidas do Sólides DP ao cadastro de um colaborador com os mesmos dados. Some quando o envio dá certo."),
+        ("colaborador_falha", "payload_hash", "SHA-256 dos dados recusados: dados diferentes recomeçam a contagem."),
+        ("colaborador_falha", "tentativas", "Recusas seguidas com estes dados; no limite (Sync:ColaboradorMaxTentativas) o envio só é repetido uma vez por dia."),
+        ("colaborador_falha", "ultima_falha", "Quando o DP recusou pela última vez (a próxima tentativa depois do limite é 24 h depois disto)."),
         ("entity_state", null, "Obsoleta (chave empresa-matrícula da versão 1.0). Não é mais gravada."),
         ("vacation_state", null, "Obsoleta (versão 1.0). Não é mais gravada."),
     ]);
@@ -476,6 +500,48 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
                 state.Attempts, state.LastError, state.StartDate, state.EndDate, Now = clock.GetUtcNow(),
             },
             cancellationToken: ct));
+    }
+
+    public async Task<Dictionary<string, EmployeeFailure>> LoadEmployeeFailuresAsync(int cdempresa, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        var rows = await connection.QueryAsync<EmployeeFailure>(new CommandDefinition("""
+            SELECT cpf AS ExternalId, payload_hash AS PayloadHash, tentativas AS Attempts, ultimo_erro AS LastError,
+                   primeira_falha AS FirstFailure, ultima_falha AS LastFailure
+            FROM solidesdp.colaborador_falha
+            WHERE cdempresa = @Cdempresa
+            """, new { Cdempresa = cdempresa }, cancellationToken: ct));
+        return rows.ToDictionary(r => r.ExternalId, StringComparer.Ordinal);
+    }
+
+    public async Task UpsertEmployeeFailureAsync(int cdempresa, EmployeeFailure failure, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        await connection.ExecuteAsync(new CommandDefinition("""
+            MERGE solidesdp.colaborador_falha WITH (HOLDLOCK) AS target
+            USING (SELECT @Cdempresa AS cdempresa, @ExternalId AS cpf) AS source
+               ON target.cdempresa = source.cdempresa AND target.cpf = source.cpf
+            WHEN MATCHED THEN UPDATE SET
+                payload_hash = @PayloadHash, tentativas = @Attempts, ultimo_erro = @LastError,
+                primeira_falha = @FirstFailure, ultima_falha = @LastFailure
+            WHEN NOT MATCHED THEN
+                INSERT (cdempresa, cpf, payload_hash, tentativas, ultimo_erro, primeira_falha, ultima_falha)
+                VALUES (@Cdempresa, @ExternalId, @PayloadHash, @Attempts, @LastError, @FirstFailure, @LastFailure);
+            """,
+            new
+            {
+                Cdempresa = cdempresa, failure.ExternalId, failure.PayloadHash, failure.Attempts, failure.LastError,
+                failure.FirstFailure, failure.LastFailure,
+            },
+            cancellationToken: ct));
+    }
+
+    public async Task ClearEmployeeFailureAsync(int cdempresa, string externalId, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        await connection.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM solidesdp.colaborador_falha WHERE cdempresa = @Cdempresa AND cpf = @ExternalId",
+            new { Cdempresa = cdempresa, ExternalId = externalId }, cancellationToken: ct));
     }
 }
 

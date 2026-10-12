@@ -77,6 +77,12 @@ public sealed class SyncOptions
     /// <summary>Tentativas de envio de um mesmo período de férias antes de desistir até ele mudar.</summary>
     public int FeriasMaxTentativas { get; set; } = 5;
 
+    /// <summary>
+    /// Recusas seguidas do Sólides DP aos MESMOS dados de um colaborador antes de parar de reenviar a cada execução.
+    /// Depois disso, só tenta de novo quando os dados mudam no RHSenso ou uma vez por dia.
+    /// </summary>
+    public int ColaboradorMaxTentativas { get; set; } = 3;
+
     /// <summary>Trava: aborta a etapa se for criar mais colaboradores que isto numa execução.</summary>
     public int MaxCreatesPerRun { get; set; } = 300;
 

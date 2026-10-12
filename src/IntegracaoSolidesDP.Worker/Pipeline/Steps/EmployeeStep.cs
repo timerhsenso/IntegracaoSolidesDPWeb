@@ -20,6 +20,8 @@ namespace IntegracaoSolidesDP.Worker.Pipeline.Steps;
 /// Na simulação, cada pessoa também vira uma linha do relatório de vinculação (<see cref="VinculacaoReport"/>).
 /// O Código Externo de quem já existe segue a regra do <see cref="CodigoExterno"/>. Escala e regra de ponto são
 /// obrigatórias no DTO: na criação vão os padrões do config; na atualização reenviamos o que já está no DP.
+/// Recusas do DP aos mesmos dados contam em solidesdp.colaborador_falha: no limite (Sync:ColaboradorMaxTentativas)
+/// o colaborador vira pendência e só é reenviado quando os dados mudam ou uma vez por dia.
 /// </summary>
 public sealed class EmployeeStep(
     ISolidesDpClient api,
@@ -27,13 +29,18 @@ public sealed class EmployeeStep(
     IStateStore state,
     EmployeeMapper mapper,
     EpochDates dates,
-    SyncOptionsAccessor syncOptions)
+    SyncOptionsAccessor syncOptions,
+    TimeProvider clock)
 {
+    /// <summary>Depois do limite de recusas, intervalo até a próxima tentativa com os mesmos dados.</summary>
+    public static readonly TimeSpan IntervaloAposDesistir = TimeSpan.FromHours(24);
+
     private SyncOptions Options => syncOptions.Current;
 
     public async Task ExecuteAsync(SyncContext context, EmployeePlan plan, CancellationToken ct)
     {
         var states = await state.LoadEntityStatesAsync(context.Cdempresa, EntityTypes.Employee, ct);
+        var failures = await state.LoadEmployeeFailuresAsync(context.Cdempresa, ct);
         ReportOutOfScope(context, plan, states);
         if (context.DryRun)
         {
@@ -152,6 +159,13 @@ public sealed class EmployeeStep(
                 continue;
             }
 
+            if (Aguardando(failures.GetValueOrDefault(candidate.Key), candidate.Hash) is { } aguardando)
+            {
+                context.Add(new RunItem(EntityTypes.Employee, candidate.Label, ItemActions.None, ItemStatuses.Blocked, Message: aguardando));
+                Vinculacao(context, LinhaDecidida(context, candidate, decision, ResultadosVinculacao.Pendencia) with { Observacao = aguardando });
+                continue;
+            }
+
             if (context.DryRun)
             {
                 context.Add(new RunItem(EntityTypes.Employee, candidate.Label,
@@ -166,7 +180,7 @@ public sealed class EmployeeStep(
                 continue;
             }
 
-            await UpsertAsync(context, candidate, decision, ct);
+            await UpsertAsync(context, candidate, decision, failures, ct);
         }
 
         await SoNoDpAsync(context, plan, states, ct);
@@ -487,7 +501,59 @@ public sealed class EmployeeStep(
         return new Decision(DecisionKind.Create, null, null);
     }
 
-    private async Task UpsertAsync(SyncContext context, Candidate candidate, Decision decision, CancellationToken ct)
+    /// <summary>
+    /// Mensagem da pendência se o DP já recusou estes mesmos dados o número máximo de vezes e ainda não passou
+    /// <see cref="IntervaloAposDesistir"/> desde a última recusa; null = pode enviar.
+    /// </summary>
+    private string? Aguardando(EmployeeFailure? failure, string hash)
+    {
+        if (failure is null || failure.PayloadHash != hash || failure.Attempts < Options.ColaboradorMaxTentativas)
+        {
+            return null;
+        }
+
+        var proxima = failure.LastFailure + IntervaloAposDesistir;
+        return clock.GetUtcNow() >= proxima ? null : Recusado(failure.Attempts, failure.FirstFailure, failure.LastError, proxima);
+    }
+
+    private string Recusado(int tentativas, DateTimeOffset desde, string? erro, DateTimeOffset proxima)
+    {
+        var vezes = tentativas.ToString(CultureInfo.InvariantCulture);
+        return $"recusado_pelo_dp: o Sólides DP recusou {vezes} vezes seguidas os mesmos dados (desde {Local(desde)}): {erro}. " +
+               $"Corrija o cadastro no RHSenso (o envio é refeito na próxima execução) ou no Sólides DP; senão a integração tenta de novo em {Local(proxima)}";
+    }
+
+    private string Local(DateTimeOffset quando) =>
+        TimeZoneInfo.ConvertTime(quando, dates.Zone).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+
+    /// <summary>Conta a recusa do DP (só <see cref="ApiOutcome.Rejected"/>; queda e timeout não contam) e devolve o item da execução.</summary>
+    private async Task<RunItem> RegistrarRecusaAsync(
+        SyncContext context, Candidate candidate, Dictionary<string, EmployeeFailure> failures, string action, int? httpStatus, string? message, CancellationToken ct)
+    {
+        var agora = clock.GetUtcNow();
+        var anterior = failures.GetValueOrDefault(candidate.Key);
+        var mesmosDados = anterior is not null && anterior.PayloadHash == candidate.Hash;
+        var failure = new EmployeeFailure
+        {
+            ExternalId = candidate.Key,
+            PayloadHash = candidate.Hash,
+            Attempts = mesmosDados ? anterior!.Attempts + 1 : 1,
+            LastError = message,
+            FirstFailure = mesmosDados ? anterior!.FirstFailure : agora,
+            LastFailure = agora,
+        };
+        await state.UpsertEmployeeFailureAsync(context.Cdempresa, failure, ct);
+        failures[candidate.Key] = failure;
+
+        // No limite vira pendência: reenviar igual a cada execução não resolve, e a falha repetida não avisa de novo.
+        return failure.Attempts >= Options.ColaboradorMaxTentativas
+            ? new RunItem(EntityTypes.Employee, candidate.Label, action, ItemStatuses.Blocked, httpStatus,
+                Recusado(failure.Attempts, failure.FirstFailure, message, agora + IntervaloAposDesistir))
+            : new RunItem(EntityTypes.Employee, candidate.Label, action, ItemStatuses.Failed, httpStatus, message);
+    }
+
+    private async Task UpsertAsync(
+        SyncContext context, Candidate candidate, Decision decision, Dictionary<string, EmployeeFailure> failures, CancellationToken ct)
     {
         var (row, key, label, payload, hash, warnings, current) = candidate;
         var kind = decision.Kind;
@@ -549,8 +615,15 @@ public sealed class EmployeeStep(
             var message = remote is { Fired: true }
                 ? $"readmissão: colaborador está desligado no DP. {result.Message}"
                 : result.Message;
-            context.Add(new RunItem(EntityTypes.Employee, label, action, ItemStatuses.Failed, result.HttpStatus, message));
+            context.Add(result.Outcome == ApiOutcome.Rejected
+                ? await RegistrarRecusaAsync(context, candidate, failures, action, result.HttpStatus, message, ct)
+                : new RunItem(EntityTypes.Employee, label, action, ItemStatuses.Failed, result.HttpStatus, message));
             return;
+        }
+
+        if (failures.Remove(key))
+        {
+            await state.ClearEmployeeFailureAsync(context.Cdempresa, key, ct);
         }
 
         var linked = kind == DecisionKind.Link && remote is not null;

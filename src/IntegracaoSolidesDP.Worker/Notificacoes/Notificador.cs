@@ -253,6 +253,11 @@ public sealed class Notificador(
             html.Append("<p>O problema vinha desde ").Append(Encode(Local(d))).Append(".</p>");
         }
 
+        if (execucao.Status == RunStatuses.CompletedWithPending)
+        {
+            html.Append("<p>Não há mais falhas, mas ficaram pendências de cadastro para o RH resolver; elas vão no resumo diário.</p>");
+        }
+
         AppendLink(html, config, string.Create(CultureInfo.InvariantCulture, $"Execucoes/Detalhe/{execucao.RunId}"), "Abrir a execução");
         await EnviarAsync(config, TiposNotificacao.Normalizou, execucao.Cdempresa, para, $"{Prefixo} {empresa}: voltou ao normal", html.ToString(), ct);
     }

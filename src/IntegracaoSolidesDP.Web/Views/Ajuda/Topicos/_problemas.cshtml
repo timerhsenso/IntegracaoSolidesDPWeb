@@ -109,6 +109,10 @@
             <td>A pessoa não existe no Sólides DP, mas a matrícula dela já é o Código Externo de <strong>outra</strong> pessoa lá. Confira no Sólides DP qual cadastro está certo antes de seguir.</td>
         </tr>
         <tr>
+            <td><code>recusado_pelo_dp</code></td>
+            <td>O Sólides DP recusou o cadastro da pessoa várias vezes seguidas com os mesmos dados (o erro do DP vem na mensagem: CPF ou PIS inválido, campo obrigatório etc.). A integração parou de reenviar a cada execução. Corrija o dado no RHSenso (a próxima execução envia de novo) ou no Sólides DP (a integração tenta de novo uma vez por dia). O limite é a opção "Recusas do DP por colaborador" da tela Configuração.</td>
+        </tr>
+        <tr>
             <td><code>fora_do_escopo</code></td>
             <td>A pessoa está ativa numa filial que não está marcada (ou está inativa) na tela Empresas. Nada é enviado e ela não é desligada. Marque a filial se ela deve entrar.</td>
         </tr>

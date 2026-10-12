@@ -54,6 +54,10 @@ public sealed class ConfiguracaoForm
     [Display(Name = "Máximo de desligamentos por execução", Description = "Trava: se uma execução for desligar mais colaboradores que isto no Sólides DP, nenhum é desligado e fica uma falha em Pendências.")]
     public int MaxDismissalsPerRun { get; set; } = 20;
 
+    [Range(1, 100, ErrorMessage = "Informe de 1 a 100.")]
+    [Display(Name = "Recusas do DP por colaborador", Description = "Depois de o Sólides DP recusar este número de vezes seguidas os mesmos dados de um colaborador, a integração para de reenviar a cada execução: tenta de novo quando os dados mudam no RHSenso ou uma vez por dia.")]
+    public int ColaboradorMaxTentativas { get; set; } = 3;
+
     [Required(ErrorMessage = "Descreva o motivo da alteração.")]
     [StringLength(500, ErrorMessage = "Use até 500 caracteres.")]
     [Display(Name = "Motivo da alteração")]
@@ -72,6 +76,7 @@ public sealed class ConfiguracaoForm
         MaxCreatesPerRun = options.MaxCreatesPerRun,
         MaxCancellationsPerRun = options.MaxCancellationsPerRun,
         MaxDismissalsPerRun = options.MaxDismissalsPerRun,
+        ColaboradorMaxTentativas = options.ColaboradorMaxTentativas,
     };
 
     /// <summary>
@@ -94,6 +99,7 @@ public sealed class ConfiguracaoForm
         options.MaxCreatesPerRun = MaxCreatesPerRun;
         options.MaxCancellationsPerRun = MaxCancellationsPerRun;
         options.MaxDismissalsPerRun = MaxDismissalsPerRun;
+        options.ColaboradorMaxTentativas = ColaboradorMaxTentativas;
         return options;
     }
 
