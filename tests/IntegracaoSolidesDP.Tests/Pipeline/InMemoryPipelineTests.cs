@@ -368,7 +368,7 @@ public sealed class InMemoryPipelineTests : IAsyncLifetime
 
         await _pipeline.RunAsync(dryRun: true, ct: Ct);
 
-        (await _pipeline.Fake.GetRequestsAsync(Ct)).Should().NotContain(r => r.Path == "/employee/find-all" && r.Query?.Contains("showFired=1", StringComparison.Ordinal) == true,
+        (await _pipeline.Fake.GetRequestsAsync(Ct)).Should().NotContain(r => r.Path == "/employee/find-all" && r.Query != null && r.Query.Contains("showFired=1", StringComparison.Ordinal),
             "todo mundo já está ativo no DP: não há quem criar");
     }
 
