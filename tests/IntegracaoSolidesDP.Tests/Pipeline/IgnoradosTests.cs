@@ -37,7 +37,8 @@ public sealed class IgnoradosTests : IAsyncLifetime
         var depois = (await _pipeline.ConferirAsync(ct: Ct)).Single();
 
         depois.Linhas.Should().ContainSingle().Which.CadastroDp.Should().Be(outro);
-        (await _pipeline.WritesAsync(Ct)).Where(w => w.Path == "/employee/register").Should().HaveCount(1, "a conferência só lê o Sólides DP");
+        // O RH cadastrou dois direto no DP; da integração, só o envio da Maria: a conferência só lê o Sólides DP.
+        (await _pipeline.WritesAsync(Ct)).Where(w => w.Path == "/employee/register").Should().HaveCount(3);
     }
 
     [Fact]
