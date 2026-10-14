@@ -7,12 +7,14 @@ using Microsoft.Extensions.Options;
 namespace IntegracaoSolidesDP.Worker.Scheduling;
 
 /// <summary>
-/// Serviço (Windows Service / systemd): executa a sincronização na frequência configurada.
-/// Com Gestao:Habilitada, entre uma execução e outra atende os comandos pedidos na Web.
+/// Serviço (Windows Service / systemd): executa a sincronização na agenda configurada (<see cref="AgendaServico"/>).
+/// Com Gestao:Habilitada, entre uma execução e outra atende os comandos pedidos na Web e segue as mudanças da agenda
+/// feitas nas regras gerais, sem reiniciar o serviço.
 /// </summary>
 public sealed class SyncWorker(
     IServiceScopeFactory scopes,
     ExecutionSchedule schedule,
+    AgendaServico agenda,
     CommandProcessor commands,
     Notificador notificador,
     Limpeza limpeza,
@@ -29,16 +31,29 @@ public sealed class SyncWorker(
             await RecoverCommandsAsync(stoppingToken);
         }
 
-        if (schedule.RunOnStartup)
+        var regime = await agenda.AtualAsync(stoppingToken);
+        logger.LogInformation("Agenda das execuções: {Agenda}", regime.Descricao);
+        DateTimeOffset? ultimaExecucao = null;
+        if (schedule.RodarAoIniciar(regime, clock.GetUtcNow()))
         {
             await RunOnceAsync("startup", stoppingToken);
+            ultimaExecucao = clock.GetUtcNow();
         }
 
-        var next = NextRun();
+        var next = NextRun(regime, ultimaExecucao);
         while (!stoppingToken.IsCancellationRequested)
         {
             if (managed)
             {
+                // Agenda alterada nas regras gerais: recalcula a próxima execução (o intervalo conta da última execução).
+                var atual = await agenda.AtualAsync(stoppingToken);
+                if (!string.Equals(atual.Descricao, regime.Descricao, StringComparison.Ordinal))
+                {
+                    logger.LogInformation("Agenda das execuções alterada: {Antes} → {Depois}", regime.Descricao, atual.Descricao);
+                    regime = atual;
+                    next = NextRun(regime, ultimaExecucao);
+                }
+
                 await ProcessCommandsAsync(stoppingToken);
                 // Resumo diário das pendências: confere a hora a cada ciclo; envia uma vez por dia.
                 await notificador.ResumoSeDevidoAsync(stoppingToken);
@@ -53,7 +68,8 @@ public sealed class SyncWorker(
             if (now >= next)
             {
                 await RunOnceAsync("schedule", stoppingToken);
-                next = NextRun();
+                ultimaExecucao = clock.GetUtcNow();
+                next = NextRun(regime, ultimaExecucao);
                 continue;
             }
 
@@ -67,9 +83,9 @@ public sealed class SyncWorker(
         }
     }
 
-    private DateTimeOffset NextRun()
+    private DateTimeOffset NextRun(RegimeExecucao regime, DateTimeOffset? ultimaExecucao)
     {
-        var next = schedule.Next(clock.GetUtcNow());
+        var next = schedule.Proxima(regime, clock.GetUtcNow(), ultimaExecucao);
         logger.LogInformation("Próxima execução em {Next:yyyy-MM-dd HH:mm:ss} UTC", next);
         return next;
     }

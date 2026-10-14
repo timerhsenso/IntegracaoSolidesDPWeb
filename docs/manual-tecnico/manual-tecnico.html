@@ -321,7 +321,7 @@
             <tr><td><code>Gestao:IntervaloSinalDeVida</code></td><td><code>00:01:00</code></td><td class="quebra">De quanto em quanto tempo o serviço grava o sinal de vida que o Painel mostra (de 10 segundos a 10 minutos). Roda à parte das execuções.</td></tr>
             <tr><td><code>Gestao:ChaveTokens</code></td><td>—</td><td class="quebra">Chave (32 bytes em base64) que cifra os tokens das empresas. Tem de ser <strong>a mesma</strong> de <code>Web:ChaveTokens</code>. Vazia, no Windows, os tokens ficam protegidos pela própria máquina (DPAPI) e Web e serviço precisam estar no mesmo servidor. Trocar a chave obriga a cadastrar os tokens de novo.</td></tr>
             <tr><td><code>Execution:Interval</code></td><td><code>00:30:00</code></td><td class="quebra">Frequência das execuções automáticas (mínimo 1 minuto). Use esta <strong>ou</strong> <code>TimesOfDay</code>.</td></tr>
-            <tr><td><code>Execution:TimesOfDay</code></td><td>—</td><td class="quebra">Horários fixos, ex.: <code>["07:00", "13:00"]</code>.</td></tr>
+            <tr><td><code>Execution:TimesOfDay</code></td><td>—</td><td class="quebra">Horários fixos, ex.: <code>["07:00", "13:00"]</code>. Com a gestão ligada, a agenda pode ser trocada na Web (Regras gerais › Agenda das execuções), sem reiniciar o serviço; o arquivo vale enquanto lá estiver "Como no arquivo do serviço".</td></tr>
             <tr><td><code>Execution:TimeZone</code></td><td><code>America/Bahia</code></td><td class="quebra">Fuso (IANA) dos horários e das datas do RHSenso. Define o "hoje" de desligamentos e férias.</td></tr>
             <tr><td><code>Execution:RunOnStartup</code></td><td><code>true</code></td><td class="quebra">Com <code>Interval</code>, executa assim que o serviço inicia.</td></tr>
             <tr><td><code>Sync:InstanceName</code></td><td><code>default</code></td><td class="quebra">Nome da instância. Separa lock, configuração e histórico quando há mais de uma conta/token. Deve ser igual a <code>Web:InstanceName</code>.</td></tr>
@@ -371,7 +371,13 @@
 <!-- ============================== 3 ============================== -->
 <section class="capitulo" id="agendamento">
     <h2><span class="num">3</span>Agendamento das execuções</h2>
-    <p>O próprio serviço agenda as execuções. Não use o Agendador de Tarefas do Windows nem o cron. Informe <strong>exatamente uma</strong> das opções:</p>
+    <p>O próprio serviço agenda as execuções. Não use o Agendador de Tarefas do Windows nem o cron.</p>
+    <p>
+        <strong>Com a gestão ligada, a agenda é definida na Web</strong>: Regras gerais › Agenda das execuções (a cada N minutos ou em
+        horários fixos, e os dias da semana), igual para todas as empresas. O serviço relê a agenda a cada minuto e passa a segui-la sem
+        reiniciar; o log registra "Agenda das execuções alterada". Enquanto lá estiver <em>Como no arquivo do serviço</em> (o padrão),
+        vale o <code>appsettings.json</code>, onde se informa <strong>exatamente uma</strong> das opções:
+    </p>
     <table>
         <thead><tr><th>Modo</th><th>Exemplo</th><th>Comportamento</th></tr></thead>
         <tbody>
@@ -385,7 +391,7 @@
   "TimeZone": "America/Bahia"
 }</code></pre>
     <ul>
-        <li>Depois de mudar o agendamento, <strong>reinicie o serviço</strong>. O log mostra a próxima execução calculada: "Próxima execução em AAAA-MM-DD HH:MM:SS UTC" (atenção: em UTC, 3 horas à frente de Brasília/Bahia).</li>
+        <li>Depois de mudar o agendamento no <code>appsettings.json</code>, <strong>reinicie o serviço</strong> (pela Web não precisa). O log mostra a próxima execução calculada: "Próxima execução em AAAA-MM-DD HH:MM:SS UTC" (atenção: em UTC, 3 horas à frente de Brasília/Bahia).</li>
         <li>Fora do agendamento, o usuário com perfil Operador pode pedir uma execução na Web (Pedidos ao serviço › Executar agora).</li>
         <li>Na carga inicial, prefira intervalo curto (15 a 30 min) para acompanhar o progresso. No dia a dia, 30 a 60 minutos atendem bem.</li>
         <li>Uma execução sem mudanças no RHSenso não faz nenhuma chamada de escrita ao Sólides DP. O custo de uma frequência maior é basicamente a leitura do banco.</li>

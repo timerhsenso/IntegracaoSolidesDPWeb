@@ -64,6 +64,37 @@ public sealed class SyncOptionsValidator : IValidateOptions<SyncOptions>
             errors.Add("Sync:ConferenciaDiaSemana inválido.");
         }
 
+        if (!Enum.IsDefined(options.AgendaModo))
+        {
+            errors.Add("Sync:AgendaModo inválido.");
+        }
+
+        if (options.AgendaModo != AgendaModo.ArquivoDoServico)
+        {
+            if (options.AgendaDiasSemana.Count == 0 || options.AgendaDiasSemana.Any(d => !Enum.IsDefined(d)))
+            {
+                errors.Add("Sync:AgendaDiasSemana: marque pelo menos um dia da semana.");
+            }
+
+            if (options.AgendaModo == AgendaModo.Intervalo && options.AgendaIntervaloMinutos is < 5 or > 1440)
+            {
+                errors.Add("Sync:AgendaIntervaloMinutos deve ser de 5 a 1440 minutos.");
+            }
+
+            if (options.AgendaModo == AgendaModo.Horarios)
+            {
+                if (options.AgendaHorarios.Count == 0)
+                {
+                    errors.Add("Sync:AgendaHorarios: informe pelo menos um horário.");
+                }
+
+                foreach (var horario in options.AgendaHorarios.Where(h => !HorarioAgenda.TentarLer(h, out _)))
+                {
+                    errors.Add($"Sync:AgendaHorarios: \"{horario}\" não é um horário (use HH:mm, ex.: 08:00).");
+                }
+            }
+        }
+
         if (options.ServicoSemRespostaMinutos is < 1 or > 1440)
         {
             errors.Add("Sync:ServicoSemRespostaMinutos deve ser de 1 a 1440.");

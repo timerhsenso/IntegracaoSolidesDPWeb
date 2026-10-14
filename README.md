@@ -87,6 +87,8 @@ Com a gestão desligada, vale a tabela abaixo inteira, para uma só empresa.
 | `Gestao:IntervaloSinalDeVida` | `00:01:00` | Com a gestão ligada, frequência do sinal de vida (`solidesdp.servico_sinal`) que o Painel mostra. |
 | `Execution:Interval` | `00:30:00` | Frequência. Use esta **ou** `TimesOfDay`. |
 | `Execution:TimesOfDay` | — | Ex.: `["07:00", "13:00"]`, no fuso abaixo. |
+
+Com a gestão ligada, a agenda também pode ser definida na Web (Regras gerais › Agenda das execuções: a cada N minutos ou em horários fixos, e os dias da semana). Lá, "Como no arquivo do serviço" (o padrão) mantém o `Execution` acima.
 | `Execution:TimeZone` | `America/Bahia` | Fuso dos horários e das datas do RHSenso. |
 | `Sync:DryRun` | `true` | Simula sem chamar a API e gera o relatório. |
 | `Sync:GoLiveDate` | — | Obrigatória fora do dry-run. |

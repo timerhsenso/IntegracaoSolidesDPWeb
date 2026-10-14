@@ -143,6 +143,11 @@ public static class CamposConfiguracao
         FeriasEndDateMode.InicioDoUltimoDia => "00:00 do último dia",
         FeriasEndDateMode.FimDoUltimoDia => "23:59:59 do último dia",
         DayOfWeek dia => CultureInfo.GetCultureInfo("pt-BR").DateTimeFormat.GetDayName(dia),
+        AgendaModo.ArquivoDoServico => "como no arquivo do serviço",
+        AgendaModo.Intervalo => "a cada N minutos",
+        AgendaModo.Horarios => "em horários fixos",
+        IReadOnlyCollection<DayOfWeek> { Count: 0 or 7 } => "todos os dias",
+        IReadOnlyCollection<DayOfWeek> dias => string.Join(", ", dias.Select(d => CultureInfo.GetCultureInfo("pt-BR").DateTimeFormat.GetDayName(d))),
         IFormattable f => f.ToString(null, CultureInfo.GetCultureInfo("pt-BR")),
         _ => valor.ToString() ?? string.Empty,
     };

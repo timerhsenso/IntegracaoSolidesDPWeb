@@ -113,6 +113,24 @@ public sealed class SyncOptions
     /// <summary>Hora local (0 a 23) a partir da qual roda a conferência do dia.</summary>
     public int ConferenciaHora { get; set; } = 6;
 
+    /// <summary>
+    /// Agenda das execuções automáticas, igual para todas as empresas. <see cref="AgendaModo.ArquivoDoServico"/> (padrão,
+    /// e o que vale para as versões gravadas antes desta opção existir) segue Execution:Interval/TimesOfDay do serviço.
+    /// </summary>
+    public AgendaModo AgendaModo { get; set; } = AgendaModo.ArquivoDoServico;
+
+    /// <summary>Com <see cref="AgendaModo.Intervalo"/>: minutos entre uma execução e a próxima (5 a 1440).</summary>
+    public int AgendaIntervaloMinutos { get; set; } = 30;
+
+    /// <summary>Com <see cref="AgendaModo.Horarios"/>: horários locais (fuso do serviço) no formato "HH:mm".</summary>
+    public IList<string> AgendaHorarios { get; set; } = ["08:00"];
+
+    /// <summary>Dias da semana em que há execução automática (vale para intervalo e horários). Pelo menos um.</summary>
+    public IList<DayOfWeek> AgendaDiasSemana { get; set; } =
+    [
+        DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday,
+    ];
+
     /// <summary>A Web avisa "serviço sem resposta" quando o último sinal de vida do serviço é mais antigo que isto (minutos).</summary>
     public int ServicoSemRespostaMinutos { get; set; } = 5;
 

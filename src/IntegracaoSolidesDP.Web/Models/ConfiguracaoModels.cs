@@ -84,6 +84,19 @@ public sealed class ConfiguracaoForm
     [Display(Name = "Hora da conferência", Description = "A conferência roda a partir desta hora do dia escolhido (fuso do serviço).")]
     public int ConferenciaHora { get; set; } = 6;
 
+    [Display(Name = "Agenda das execuções", Description = "Quando o serviço executa sozinho, para todas as empresas. \"Como no arquivo do serviço\" segue o appsettings.json (Execution:Interval ou Execution:TimesOfDay).")]
+    public AgendaModo AgendaModo { get; set; } = AgendaModo.ArquivoDoServico;
+
+    [Range(5, 1440, ErrorMessage = "Informe de 5 a 1440 minutos.")]
+    [Display(Name = "Intervalo (minutos)", Description = "Com \"A cada N minutos\": tempo entre o fim de uma execução e o início da próxima.")]
+    public int AgendaIntervaloMinutos { get; set; } = 30;
+
+    [Display(Name = "Horários", Description = "Com \"Em horários fixos\": horários do dia separados por vírgula, no fuso do serviço (ex.: 08:00, 13:00).")]
+    public string? AgendaHorarios { get; set; } = "08:00";
+
+    [Display(Name = "Dias da semana", Description = "Dias em que o serviço executa sozinho, no intervalo ou nos horários. Executar agora, no Painel, funciona em qualquer dia.")]
+    public List<DayOfWeek> AgendaDiasSemana { get; set; } = [];
+
     [Required(ErrorMessage = "Descreva o motivo da alteração.")]
     [StringLength(500, ErrorMessage = "Use até 500 caracteres.")]
     [Display(Name = "Motivo da alteração")]
@@ -110,6 +123,10 @@ public sealed class ConfiguracaoForm
         ConferenciaAtiva = options.ConferenciaAtiva,
         ConferenciaDiaSemana = options.ConferenciaDiaSemana,
         ConferenciaHora = options.ConferenciaHora,
+        AgendaModo = options.AgendaModo,
+        AgendaIntervaloMinutos = options.AgendaIntervaloMinutos,
+        AgendaHorarios = string.Join(", ", options.AgendaHorarios),
+        AgendaDiasSemana = options.AgendaDiasSemana.Distinct().ToList(),
     };
 
     /// <summary>
@@ -140,6 +157,15 @@ public sealed class ConfiguracaoForm
         options.ConferenciaAtiva = ConferenciaAtiva;
         options.ConferenciaDiaSemana = ConferenciaDiaSemana;
         options.ConferenciaHora = ConferenciaHora;
+        options.AgendaModo = AgendaModo;
+        options.AgendaIntervaloMinutos = AgendaIntervaloMinutos;
+        options.AgendaHorarios = Horarios(AgendaHorarios, AgendaModo == AgendaModo.Horarios, erros);
+        options.AgendaDiasSemana = AgendaDiasSemana.Distinct().Order().ToList();
+        if (AgendaModo != AgendaModo.ArquivoDoServico && options.AgendaDiasSemana.Count == 0)
+        {
+            erros[nameof(AgendaDiasSemana)] = "Marque pelo menos um dia da semana.";
+        }
+
         return options;
     }
 
@@ -165,6 +191,33 @@ public sealed class ConfiguracaoForm
         }
 
         return numeros;
+    }
+
+    /// <summary>
+    /// Horários da agenda gravados como "HH:mm". Com a agenda em horários fixos, texto que não é horário (ou nenhum
+    /// horário) é erro; nos outros modos o campo não é usado e o que não for horário é descartado.
+    /// </summary>
+    private static List<string> Horarios(string? texto, bool emUso, IDictionary<string, string> erros)
+    {
+        var horarios = new List<TimeOnly>();
+        foreach (var item in Itens(texto))
+        {
+            if (HorarioAgenda.TentarLer(item, out var horario))
+            {
+                horarios.Add(horario);
+            }
+            else if (emUso)
+            {
+                erros[nameof(AgendaHorarios)] = $"\"{item}\" não é um horário. Use HH:mm, ex.: 08:00.";
+            }
+        }
+
+        if (emUso && horarios.Count == 0 && !erros.ContainsKey(nameof(AgendaHorarios)))
+        {
+            erros[nameof(AgendaHorarios)] = "Informe pelo menos um horário, ex.: 08:00.";
+        }
+
+        return horarios.Distinct().Order().Select(HorarioAgenda.Formatar).ToList();
     }
 
     private static Dictionary<string, string> Mapa(string? texto, string campo, IDictionary<string, string> erros)

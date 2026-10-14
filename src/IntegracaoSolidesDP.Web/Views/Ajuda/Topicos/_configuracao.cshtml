@@ -71,6 +71,39 @@
     </text>);
 }
 
+<h4>Agenda das execuções</h4>
+@{
+    Campo(nameof(ConfiguracaoForm.AgendaModo), @<text>
+        <p class="mb-1">
+            Vale para <strong>todas as empresas</strong> (cada execução passa por todas as empresas habilitadas). O serviço relê a agenda
+            a cada minuto: depois de salvar, ele passa a seguir a nova sem precisar reiniciar, e o log do serviço registra a troca.
+            <strong>Como no arquivo do serviço</strong> segue <code>Execution:Interval</code> ou <code>Execution:TimesOfDay</code> do
+            <code>appsettings.json</code>; é o padrão, para nada mudar até alguém escolher aqui. O fuso dos horários continua sendo o
+            <code>Execution:TimeZone</code> do serviço.
+        </p>
+        <table class="table table-sm small w-auto">
+            <thead><tr><th>Quero</th><th>Agenda</th><th>Intervalo / horários</th><th>Dias</th></tr></thead>
+            <tbody>
+                <tr><td>Toda segunda às 8h</td><td>Em horários fixos</td><td><code>08:00</code></td><td>Segunda</td></tr>
+                <tr><td>Todo dia às 10h</td><td>Em horários fixos</td><td><code>10:00</code></td><td>Todos</td></tr>
+                <tr><td>Todo dia, às 7h e às 13h</td><td>Em horários fixos</td><td><code>07:00, 13:00</code></td><td>Todos</td></tr>
+                <tr><td>A cada 40 minutos</td><td>A cada N minutos</td><td><code>40</code></td><td>Todos</td></tr>
+                <tr><td>A cada hora, só em dias úteis</td><td>A cada N minutos</td><td><code>60</code></td><td>Segunda a sexta</td></tr>
+            </tbody>
+        </table>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.AgendaIntervaloMinutos), @<text>
+        <p class="mb-1">
+            Conta do fim de uma execução até o início da próxima (mínimo 5 minutos). Com o serviço recém-iniciado, a primeira execução é
+            logo na partida (<code>Execution:RunOnStartup</code>). Num dia não marcado, a próxima fica para a 00:00 do próximo dia marcado.
+        </p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.AgendaHorarios), @<text>
+        <p class="mb-1">Aceita <code>8</code>, <code>8h</code>, <code>08:00</code> ou <code>13h30</code>; ao salvar, tudo fica como <code>HH:mm</code>. Se o serviço estiver parado no horário, aquela execução não é recuperada: vale o próximo horário.</p>
+    </text>);
+    Campo(nameof(ConfiguracaoForm.AgendaDiasSemana));
+}
+
 <h4>Histórico e serviço</h4>
 @{
     Campo(nameof(ConfiguracaoForm.RetencaoExecucoesDias), @<text>

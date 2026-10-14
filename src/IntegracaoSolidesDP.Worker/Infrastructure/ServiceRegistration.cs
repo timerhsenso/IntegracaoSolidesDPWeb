@@ -47,6 +47,7 @@ public static class ServiceRegistration
         services.AddSingleton(sp => new ExecutionSchedule(
             sp.GetRequiredService<IOptions<ExecutionOptions>>().Value,
             sp.GetRequiredService<EpochDates>().Zone));
+        services.AddSingleton<AgendaServico>();
 
         services.AddSingleton<ISourceReader, SqlSourceReader>();
         services.AddSingleton<IStateStore, SqlStateStore>();

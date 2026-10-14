@@ -4,6 +4,7 @@ using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Identity;
 using IntegracaoSolidesDP.Worker.Infrastructure;
 using IntegracaoSolidesDP.Worker.Management;
+using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.State;
 
 namespace IntegracaoSolidesDP.Tests.Web;
@@ -171,6 +172,29 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
         regras.TiposColaborador.Should().Equal(1, 2, 3);
         regras.MaxCreatesPerRun.Should().Be(50);
         regras.DryRun.Should().BeTrue("a simulação é decidida por empresa; a regra geral fica sempre em simulação");
+    }
+
+    [Fact]
+    public async Task Admin_sets_the_execution_agenda_on_the_web_for_every_company()
+    {
+        var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Admin));
+        var campos = new Dictionary<string, string>
+        {
+            ["Form.AgendaModo"] = nameof(AgendaModo.Horarios),
+            ["Form.AgendaHorarios"] = "8h",
+            ["Form.AgendaDiasSemana"] = nameof(DayOfWeek.Monday),
+            ["Form.Observacao"] = "toda segunda as 8h",
+        };
+
+        var resposta = await WebHarness.PostFormAsync(client, "/Configuracao", "/Configuracao/Salvar", campos);
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        var regras = SyncOptionsJson.Deserialize((await _store.GetCurrentConfigurationAsync("default", Ct))!.SyncJson);
+        regras.AgendaModo.Should().Be(AgendaModo.Horarios);
+        regras.AgendaHorarios.Should().Equal("08:00");
+        regras.AgendaDiasSemana.Should().Equal(DayOfWeek.Monday);
+        var tela = await client.GetStringAsync("/Configuracao", Ct);
+        tela.Should().Contain("value=\"Monday\" checked=\"checked\"").And.NotContain("value=\"Tuesday\" checked");
     }
 
     [Fact]

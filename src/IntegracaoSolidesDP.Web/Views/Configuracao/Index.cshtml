@@ -3,6 +3,11 @@
 @{
     ViewData["Title"] = "Regras gerais";
     var somenteLeitura = !Model.PodeEditar;
+    var diasDaSemana = new[]
+    {
+        (DayOfWeek.Monday, "Segunda"), (DayOfWeek.Tuesday, "Terça"), (DayOfWeek.Wednesday, "Quarta"), (DayOfWeek.Thursday, "Quinta"),
+        (DayOfWeek.Friday, "Sexta"), (DayOfWeek.Saturday, "Sábado"), (DayOfWeek.Sunday, "Domingo"),
+    };
 }
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <div class="flex-grow-1 small">
@@ -36,6 +41,54 @@
             cada empresa: ficam em <a asp-controller="Empresas" asp-action="Index">Empresas</a>. A chave geral para parar tudo é
             <strong>Desativar</strong>, no Painel.
         </div>
+        <div class="card mb-3" data-agenda>
+            <div class="card-header">Agenda das execuções</div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label asp-for="Form.AgendaModo" class="form-label"></label>
+                        <select asp-for="Form.AgendaModo" class="form-select">
+                            <option value="@AgendaModo.ArquivoDoServico">Como no arquivo do serviço</option>
+                            <option value="@AgendaModo.Intervalo">A cada N minutos</option>
+                            <option value="@AgendaModo.Horarios">Em horários fixos</option>
+                        </select>
+                        <dica-campo for="Form.AgendaModo" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Form.AgendaIntervaloMinutos" class="form-label"></label>
+                        <input asp-for="Form.AgendaIntervaloMinutos" class="form-control" />
+                        <dica-campo for="Form.AgendaIntervaloMinutos" />
+                        <span asp-validation-for="Form.AgendaIntervaloMinutos" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Form.AgendaHorarios" class="form-label"></label>
+                        <input asp-for="Form.AgendaHorarios" class="form-control" placeholder="08:00, 13:00" />
+                        <dica-campo for="Form.AgendaHorarios" />
+                        <span asp-validation-for="Form.AgendaHorarios" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12">
+                        <span class="form-label d-block">@Html.DisplayNameFor(m => m.Form.AgendaDiasSemana)</span>
+                        @foreach (var (dia, nome) in diasDaSemana)
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="dia-@dia" name="Form.AgendaDiasSemana"
+                                       value="@dia" checked="@Model.Form.AgendaDiasSemana.Contains(dia)" />
+                                <label class="form-check-label" for="dia-@dia">@nome</label>
+                            </div>
+                        }
+                        <dica-campo for="Form.AgendaDiasSemana" />
+                        <span asp-validation-for="Form.AgendaDiasSemana" class="text-danger small d-block"></span>
+                    </div>
+                </div>
+                <div class="form-text">
+                    Vale para todas as empresas. Exemplos: toda segunda às 8h = <em>Em horários fixos</em>, <code>08:00</code>, só Segunda;
+                    todo dia às 10h = <em>Em horários fixos</em>, <code>10:00</code>, todos os dias; a cada 40 minutos = <em>A cada N minutos</em>,
+                    <code>40</code>, todos os dias. O serviço passa a seguir a agenda nova em até um minuto, sem reiniciar.
+                    <strong>Executar agora</strong>, no Painel, funciona a qualquer hora.
+                </div>
+            </div>
+        </div>
+
         <div class="row g-3">
             <div class="col-xl-6">
                 <div class="card h-100">
