@@ -16,6 +16,7 @@ public sealed record IgnoradosDaEmpresa(IReadOnlyList<ColaboradorIgnorado> Vigen
 }
 
 /// <summary>Ignorado que apareceu ativo na folha: saiu da lista e segue as regras normais da integração.</summary>
+/// <param name="Ignorado">Como estava na lista.</param>
 /// <param name="Rotulo">"empresa-matrícula" em que ele apareceu.</param>
 public sealed record IgnoradoQueVoltou(ColaboradorIgnorado Ignorado, string Rotulo);
 

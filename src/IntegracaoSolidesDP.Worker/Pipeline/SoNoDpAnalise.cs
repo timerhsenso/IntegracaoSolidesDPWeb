@@ -8,6 +8,8 @@ using IntegracaoSolidesDP.Worker.State;
 namespace IntegracaoSolidesDP.Worker.Pipeline;
 
 /// <summary>Alguém ativo no Sólides DP sem colaborador ativo correspondente no RHSenso, com o que o RHSenso diz dele.</summary>
+/// <param name="Dp">O cadastro ativo no Sólides DP.</param>
+/// <param name="Cpf">CPF do cadastro do DP, só com dígitos; null quando vazio ou inválido.</param>
 /// <param name="Saida">A saída (desligamento ou transferência) do CPF nesta empresa, quando há.</param>
 /// <param name="Motivo">Texto para o RH: o que o RHSenso diz do CPF e o que fazer.</param>
 public sealed record SoNoDpCaso(EmployeeDto Dp, string? Cpf, Departure? Saida, string Motivo);
@@ -19,8 +21,15 @@ public sealed record SoNoDpCaso(EmployeeDto Dp, string? Cpf, Departure? Saida, s
 /// </summary>
 public static class SoNoDpAnalise
 {
+    /// <summary>Quem está ativo no DP sem colaborador ativo no RHSenso, com o motivo para o RH.</summary>
     /// <param name="ativosDp">Os ativos da conta no DP (find-all).</param>
+    /// <param name="plan">Os colaboradores da empresa no RHSenso, já classificados.</param>
     /// <param name="vinculos">Vínculos de colaborador da empresa, por CPF.</param>
+    /// <param name="options">Regras da empresa (tipos, situações).</param>
+    /// <param name="cdempresa">Empresa do RHSenso (conta do DP).</param>
+    /// <param name="hoje">Data local de hoje (saída futura = "nessa data").</param>
+    /// <param name="source">Leitura do RHSenso (o CPF no func1 inteiro).</param>
+    /// <param name="ct">Cancelamento.</param>
     public static async Task<IReadOnlyList<SoNoDpCaso>> AnalisarAsync(
         IEnumerable<EmployeeDto> ativosDp,
         EmployeePlan plan,
