@@ -11,9 +11,10 @@ namespace IntegracaoSolidesDP.Worker.Pipeline;
 
 /// <summary>
 /// Conferência DP x RHSenso: para cada colaborador ativo e vinculado, compara o que a integração enviaria hoje com o que
-/// está no Sólides DP (uma leitura do find-all por empresa). Não grava nada no DP: as divergências vão para
-/// solidesdp.conferencia e a Web oferece "Reenviar do RHSenso". O que é do DP por regra não é comparado: vigência,
-/// escala, regra de ponto e Código Externo.
+/// está no Sólides DP. O find-all (uma leitura por empresa) diz quem existe e quem está desligado; os campos vêm do
+/// employee/find de cada colaborador, porque o find-all da API real não traz CTPS, série, telefone, código do cargo nem
+/// local. Não grava nada no DP: as divergências vão para solidesdp.conferencia e a Web oferece "Reenviar do RHSenso".
+/// O que é do DP por regra não é comparado: vigência, escala, regra de ponto e Código Externo.
 /// </summary>
 public sealed class ConferenciaCampos(
     ISourceReader source,
@@ -155,6 +156,7 @@ public sealed class ConferenciaCampos(
 
         var empresasPorId = empresasPorCnpj?.Values.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First());
         var conferidos = 0;
+        var naoLidos = 0;
         var linhas = new List<DivergenciaCampo>();
         foreach (var row in plan.Active.OrderBy(r => r.Nomatric, StringComparer.Ordinal))
         {
@@ -164,7 +166,6 @@ public sealed class ConferenciaCampos(
                 continue;
             }
 
-            conferidos++;
             DivergenciaCampo Linha(string campo, string? valorRh, string? valorDp) => new()
             {
                 Rotulo = row.Rotulo,
@@ -177,15 +178,17 @@ public sealed class ConferenciaCampos(
                 Dp = valorDp,
             };
 
-            if (!porId.TryGetValue(remoteId, out var dp))
+            if (!porId.TryGetValue(remoteId, out var resumo))
             {
+                conferidos++;
                 linhas.Add(Linha(CamposConferencia.Cadastro, $"vinculado ao cadastro {remoteId.ToString(CultureInfo.InvariantCulture)}", "não encontrado"));
                 continue;
             }
 
             if (!ativosIds.Contains(remoteId))
             {
-                var quando = dp.ResignationDate is { } ms ? " em " + Data(dates.ToDate(ms)) : string.Empty;
+                conferidos++;
+                var quando = resumo.ResignationDate is { } ms ? " em " + Data(dates.ToDate(ms)) : string.Empty;
                 linhas.Add(Linha(CamposConferencia.Situacao, "ativo", "desligado" + quando));
                 continue;
             }
@@ -202,7 +205,26 @@ public sealed class ConferenciaCampos(
                 continue;
             }
 
+            // O find-all vem resumido (sem CTPS, série, telefone, código do cargo e local): compara com o cadastro completo.
+            var completo = await api.FindEmployeeByIdAsync(remoteId, ct);
+            ReferenceResolver.ThrowIfUnauthorized(completo);
+            if (!completo.IsSuccess || completo.Value is not { } dp)
+            {
+                naoLidos++;
+                logger.LogWarning(
+                    "Conferência da empresa {Empresa}: cadastro {Cadastro} ({Rotulo}) não foi lido no Sólides DP e ficou de fora: {Outcome} {Mensagem}",
+                    empresa.Cdempresa, remoteId, row.Rotulo, completo.Outcome, completo.Message);
+                continue;
+            }
+
+            conferidos++;
             linhas.AddRange(Comparar(payload, dp, dates, empresasPorId).Select(d => Linha(d.Campo, d.RhSenso, d.Dp)));
+        }
+
+        if (naoLidos > 0 && conferidos == 0)
+        {
+            throw new SyncAbortedException(FormattableString.Invariant(
+                $"nenhum cadastro foi lido no Sólides DP ({naoLidos} tentativas): veja o log do serviço"));
         }
 
         return (conferidos, linhas);
@@ -266,10 +288,15 @@ public sealed class ConferenciaCampos(
             diferencas.Add((CamposConferencia.Cargo, rh.JobRoleExternalId.Trim(), Rotular(dp.JobRole?.ExternalId, dp.JobRole?.Description)));
         }
 
-        if (!string.IsNullOrWhiteSpace(rh.WorkplaceExternalId)
-            && !string.Equals(rh.WorkplaceExternalId.Trim(), dp.CurrentWorkplace?.ExternalId?.Trim(), StringComparison.Ordinal))
+        if (!string.IsNullOrWhiteSpace(rh.WorkplaceExternalId))
         {
-            diferencas.Add((CamposConferencia.Local, rh.WorkplaceExternalId.Trim(), Rotular(dp.CurrentWorkplace?.ExternalId, dp.CurrentWorkplace?.Name)));
+            var localRh = rh.WorkplaceExternalId.Trim();
+            var locaisDp = LocaisAtuais(dp);
+            if (!locaisDp.Any(l => string.Equals(localRh, l.ExternalId?.Trim(), StringComparison.Ordinal)))
+            {
+                var rotulos = locaisDp.Select(l => Rotular(l.ExternalId, l.Name)).OfType<string>().ToList();
+                diferencas.Add((CamposConferencia.Local, localRh, rotulos.Count == 0 ? null : string.Join(", ", rotulos)));
+            }
         }
 
         if (rh.Company is { } companyRh && dp.Company?.Id != companyRh)
@@ -279,6 +306,15 @@ public sealed class ConferenciaCampos(
 
         return diferencas;
     }
+
+    /// <summary>
+    /// Locais atuais no DP: o <c>currentWorkplaceDTO</c>, quando vier; senão os ativos da <c>workplaceList</c> (é onde a
+    /// API real devolve o local).
+    /// </summary>
+    private static IReadOnlyList<WorkplaceDto> LocaisAtuais(EmployeeDto dp) =>
+        dp.CurrentWorkplace is { } atual
+            ? [atual]
+            : (dp.WorkplaceList ?? []).Where(l => l.Active != false).ToList();
 
     private static string Data(DateOnly dia) => dia.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
 

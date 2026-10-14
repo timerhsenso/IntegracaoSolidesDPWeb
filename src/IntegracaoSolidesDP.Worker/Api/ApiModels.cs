@@ -160,6 +160,9 @@ public sealed record WorkplaceDto
     public long Id { get; init; }
     public string? ExternalId { get; init; }
     public string? Name { get; init; }
+
+    /// <summary>Na <c>workplaceList</c> do colaborador: local ativo para ele.</summary>
+    public bool? Active { get; init; }
 }
 
 public sealed record EmployeeDto
@@ -183,8 +186,10 @@ public sealed record EmployeeDto
     [JsonConverter(typeof(EpochMillisFlexibleConverter))]
     public long? ResignationDate { get; init; }
 
-    // Campos da conferência DP x RHSenso (find-all). Leitura tolerante: a API devolve número ou texto
-    // conforme o endpoint, e um formato inesperado vira null em vez de derrubar a leitura do cadastro.
+    // Campos da conferência DP x RHSenso. Leitura tolerante: a API devolve número ou texto conforme o endpoint, e um
+    // formato inesperado vira null em vez de derrubar a leitura do cadastro. ATENÇÃO: o employee/find-all da API real
+    // NÃO traz ctps, series, phone nem currentWorkplaceDTO, e o jobRoleDTO e a workplaceList vêm só com o id. Esses
+    // campos só vêm completos no employee/find (um colaborador por vez).
 
     [JsonConverter(typeof(FlexibleStringConverter))]
     public string? Pis { get; init; }
@@ -214,6 +219,13 @@ public sealed record EmployeeDto
     [JsonPropertyName("currentWorkplaceDTO")]
     [JsonConverter(typeof(FlexibleObjectConverter<WorkplaceDto>))]
     public WorkplaceDto? CurrentWorkplace { get; init; }
+
+    /// <summary>
+    /// Locais de trabalho do colaborador. A API real devolve o local aqui (o <c>currentWorkplaceDTO</c> não vem nem no
+    /// employee/find); no find-all, só com o id.
+    /// </summary>
+    [JsonPropertyName("workplaceList")]
+    public IReadOnlyList<WorkplaceDto>? WorkplaceList { get; init; }
 
     /// <summary>Empresa (no find-all vem o objeto; em outras respostas, só o id).</summary>
     [JsonConverter(typeof(FlexibleCompanyConverter))]

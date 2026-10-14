@@ -59,7 +59,7 @@ internal static class EmployeeEndpoints
                     .Where(e => punchRuleId is null || e.PunchRuleId == punchRuleId)
                     .Where(e => branchExternalId is null || (e.CompanyId is { } c && d.Companies.TryGetValue(c, out var company) && company.ExternalId == branchExternalId))
                     .ToList();
-                return page.ToPage(employees, e => Wire.Employee(e, d, includePin: false));
+                return page.ToPage(employees, e => Wire.Employee(e, d, includePin: false, listagem: true));
             }));
         });
 

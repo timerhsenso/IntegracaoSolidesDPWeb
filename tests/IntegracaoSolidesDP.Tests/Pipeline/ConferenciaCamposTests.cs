@@ -71,6 +71,53 @@ public sealed class ConferenciaCamposTests : IAsyncLifetime
         }, "e-mail e telefone vazios no RHSenso não são enviados, então não são comparados");
     }
 
+    [Fact]
+    public void Workplace_comes_from_the_active_entries_of_workplace_list_as_the_real_api_returns_it()
+    {
+        // employee/find da API real: sem currentWorkplaceDTO, o local vem na workplaceList.
+        var rh = new EmployeeRequest { Name = "MARIA", WorkplaceExternalId = "15-1" };
+        var noLocal = new EmployeeDto
+        {
+            Id = 1, Name = "MARIA",
+            WorkplaceList = [new WorkplaceDto { Id = 9, ExternalId = "15-1", Name = "ADN PROJETOS (15-1)", Active = true }],
+        };
+        var emOutro = noLocal with
+        {
+            WorkplaceList =
+            [
+                new WorkplaceDto { Id = 8, ExternalId = "15-1", Name = "ANTIGO", Active = false },
+                new WorkplaceDto { Id = 9, ExternalId = "15-2", Name = "OBRA" },
+            ],
+        };
+
+        ConferenciaCampos.Comparar(rh, noLocal, TestData.Dates).Should().BeEmpty();
+        ConferenciaCampos.Comparar(rh, emOutro, TestData.Dates).Should().ContainSingle()
+            .Which.Should().Be((CamposConferencia.Local, "15-1", "15-2 - OBRA"), "local inativo na lista não conta");
+    }
+
+    [Fact]
+    public void Real_api_employee_find_json_is_read_with_the_fields_the_conference_compares()
+    {
+        // Trecho do employee/find real (cadastro da piloto, 14/10/2026, dados trocados).
+        const string json = """
+            {"id":4228589,"name":"MARIA","birthDate":"1970-03-23","phone":"071988694250","ctps":"4981911","series":"00040",
+             "admissionDate":"2014-01-06","company":{"id":2074869},
+             "jobRoleDTO":{"id":3168226,"description":"AUX. DE SERVICOS GERAIS","externalId":"005","alterationDate":1791585902316},
+             "workplaceList":[{"id":2723614,"name":"ADN PROJETOS (15-1)","externalId":"15-1","active":true}],
+             "effectiveDate":1722481200000,"externalId":"00007811","fired":false,"gender":"FEMININO"}
+            """;
+
+        var dp = System.Text.Json.JsonSerializer.Deserialize<EmployeeDto>(json, SolidesDpJson.Options)!;
+        var rh = new EmployeeRequest
+        {
+            Name = "MARIA", Ctps = "4981911", Series = "00040", Phone = "071988694250", JobRoleExternalId = "005",
+            WorkplaceExternalId = "15-1", BirthDate = TestData.Dates.StartOfDay(new DateOnly(1970, 3, 23)),
+            AdmissionDate = TestData.Dates.StartOfDay(new DateOnly(2014, 1, 6)), Gender = "FEMININO", Company = 2074869,
+        };
+
+        ConferenciaCampos.Comparar(rh, dp, TestData.Dates).Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("2026-10-12T05:59:00-03:00", "2026-10-05T06:00:00-03:00")] // segunda antes das 6h: vale a semana anterior
     [InlineData("2026-10-12T06:00:00-03:00", "2026-10-12T06:00:00-03:00")]

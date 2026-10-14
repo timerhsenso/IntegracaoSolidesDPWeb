@@ -38,8 +38,12 @@ internal static class Wire
         return node;
     }
 
-    /// <summary><c>EmployeeReturnWithoutPinDTO</c> (ou <c>EmployeeReturnDTO</c> quando <paramref name="includePin"/>).</summary>
-    public static JsonObject Employee(EmployeeRecord e, StoreData data, bool includePin)
+    /// <summary>
+    /// <c>EmployeeReturnWithoutPinDTO</c> (ou <c>EmployeeReturnDTO</c> quando <paramref name="includePin"/>). Com
+    /// <paramref name="listagem"/> (employee/find-all), imita a API real, que devolve o cadastro resumido: sem ctps,
+    /// series, phone e currentWorkplaceDTO, e com jobRoleDTO e workplaceList só com o id (conferido em 14/10/2026).
+    /// </summary>
+    public static JsonObject Employee(EmployeeRecord e, StoreData data, bool includePin, bool listagem = false)
     {
         var node = new JsonObject { ["id"] = e.Id, ["name"] = e.Name, ["fired"] = e.Fired };
         node.Put("externalId", e.ExternalId);
@@ -50,7 +54,10 @@ internal static class Wire
         node.Put("canViewWorkgroup", e.Fields.GetObject("devicePermissionsDTO")?.GetObject("appPermissionsDTO")?.GetBool("canViewWorkgroup") ?? false);
         node.Put("updateDate", e.UpdatedAt);
 
-        foreach (var name in new[] { "ctps", "series", "email", "phone", "gender", "socialName", "state", "admissionDate", "birthDate", "effectiveDate" })
+        var campos = listagem
+            ? new[] { "email", "gender", "socialName", "admissionDate", "birthDate", "effectiveDate" }
+            : new[] { "ctps", "series", "email", "phone", "gender", "socialName", "state", "admissionDate", "birthDate", "effectiveDate" };
+        foreach (var name in campos)
         {
             node.PutNode(name, e.Fields[name]?.DeepClone());
         }
@@ -73,13 +80,20 @@ internal static class Wire
 
         if (e.WorkplaceId is { } workplaceId && data.Workplaces.TryGetValue(workplaceId, out var workplace))
         {
-            node["currentWorkplaceDTO"] = Workplace(workplace);
-            node["workplaceList"] = new JsonArray(Workplace(workplace));
+            if (listagem)
+            {
+                node["workplaceList"] = new JsonArray(new JsonObject { ["id"] = workplace.Id });
+            }
+            else
+            {
+                node["currentWorkplaceDTO"] = Workplace(workplace);
+                node["workplaceList"] = new JsonArray(Workplace(workplace));
+            }
         }
 
         if (e.JobRoleId is { } jobRoleId && data.JobRoles.TryGetValue(jobRoleId, out var jobRole))
         {
-            node["jobRoleDTO"] = jobRole.ToNode();
+            node["jobRoleDTO"] = listagem ? new JsonObject { ["id"] = jobRole.Id } : jobRole.ToNode();
         }
 
         var history = new JsonArray();
