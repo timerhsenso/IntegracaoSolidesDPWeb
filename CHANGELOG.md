@@ -4,6 +4,17 @@ Uma seção por versão, a mais nova primeiro. O título é `## <versão> — <d
 só gera o pacote de uma versão que tenha a sua seção aqui, e a Web mostra este arquivo em Ajuda › Novidades.
 Escreva para quem usa: o que mudou na tela e no comportamento, não o código.
 
+## 1.0.5 — 14/10/2026
+
+### Correções
+- Conferência DP x RHSenso: CTPS, série, telefone, cargo e local apareciam como "vazio" no Sólides DP mesmo
+  estando preenchidos lá. A lista de colaboradores da API do Sólides vem resumida; a conferência agora lê o
+  cadastro completo de cada colaborador vinculado. O local passa a ser lido de onde a API realmente o devolve.
+
+### Segurança
+- Pacotes do .NET atualizados para a 10.0.13 (correções da Microsoft de 13/10/2026), incluindo
+  System.Security.Cryptography.Pkcs e System.Security.Cryptography.Xml.
+
 ## 1.0.4 — 12/10/2026
 
 - Instalação: o cliente escolhe a pasta. Na primeira instalação, os instaladores do serviço e da Web perguntam a pasta (Enter aceita a sugerida) ou recebem -InstallDir. Nas atualizações usam a pasta onde o sistema já está.
