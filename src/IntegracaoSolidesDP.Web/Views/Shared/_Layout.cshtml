@@ -19,6 +19,8 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+    @* Menu recolhido no computador: aplicado antes de desenhar a tela, para não piscar. *@
+    <script>try { if (localStorage.getItem('menu-recolhido') === '1') document.body.classList.add('menu-recolhido'); } catch (e) { }</script>
     <aside class="app-sidebar">
         <a class="brand" asp-controller="Painel" asp-action="Index">
             <i class="bi bi-arrow-left-right"></i>
@@ -54,7 +56,7 @@
 
     <div class="app-main">
         <header class="app-topbar d-flex align-items-center px-3 py-2 gap-3">
-            <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none" data-alternar-menu aria-label="Menu"><i class="bi bi-list"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-alternar-menu aria-label="Mostrar ou ocultar o menu" title="Mostrar ou ocultar o menu"><i class="bi bi-list"></i></button>
             <h1 class="h5 mb-0 flex-grow-1">@ViewData["Title"]</h1>
             @if (ajudaDaTela is not null)
             {

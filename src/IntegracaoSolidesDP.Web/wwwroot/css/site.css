@@ -78,6 +78,36 @@ body {
     z-index: 1030;
 }
 
+@media (min-width: 992px) {
+    .app-sidebar, .app-main {
+        transition: transform .2s ease, margin-left .2s ease;
+    }
+
+    body.menu-recolhido .app-sidebar {
+        transform: translateX(-100%);
+    }
+
+    body.menu-recolhido .app-main {
+        margin-left: 0;
+    }
+}
+
+/* Telas de cadastro em uma coluna: largura confortável para ler, centralizada nas telas grandes. */
+.tela-coluna {
+    max-width: 980px;
+    margin-inline: auto;
+}
+
+/* Barra de salvar que acompanha a rolagem nas telas longas. */
+.barra-salvar {
+    position: sticky;
+    bottom: 0;
+    z-index: 1020;
+    background: #fff;
+    border-top: 1px solid #dee2e6;
+    box-shadow: 0 -.25rem .75rem rgba(0, 0, 0, .06);
+}
+
 @media (max-width: 991.98px) {
     .app-sidebar {
         transform: translateX(-100%);

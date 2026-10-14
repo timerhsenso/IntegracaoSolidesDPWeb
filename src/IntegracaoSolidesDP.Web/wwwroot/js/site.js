@@ -207,9 +207,17 @@
         origem: o => esc(rotulos.origens[o] || o)
     };
 
-    // Menu lateral no celular.
+    // Menu lateral: no celular abre por cima do conteúdo; no computador recolhe e o conteúdo usa a tela toda
+    // (a escolha fica guardada neste navegador).
     document.addEventListener('click', e => {
-        if (e.target.closest('[data-alternar-menu]')) {
+        if (!e.target.closest('[data-alternar-menu]')) {
+            return;
+        }
+
+        if (window.matchMedia('(min-width: 992px)').matches) {
+            const recolhido = document.body.classList.toggle('menu-recolhido');
+            try { localStorage.setItem('menu-recolhido', recolhido ? '1' : '0'); } catch (erro) { /* navegador sem armazenamento */ }
+        } else {
             document.querySelector('.app-sidebar')?.classList.toggle('aberta');
         }
     });

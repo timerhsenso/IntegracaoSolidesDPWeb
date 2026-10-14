@@ -34,258 +34,266 @@
     <div class="alert alert-light border small"><i class="bi bi-eye"></i> Somente o perfil Admin altera a empresa e o token.</div>
 }
 
-<div class="row g-3">
-    <div class="col-xl-7">
-        <form asp-action="Salvar" method="post" novalidate>
-            <input type="hidden" name="Form.Cdempresa" value="@f.Cdempresa" />
-            <div asp-validation-summary="All" class="alert alert-danger small"></div>
-            <fieldset disabled="@somenteLeitura">
-                <div class="card mb-3">
-                    <div class="card-header">Integração desta empresa</div>
-                    <div class="card-body">
-                        <div class="form-check form-switch mb-3">
-                            <input asp-for="Form.Habilitada" class="form-check-input" role="switch" />
-                            <label asp-for="Form.Habilitada" class="form-check-label"></label>
-                            <dica-campo for="Form.Habilitada" ajuda="empresas" />
-                        </div>
-                        <div class="form-check form-switch mb-3">
-                            <input asp-for="Form.DryRun" class="form-check-input" role="switch" />
-                            <label asp-for="Form.DryRun" class="form-check-label"></label>
-                            <dica-campo for="Form.DryRun" ajuda="empresas" />
-                            <div class="small text-body-secondary">Ligada: nada é gravado no Sólides DP, só o relatório do que seria feito. Desligue só depois de conferir a simulação.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label asp-for="Form.GoLiveDate" class="form-label"></label>
-                            <input type="date" name="Form.GoLiveDate" id="Form_GoLiveDate" class="form-control w-auto"
-                                   value="@f.GoLiveDate?.ToString("yyyy-MM-dd")" />
-                            <dica-campo for="Form.GoLiveDate" ajuda="empresas" />
-                            <div class="form-text">Obrigatória para desligar a simulação. Desligamentos e férias anteriores a esta data não são enviados.</div>
-                        </div>
-                    </div>
-                </div>
+<div class="tela-coluna">
+    <div asp-validation-summary="All" class="alert alert-danger small"></div>
 
-                <div class="card mb-3">
-                    <div class="card-header">Filiais</div>
-                    <div class="card-body">
-                        <p class="small mb-2">@Html.DisplayNameFor(m => m.Form.Filiais)</p>
-                        @if (Model.FiliaisDisponiveis.Count == 0)
-                        {
-                            <div class="small text-danger">A empresa não tem filial ativa no RHSenso (<code>test1.flativofilial = 1</code>).</div>
-                        }
-                        <div class="row g-1">
-                            @foreach (var filial in Model.FiliaisDisponiveis)
-                            {
-                                var id = $"filial-{filial.Cdfilial}";
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="Form.Filiais" value="@filial.Cdfilial" id="@id"
-                                               checked="@f.Filiais.Contains(filial.Cdfilial)" />
-                                        <label class="form-check-label small" for="@id">
-                                            <strong>@filial.Cdfilial</strong> @filial.Nome
-                                            @if (!string.IsNullOrWhiteSpace(filial.Cnpj))
-                                            {
-                                                <span class="text-body-secondary">(@filial.Cnpj)</span>
-                                            }
-                                        </label>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                        <dica-campo for="Form.Filiais" ajuda="empresas" />
-                    </div>
-                </div>
-
-                <div class="card mb-3">
-                    <div class="card-header">Piloto</div>
-                    <div class="card-body">
-                        <label asp-for="Form.Piloto" class="form-label"></label>
-                        <textarea asp-for="Form.Piloto" class="form-control font-monospace" rows="4" placeholder="15-00007811"></textarea>
-                        <span asp-validation-for="Form.Piloto" class="small text-danger"></span>
-                        <dica-campo for="Form.Piloto" ajuda="empresas" />
-                        @if (!string.IsNullOrWhiteSpace(f.Piloto))
-                        {
-                            <div class="small text-warning-emphasis mt-1"><i class="bi bi-funnel"></i> Piloto ativo: as demais pessoas desta empresa ficam de fora.</div>
-                        }
-                    </div>
-                </div>
-
-                <div class="card mb-3">
-                    <div class="card-header">Conta do Sólides DP desta empresa</div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label asp-for="Form.WorkScheduleExternalId" class="form-label"></label>
-                                <input asp-for="Form.WorkScheduleExternalId" class="form-control" />
-                                <dica-campo for="Form.WorkScheduleExternalId" ajuda="empresas" />
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="Form.PunchRuleExternalId" class="form-label"></label>
-                                <input asp-for="Form.PunchRuleExternalId" class="form-control" />
-                                <dica-campo for="Form.PunchRuleExternalId" ajuda="empresas" />
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="Form.FeriasMotivoId" class="form-label"></label>
-                                <input asp-for="Form.FeriasMotivoId" class="form-control" />
-                                <dica-campo for="Form.FeriasMotivoId" ajuda="empresas" />
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="Form.ModoEmpresa" class="form-label"></label>
-                                <select asp-for="Form.ModoEmpresa" class="form-select">
-                                    <option value="@ModosEmpresa.PorCnpj">Procurar a empresa pelo CNPJ da filial</option>
-                                    <option value="@ModosEmpresa.Nenhuma">Não enviar empresa (conta com uma só empresa)</option>
-                                </select>
-                                <dica-campo for="Form.ModoEmpresa" ajuda="empresas" />
-                            </div>
-                            <div class="col-12">
-                                <div class="form-check form-switch">
-                                    <input asp-for="Form.CriarEmpresasFaltantes" class="form-check-input" role="switch" />
-                                    <label asp-for="Form.CriarEmpresasFaltantes" class="form-check-label"></label>
-                                    <dica-campo for="Form.CriarEmpresasFaltantes" ajuda="empresas" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                @if (!somenteLeitura)
-                {
-                    <div class="card">
-                        <div class="card-body">
-                            <label asp-for="Form.Observacao" class="form-label"></label>
-                            <input asp-for="Form.Observacao" class="form-control" maxlength="500" />
-                            <span asp-validation-for="Form.Observacao" class="small text-danger"></span>
-                            <div class="mt-3">
-                                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar a empresa</button>
-                                <span class="small text-body-secondary ms-2">Cria uma versão nova da configuração; o serviço usa na próxima execução.</span>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </fieldset>
-        </form>
-    </div>
-
-    <div class="col-xl-5">
+    <fieldset disabled="@somenteLeitura">
         <div class="card mb-3">
-            <div class="card-header"><i class="bi bi-key"></i> Token do Sólides DP</div>
-            <div class="card-body small">
+            <div class="card-header">Integração desta empresa</div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input form="form-empresa" asp-for="Form.Habilitada" class="form-check-input" role="switch" />
+                    <input form="form-empresa" type="hidden" name="Form.Habilitada" value="false" />
+                    <label asp-for="Form.Habilitada" class="form-check-label"></label>
+                    <dica-campo for="Form.Habilitada" ajuda="empresas" />
+                </div>
+                <div class="form-check form-switch mb-3">
+                    <input form="form-empresa" asp-for="Form.DryRun" class="form-check-input" role="switch" />
+                    <input form="form-empresa" type="hidden" name="Form.DryRun" value="false" />
+                    <label asp-for="Form.DryRun" class="form-check-label"></label>
+                    <dica-campo for="Form.DryRun" ajuda="empresas" />
+                    <div class="small text-body-secondary">Ligada: nada é gravado no Sólides DP, só o relatório do que seria feito. Desligue só depois de conferir a simulação.</div>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Form.GoLiveDate" class="form-label"></label>
+                    <input form="form-empresa" type="date" name="Form.GoLiveDate" id="Form_GoLiveDate" class="form-control w-auto"
+                           value="@f.GoLiveDate?.ToString("yyyy-MM-dd")" />
+                    <dica-campo for="Form.GoLiveDate" ajuda="empresas" />
+                    <div class="form-text">Obrigatória para desligar a simulação. Desligamentos e férias anteriores a esta data não são enviados.</div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+
+    <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-key"></i> Token do Sólides DP</div>
+        <div class="card-body small">
+            @if (Model.TemToken)
+            {
+                <p class="mb-2 text-success"><i class="bi bi-key-fill"></i> Cadastrado por @Model.Token!.CriadoPor em @F.Data(Model.Token.CriadoEm).</p>
+            }
+            else
+            {
+                <p class="mb-2">Sem token: a empresa só pode simular.</p>
+            }
+            <p class="text-body-secondary">
+                O token é gerado no Sólides DP da empresa, em Empregador › Integrações. Ele é gravado cifrado e nunca é mostrado
+                de volta. Não mande o token por e-mail ou chat.
+            </p>
+            @if (Model.PodeEditar)
+            {
+                <form asp-action="Token" asp-route-id="@f.Cdempresa" method="post" class="mb-2" autocomplete="off">
+                    <label for="token" class="form-label">@(Model.TemToken ? "Trocar o token" : "Cadastrar o token")</label>
+                    <div class="input-group">
+                        <input type="password" name="token" id="token" class="form-control" autocomplete="new-password" required />
+                        <button type="submit" class="btn btn-primary">Gravar</button>
+                    </div>
+                </form>
                 @if (Model.TemToken)
                 {
-                    <p class="mb-2 text-success"><i class="bi bi-key-fill"></i> Cadastrado por @Model.Token!.CriadoPor em @F.Data(Model.Token.CriadoEm).</p>
-                }
-                else
-                {
-                    <p class="mb-2">Sem token: a empresa só pode simular.</p>
-                }
-                <p class="text-body-secondary">
-                    O token é gerado no Sólides DP da empresa, em Empregador › Integrações. Ele é gravado cifrado e nunca é mostrado
-                    de volta. Não mande o token por e-mail ou chat.
-                </p>
-                @if (Model.PodeEditar)
-                {
-                    <form asp-action="Token" asp-route-id="@f.Cdempresa" method="post" class="mb-2" autocomplete="off">
-                        <label for="token" class="form-label">@(Model.TemToken ? "Trocar o token" : "Cadastrar o token")</label>
-                        <div class="input-group">
-                            <input type="password" name="token" id="token" class="form-control" autocomplete="new-password" required />
-                            <button type="submit" class="btn btn-primary">Gravar</button>
-                        </div>
+                    <form asp-action="RemoverToken" asp-route-id="@f.Cdempresa" method="post"
+                          data-dialogo-titulo="Remover o token" data-dialogo-tipo="perigo"
+                          data-motivo="@($"A empresa {f.Cdempresa} deixa de enviar ao Sólides DP até um token novo ser cadastrado.")">
+                        <input type="hidden" name="motivo" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Remover o token</button>
                     </form>
-                    @if (Model.TemToken)
-                    {
-                        <form asp-action="RemoverToken" asp-route-id="@f.Cdempresa" method="post"
-                              data-dialogo-titulo="Remover o token" data-dialogo-tipo="perigo"
-                              data-motivo="@($"A empresa {f.Cdempresa} deixa de enviar ao Sólides DP até um token novo ser cadastrado.")">
-                            <input type="hidden" name="motivo" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Remover o token</button>
-                        </form>
-                    }
                 }
-            </div>
+            }
         </div>
+    </div>
 
-        <div class="card mb-3" id="empresa-ignorados">
-            <div class="card-header"><i class="bi bi-eye-slash"></i> Ignorados na conferência (só no Sólides DP)</div>
-            <div class="card-body small">
-                @{
-                    var vigentes = Model.Ignorados.Where(i => i.Vigente).ToList();
-                    var voltaram = Model.Ignorados.Where(i => !i.Vigente).ToList();
-                }
-                <p class="text-body-secondary mb-2">
-                    Pessoas ativas no Sólides DP que não estão (nem vão estar) na folha, marcadas como <strong>Ignorar</strong> na
-                    <a asp-controller="Conferencia" asp-action="Index">Conferência</a>. Não aparecem na conferência nem no relatório de
-                    vinculação. Se o CPF entrar na folha da empresa, sai daqui sozinho e segue as regras da integração.
-                </p>
-                @if (vigentes.Count == 0)
-                {
-                    <p class="mb-2">Ninguém ignorado.</p>
-                }
-                else
-                {
-                    <table class="table table-sm align-middle mb-2">
-                        <thead><tr><th>No Sólides DP</th><th>Ignorado por</th><th></th></tr></thead>
-                        <tbody>
-                            @foreach (var i in vigentes)
-                            {
-                                <tr data-ignorado="@i.Id">
-                                    <td>@(i.NomeDp ?? "sem nome")<div class="text-body-secondary">cadastro @i.CadastroDp · CPF @(i.CpfMascarado ?? "sem CPF no DP")</div></td>
-                                    <td>@i.IgnoradoPor<div class="text-body-secondary">@F.Data(i.IgnoradoEm)</div></td>
-                                    <td class="text-end">
-                                        @if (Model.PodeOperar)
-                                        {
-                                            <form asp-action="VoltarAValidar" asp-route-id="@f.Cdempresa" method="post"
-                                                  data-dialogo-titulo="Voltar a validar" data-dialogo-tipo="info"
-                                                  data-confirmar="@($"{i.NomeDp ?? "Esta pessoa"} volta a aparecer na conferência e no relatório de vinculação da empresa {f.Cdempresa}.")">
-                                                <input type="hidden" name="ignorado" value="@i.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Voltar a validar</button>
-                                            </form>
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                }
-                @if (voltaram.Count > 0)
-                {
-                    <details>
-                        <summary>Voltaram a ser validados (@voltaram.Count)</summary>
-                        <ul class="mb-0 mt-2">
-                            @foreach (var i in voltaram)
-                            {
-                                <li>@(i.NomeDp ?? "sem nome") (cadastro @i.CadastroDp): @F.Data(i.RemovidoEm), por @i.RemovidoPor<span class="text-body-secondary"> — @i.MotivoRemocao</span></li>
-                            }
-                        </ul>
-                    </details>
-                }
-            </div>
+    <div class="card mb-3" id="empresa-ignorados">
+        <div class="card-header"><i class="bi bi-eye-slash"></i> Ignorados na conferência (só no Sólides DP)</div>
+        <div class="card-body small">
+            @{
+                var vigentes = Model.Ignorados.Where(i => i.Vigente).ToList();
+                var voltaram = Model.Ignorados.Where(i => !i.Vigente).ToList();
+            }
+            <p class="text-body-secondary mb-2">
+                Pessoas ativas no Sólides DP que não estão (nem vão estar) na folha, marcadas como <strong>Ignorar</strong> na
+                <a asp-controller="Conferencia" asp-action="Index">Conferência</a>. Não aparecem na conferência nem no relatório de
+                vinculação. Se o CPF entrar na folha da empresa, sai daqui sozinho e segue as regras da integração.
+            </p>
+            @if (vigentes.Count == 0)
+            {
+                <p class="mb-2">Ninguém ignorado.</p>
+            }
+            else
+            {
+                <table class="table table-sm align-middle mb-2">
+                    <thead><tr><th>No Sólides DP</th><th>Ignorado por</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var i in vigentes)
+                        {
+                            <tr data-ignorado="@i.Id">
+                                <td>@(i.NomeDp ?? "sem nome")<div class="text-body-secondary">cadastro @i.CadastroDp · CPF @(i.CpfMascarado ?? "sem CPF no DP")</div></td>
+                                <td>@i.IgnoradoPor<div class="text-body-secondary">@F.Data(i.IgnoradoEm)</div></td>
+                                <td class="text-end">
+                                    @if (Model.PodeOperar)
+                                    {
+                                        <form asp-action="VoltarAValidar" asp-route-id="@f.Cdempresa" method="post"
+                                              data-dialogo-titulo="Voltar a validar" data-dialogo-tipo="info"
+                                              data-confirmar="@($"{i.NomeDp ?? "Esta pessoa"} volta a aparecer na conferência e no relatório de vinculação da empresa {f.Cdempresa}.")">
+                                            <input type="hidden" name="ignorado" value="@i.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Voltar a validar</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            @if (voltaram.Count > 0)
+            {
+                <details>
+                    <summary>Voltaram a ser validados (@voltaram.Count)</summary>
+                    <ul class="mb-0 mt-2">
+                        @foreach (var i in voltaram)
+                        {
+                            <li>@(i.NomeDp ?? "sem nome") (cadastro @i.CadastroDp): @F.Data(i.RemovidoEm), por @i.RemovidoPor<span class="text-body-secondary"> — @i.MotivoRemocao</span></li>
+                        }
+                    </ul>
+                </details>
+            }
         </div>
+    </div>
 
-        @if (Model.PodeOperar)
-        {
-            <div class="card">
-                <div class="card-header"><i class="bi bi-terminal"></i> Pedidos ao serviço só desta empresa</div>
-                <div class="card-body d-grid gap-2">
-                    @foreach (var (tipo, descricao) in new[]
+    <fieldset disabled="@somenteLeitura">
+        <div class="card mb-3">
+            <div class="card-header">Filiais</div>
+            <div class="card-body">
+                <p class="small mb-2">@Html.DisplayNameFor(m => m.Form.Filiais)</p>
+                @if (Model.FiliaisDisponiveis.Count == 0)
+                {
+                    <div class="small text-danger">A empresa não tem filial ativa no RHSenso (<code>test1.flativofilial = 1</code>).</div>
+                }
+                <div class="row g-1">
+                    @foreach (var filial in Model.FiliaisDisponiveis)
                     {
-                        (CommandTypes.CheckConfig, "Testar o token e conferir a configuração da empresa."),
-                        (CommandTypes.Discover, "Listar escalas, regras de ponto e motivos desta conta do Sólides DP."),
-                        (CommandTypes.DryRun, "Simular: mostra quem seria vinculado pelo CPF, criado ou atualizado. Nada é gravado no Sólides DP."),
-                        (CommandTypes.Run, "Executar agora com a configuração em vigor (real ou simulação)."),
-                        (CommandTypes.Reconcile, "Conferir se os colaboradores vinculados ainda existem no Sólides DP."),
-                    })
-                    {
-                        <form asp-action="Solicitar" asp-route-id="@f.Cdempresa" method="post" class="d-flex gap-2 align-items-start"
-                              data-dialogo-titulo="@($"Executar a empresa {f.Cdempresa}")" data-dialogo-tipo="@(f.DryRun ? "info" : "perigo")"
-                              data-confirmar="@(tipo != CommandTypes.Run ? "" : f.DryRun
-                                  ? $"A empresa {f.Cdempresa} está em SIMULAÇÃO: o serviço só simula, nada é gravado no Sólides DP."
-                                  : $"A empresa {f.Cdempresa} está com ENVIO REAL: os dados vão para o Sólides DP agora.")">
-                            <input type="hidden" name="tipo" value="@tipo" />
-                            <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary") text-nowrap">@Rotulos.Comando(tipo)</button>
-                            <span class="small text-body-secondary">@descricao</span>
-                        </form>
+                        var id = $"filial-{filial.Cdfilial}";
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input form="form-empresa" class="form-check-input" type="checkbox" name="Form.Filiais" value="@filial.Cdfilial" id="@id"
+                                       checked="@f.Filiais.Contains(filial.Cdfilial)" />
+                                <label class="form-check-label small" for="@id">
+                                    <strong>@filial.Cdfilial</strong> @filial.Nome
+                                    @if (!string.IsNullOrWhiteSpace(filial.Cnpj))
+                                    {
+                                        <span class="text-body-secondary">(@filial.Cnpj)</span>
+                                    }
+                                </label>
+                            </div>
+                        </div>
                     }
                 </div>
+                <dica-campo for="Form.Filiais" ajuda="empresas" />
             </div>
-        }
-    </div>
+        </div>
+    </fieldset>
+
+    <fieldset disabled="@somenteLeitura">
+        <div class="card mb-3">
+            <div class="card-header">Piloto</div>
+            <div class="card-body">
+                <label asp-for="Form.Piloto" class="form-label"></label>
+                <textarea form="form-empresa" asp-for="Form.Piloto" class="form-control font-monospace" rows="4" placeholder="15-00007811"></textarea>
+                <span asp-validation-for="Form.Piloto" class="small text-danger"></span>
+                <dica-campo for="Form.Piloto" ajuda="empresas" />
+                @if (!string.IsNullOrWhiteSpace(f.Piloto))
+                {
+                    <div class="small text-warning-emphasis mt-1"><i class="bi bi-funnel"></i> Piloto ativo: as demais pessoas desta empresa ficam de fora.</div>
+                }
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset disabled="@somenteLeitura">
+        <div class="card mb-3">
+            <div class="card-header">Conta do Sólides DP desta empresa</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="Form.WorkScheduleExternalId" class="form-label"></label>
+                        <input form="form-empresa" asp-for="Form.WorkScheduleExternalId" class="form-control" />
+                        <dica-campo for="Form.WorkScheduleExternalId" ajuda="empresas" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Form.PunchRuleExternalId" class="form-label"></label>
+                        <input form="form-empresa" asp-for="Form.PunchRuleExternalId" class="form-control" />
+                        <dica-campo for="Form.PunchRuleExternalId" ajuda="empresas" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Form.FeriasMotivoId" class="form-label"></label>
+                        <input form="form-empresa" asp-for="Form.FeriasMotivoId" class="form-control" />
+                        <dica-campo for="Form.FeriasMotivoId" ajuda="empresas" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Form.ModoEmpresa" class="form-label"></label>
+                        <select form="form-empresa" asp-for="Form.ModoEmpresa" class="form-select">
+                            <option value="@ModosEmpresa.PorCnpj">Procurar a empresa pelo CNPJ da filial</option>
+                            <option value="@ModosEmpresa.Nenhuma">Não enviar empresa (conta com uma só empresa)</option>
+                        </select>
+                        <dica-campo for="Form.ModoEmpresa" ajuda="empresas" />
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input form="form-empresa" asp-for="Form.CriarEmpresasFaltantes" class="form-check-input" role="switch" />
+                            <input form="form-empresa" type="hidden" name="Form.CriarEmpresasFaltantes" value="false" />
+                            <label asp-for="Form.CriarEmpresasFaltantes" class="form-check-label"></label>
+                            <dica-campo for="Form.CriarEmpresasFaltantes" ajuda="empresas" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+
+    @if (!somenteLeitura)
+    {
+        @* Os campos dos quadros acima pertencem a este formulário (atributo form): assim o token e os ignorados, que têm
+           formulários próprios, ficam entre eles na ordem de importância. Cada caixa de marcar tem o seu "false" escondido
+           logo depois: marcada, vale o primeiro valor enviado (true). *@
+        <form asp-action="Salvar" method="post" id="form-empresa" novalidate class="barra-salvar rounded-top p-3 mb-3">
+            <input type="hidden" name="Form.Cdempresa" value="@f.Cdempresa" />
+            <div class="d-flex flex-wrap align-items-end gap-2">
+                <div class="flex-grow-1" style="min-width: 16rem">
+                    <label asp-for="Form.Observacao" class="form-label small mb-1"></label>
+                    <input asp-for="Form.Observacao" class="form-control form-control-sm" maxlength="500" />
+                    <span asp-validation-for="Form.Observacao" class="small text-danger"></span>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar a empresa</button>
+            </div>
+            <div class="small text-body-secondary mt-1">Salva integração, filiais, piloto e conta do Sólides DP numa versão nova da configuração; o serviço usa na próxima execução. Token e ignorados têm botões próprios.</div>
+        </form>
+    }
+
+    @if (Model.PodeOperar)
+    {
+        <div class="card">
+            <div class="card-header"><i class="bi bi-terminal"></i> Pedidos ao serviço só desta empresa</div>
+            <div class="card-body d-grid gap-2">
+                @foreach (var (tipo, descricao) in new[]
+                {
+                    (CommandTypes.CheckConfig, "Testar o token e conferir a configuração da empresa."),
+                    (CommandTypes.Discover, "Listar escalas, regras de ponto e motivos desta conta do Sólides DP."),
+                    (CommandTypes.DryRun, "Simular: mostra quem seria vinculado pelo CPF, criado ou atualizado. Nada é gravado no Sólides DP."),
+                    (CommandTypes.Run, "Executar agora com a configuração em vigor (real ou simulação)."),
+                    (CommandTypes.Reconcile, "Conferir se os colaboradores vinculados ainda existem no Sólides DP."),
+                })
+                {
+                    <form asp-action="Solicitar" asp-route-id="@f.Cdempresa" method="post" class="d-flex gap-2 align-items-start"
+                          data-dialogo-titulo="@($"Executar a empresa {f.Cdempresa}")" data-dialogo-tipo="@(f.DryRun ? "info" : "perigo")"
+                          data-confirmar="@(tipo != CommandTypes.Run ? "" : f.DryRun
+                              ? $"A empresa {f.Cdempresa} está em SIMULAÇÃO: o serviço só simula, nada é gravado no Sólides DP."
+                              : $"A empresa {f.Cdempresa} está com ENVIO REAL: os dados vão para o Sólides DP agora.")">
+                        <input type="hidden" name="tipo" value="@tipo" />
+                        <button type="submit" class="btn btn-sm @(tipo == CommandTypes.Run ? "btn-primary" : "btn-outline-primary") text-nowrap">@Rotulos.Comando(tipo)</button>
+                        <span class="small text-body-secondary">@descricao</span>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+
 </div>
