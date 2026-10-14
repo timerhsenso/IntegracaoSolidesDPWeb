@@ -6,14 +6,19 @@ Escreva para quem usa: o que mudou na tela e no comportamento, não o código.
 
 ## 1.0.5 — 14/10/2026
 
+### Novidades
+- Agenda das execuções pela Web (Regras gerais): a cada N minutos ou em horários fixos, e os dias da semana, para todas
+  as empresas. O serviço segue a agenda nova sem reiniciar. "Como no arquivo do serviço" mantém o appsettings.json.
+
 ### Correções
-- Conferência DP x RHSenso: CTPS, série, telefone, cargo e local apareciam como "vazio" no Sólides DP mesmo
-  estando preenchidos lá. A lista de colaboradores da API do Sólides vem resumida; a conferência agora lê o
-  cadastro completo de cada colaborador vinculado. O local passa a ser lido de onde a API realmente o devolve.
+- Conferência DP x RHSenso: CTPS, série, telefone, cargo e local apareciam como "vazio" no Sólides DP mesmo estando
+  preenchidos lá. A lista de colaboradores da API vem resumida; a conferência agora lê o cadastro completo de cada
+  colaborador vinculado, e o local é lido de onde a API realmente o devolve.
 
 ### Segurança
 - Pacotes do .NET atualizados para a 10.0.13 (correções da Microsoft de 13/10/2026), incluindo
   System.Security.Cryptography.Pkcs e System.Security.Cryptography.Xml.
+
 
 ## 1.0.4 — 12/10/2026
 
