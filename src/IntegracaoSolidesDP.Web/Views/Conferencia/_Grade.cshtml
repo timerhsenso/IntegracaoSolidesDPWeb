@@ -1,5 +1,7 @@
 @model long
-@* Grade das divergências de uma conferência (Conferencia/Detalhe). As linhas vêm de Conferencia/Linhas (JSON). *@
+@* Grade das divergências de uma conferência (Conferencia/Detalhe). As linhas vêm de Conferencia/Linhas (JSON).
+   Cada pessoa tem uma chave (a matrícula, ou "dp-{cadastro}" para quem está só no Sólides DP): as marcadas com matrícula
+   vão para Reenviar; as "Só no Sólides DP", para Ignorar. *@
 @{
     var podeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin);
 }
@@ -30,10 +32,10 @@
             order: [[1, 'asc']],
             columns: [
                 {
-                    data: 'rotulo', orderable: false, searchable: false, visible: podeOperar,
-                    render: (v, tipo) => tipo === 'display'
-                        ? `<input type="checkbox" class="form-check-input" data-rotulo="${app.esc(v)}" ${marcados.has(v) ? 'checked' : ''} aria-label="Marcar ${app.esc(v)}">`
-                        : v
+                    data: 'chave', orderable: false, searchable: false, visible: podeOperar,
+                    render: (v, tipo, r) => tipo !== 'display' ? v : r.ignorado
+                        ? '<i class="bi bi-eye-slash text-body-secondary" title="Ignorado depois desta conferência"></i>'
+                        : `<input type="checkbox" class="form-check-input" data-chave="${app.esc(v)}" ${marcados.has(v) ? 'checked' : ''} aria-label="Marcar ${app.esc(r.nome || v)}">`
                 },
                 { data: 'rotulo', render: v => app.esc(v) },
                 {
@@ -43,7 +45,12 @@
                         : (v || '')
                 },
                 { data: 'cpf', render: v => app.esc(v || '') },
-                { data: 'campo', render: (v, tipo) => tipo === 'display' ? `<span class="badge text-bg-warning">${app.esc(v)}</span>` : v },
+                {
+                    data: 'campo',
+                    render: (v, tipo, r) => tipo !== 'display' ? v
+                        : `<span class="badge ${r.soNoDp ? 'text-bg-info' : 'text-bg-warning'}">${app.esc(v)}</span>` +
+                          (r.ignorado ? ' <span class="badge text-bg-secondary">ignorado</span>' : '')
+                },
                 { data: 'rhSenso', render: (v, tipo) => tipo === 'display' ? (v ? app.esc(v) : nada) : (v || '') },
                 { data: 'dp', render: (v, tipo) => tipo === 'display' ? (v ? app.esc(v) : nada) : (v || '') }
             ]
@@ -51,17 +58,26 @@
 
         // Marcar uma linha marca a pessoa (todas as linhas dela).
         document.getElementById('conferencia-grade').addEventListener('change', ev => {
-            const caixa = ev.target.closest('input[data-rotulo]');
+            const caixa = ev.target.closest('input[data-chave]');
             if (!caixa) return;
-            if (caixa.checked) marcados.add(caixa.dataset.rotulo); else marcados.delete(caixa.dataset.rotulo);
+            if (caixa.checked) marcados.add(caixa.dataset.chave); else marcados.delete(caixa.dataset.chave);
             grade.rows().invalidate('data').draw(false);
         });
-        const form = document.getElementById('conferencia-reenviar');
-        form.addEventListener('submit', () => {
+        const soNoDp = new Set(linhas.filter(l => l.soNoDp).map(l => l.chave));
+        document.getElementById('conferencia-reenviar').addEventListener('submit', () => {
             const destino = document.getElementById('conferencia-marcados');
             if (!destino) return;
-            destino.innerHTML = [...marcados].map(r => `<input type="hidden" name="rotulos" value="${app.esc(r)}">`).join('');
+            destino.innerHTML = [...marcados].filter(c => !soNoDp.has(c))
+                .map(r => `<input type="hidden" name="rotulos" value="${app.esc(r)}">`).join('');
         }, true);
+        const ignorar = document.getElementById('conferencia-ignorar');
+        if (ignorar && linhas.some(l => l.soNoDp && !l.ignorado)) {
+            ignorar.classList.remove('d-none');
+            ignorar.addEventListener('submit', () => {
+                document.getElementById('conferencia-ignorar-marcados').innerHTML = [...marcados].filter(c => soNoDp.has(c))
+                    .map(c => `<input type="hidden" name="cadastros" value="${app.esc(c.slice(3))}">`).join('');
+            }, true);
+        }
 
         const contagem = {};
         linhas.forEach(l => { contagem[l.campo] = (contagem[l.campo] || 0) + 1; });

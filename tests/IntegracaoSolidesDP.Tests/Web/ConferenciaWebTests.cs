@@ -3,11 +3,12 @@ using IntegracaoSolidesDP.Tests.Sql;
 using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Identity;
 using IntegracaoSolidesDP.Worker.Management;
+using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.State;
 
 namespace IntegracaoSolidesDP.Tests.Web;
 
-/// <summary>Tela Conferência: lista, detalhe sem o CPF completo, aviso no Painel e "Reenviar do RHSenso".</summary>
+/// <summary>Tela Conferência: lista, detalhe sem o CPF completo, aviso no Painel, "Reenviar do RHSenso" e "Ignorar".</summary>
 [Collection(SqlServerCollection.Name)]
 public sealed class ConferenciaWebTests(SqlServerFixture db) : IAsyncLifetime
 {
@@ -61,26 +62,77 @@ public sealed class ConferenciaWebTests(SqlServerFixture db) : IAsyncLifetime
         (await _state.LoadEntityStatesAsync(15, EntityTypes.Employee, Ct))[TestData.Cpf1].PayloadHash.Should().NotBeNull();
     }
 
-    private async Task<long> SemearAsync()
+    [Fact]
+    public async Task Operator_ignores_who_is_only_in_dp_and_brings_them_back_on_the_companies_screen()
+    {
+        await new RhuSeed(db).FilialAsync(empresa: 15, filial: 1, nome: "ADN PROJETOS");
+        await new SqlManagementStore(db.Connections, TimeProvider.System).SeedConfigurationAsync("default", SyncOptionsJson.Serialize(new SyncOptions()), Ct);
+        var id = await SemearAsync(comSoNoDp: true);
+        var login = await _web.CriarUsuarioAsync(Perfis.Operador);
+        var client = await _web.EntrarAsync(login);
+
+        (await client.GetStringAsync($"/Conferencia/Linhas/{id}", Ct)).Should().Contain("\"chave\":\"dp-5538323\",\"soNoDp\":true,\"ignorado\":false");
+        var resposta = await WebHarness.PostFormAsync(client, $"/Conferencia/Detalhe/{id}", $"/Conferencia/Ignorar/{id}",
+            new() { ["cadastros"] = "5538323" });
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        var ignorado = (await db.QueryAsync<(long Id, string Cpf, long Cadastro, string Por)>(
+            "SELECT id, cpf, tangerino_id, ignorado_por FROM solidesdp.colaborador_ignorado WHERE removido_em IS NULL")).Should().ContainSingle().Subject;
+        ignorado.Should().Be((ignorado.Id, TestData.Cpf3, 5538323L, login));
+        (await client.GetStringAsync($"/Conferencia/Linhas/{id}", Ct)).Should().Contain("\"ignorado\":true");
+        (await client.GetStringAsync("/Empresas/Editar/15", Ct)).Should().Contain($"data-ignorado=\"{ignorado.Id}\"");
+
+        var voltar = await WebHarness.PostFormAsync(client, "/Empresas/Editar/15", "/Empresas/VoltarAValidar/15",
+            new() { ["ignorado"] = ignorado.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+
+        voltar.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        (await db.QueryAsync<string>("SELECT removido_por FROM solidesdp.colaborador_ignorado")).Should().Equal(login);
+        (await db.QueryAsync<string>("SELECT acao FROM solidesdp.auditoria WHERE usuario = @login", new { login }))
+            .Should().Contain(AcoesAuditoria.IgnoradoIncluido).And.Contain(AcoesAuditoria.IgnoradoRemovido);
+    }
+
+    [Fact]
+    public async Task Consulta_profile_cannot_ignore()
+    {
+        var id = await SemearAsync(comSoNoDp: true);
+        var client = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Consulta));
+
+        var resposta = await WebHarness.PostFormAsync(client, $"/Conferencia/Detalhe/{id}", $"/Conferencia/Ignorar/{id}", new() { ["cadastros"] = "5538323" });
+
+        resposta.Headers.Location!.ToString().Should().Contain("/Conta/AcessoNegado");
+        (await db.QueryAsync<int>("SELECT COUNT(*) FROM solidesdp.colaborador_ignorado")).Should().Equal(0);
+    }
+
+    private async Task<long> SemearAsync(bool comSoNoDp = false)
     {
         await _state.UpsertEntityStateAsync(15, new EntityState
         {
             EntityType = EntityTypes.Employee, ExternalId = TestData.Cpf1, RemoteId = 9, PayloadHash = new string('a', 64),
             Status = EntityStatuses.Synced, Matricula = "00000001", Cdfilial = 1,
         }, Ct);
+        var linhas = new List<DivergenciaCampo>
+        {
+            new()
+            {
+                Rotulo = "15-00000001", Nome = "MARIA SOUZA", Cpf = TestData.Cpf1, CpfMascarado = "123.***.***-09", CadastroDp = 9,
+                Campo = CamposConferencia.Nome, RhSenso = "MARIA SOUZA", Dp = "MARIA",
+            },
+        };
+        if (comSoNoDp)
+        {
+            linhas.Add(new DivergenciaCampo
+            {
+                Rotulo = string.Empty, Nome = "CLEBER COORDENADOR", Cpf = TestData.Cpf3, CpfMascarado = "390.***.***-05",
+                CadastroDp = 5538323, Campo = CamposConferencia.SoNoDp, RhSenso = "CPF não existe no RHSenso", Dp = "ativo · COORDENADOR",
+            });
+        }
+
         var agora = DateTimeOffset.UtcNow;
         return await new SqlConferenciaStore(db.Connections).SalvarAsync(new Conferencia
         {
             Instancia = "default", Cdempresa = 15, IniciadaEm = agora, ConcluidaEm = agora, Gatilho = GatilhosConferencia.Agendada,
-            Conferidos = 1, Pessoas = 1, Divergencias = 1,
-            Linhas =
-            [
-                new DivergenciaCampo
-                {
-                    Rotulo = "15-00000001", Nome = "MARIA SOUZA", Cpf = TestData.Cpf1, CpfMascarado = "123.***.***-09", CadastroDp = 9,
-                    Campo = CamposConferencia.Nome, RhSenso = "MARIA SOUZA", Dp = "MARIA",
-                },
-            ],
+            Conferidos = 1, Pessoas = linhas.Count, Divergencias = linhas.Count,
+            Linhas = linhas,
         }, Ct);
     }
 }

@@ -203,6 +203,63 @@
             </div>
         </div>
 
+        <div class="card mb-3" id="empresa-ignorados">
+            <div class="card-header"><i class="bi bi-eye-slash"></i> Ignorados na conferência (só no Sólides DP)</div>
+            <div class="card-body small">
+                @{
+                    var vigentes = Model.Ignorados.Where(i => i.Vigente).ToList();
+                    var voltaram = Model.Ignorados.Where(i => !i.Vigente).ToList();
+                }
+                <p class="text-body-secondary mb-2">
+                    Pessoas ativas no Sólides DP que não estão (nem vão estar) na folha, marcadas como <strong>Ignorar</strong> na
+                    <a asp-controller="Conferencia" asp-action="Index">Conferência</a>. Não aparecem na conferência nem no relatório de
+                    vinculação. Se o CPF entrar na folha da empresa, sai daqui sozinho e segue as regras da integração.
+                </p>
+                @if (vigentes.Count == 0)
+                {
+                    <p class="mb-2">Ninguém ignorado.</p>
+                }
+                else
+                {
+                    <table class="table table-sm align-middle mb-2">
+                        <thead><tr><th>No Sólides DP</th><th>Ignorado por</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var i in vigentes)
+                            {
+                                <tr data-ignorado="@i.Id">
+                                    <td>@(i.NomeDp ?? "sem nome")<div class="text-body-secondary">cadastro @i.CadastroDp · CPF @(i.CpfMascarado ?? "sem CPF no DP")</div></td>
+                                    <td>@i.IgnoradoPor<div class="text-body-secondary">@F.Data(i.IgnoradoEm)</div></td>
+                                    <td class="text-end">
+                                        @if (Model.PodeOperar)
+                                        {
+                                            <form asp-action="VoltarAValidar" asp-route-id="@f.Cdempresa" method="post"
+                                                  data-dialogo-titulo="Voltar a validar" data-dialogo-tipo="info"
+                                                  data-confirmar="@($"{i.NomeDp ?? "Esta pessoa"} volta a aparecer na conferência e no relatório de vinculação da empresa {f.Cdempresa}.")">
+                                                <input type="hidden" name="ignorado" value="@i.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Voltar a validar</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                @if (voltaram.Count > 0)
+                {
+                    <details>
+                        <summary>Voltaram a ser validados (@voltaram.Count)</summary>
+                        <ul class="mb-0 mt-2">
+                            @foreach (var i in voltaram)
+                            {
+                                <li>@(i.NomeDp ?? "sem nome") (cadastro @i.CadastroDp): @F.Data(i.RemovidoEm), por @i.RemovidoPor<span class="text-body-secondary"> — @i.MotivoRemocao</span></li>
+                            }
+                        </ul>
+                    </details>
+                }
+            </div>
+        </div>
+
         @if (Model.PodeOperar)
         {
             <div class="card">

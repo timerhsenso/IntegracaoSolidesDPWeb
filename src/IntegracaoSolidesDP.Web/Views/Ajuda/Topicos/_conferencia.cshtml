@@ -33,6 +33,30 @@
     <dt>Situação: desligado no DP</dt>
     <dd>A pessoa está ativa no RHSenso mas desligada no Sólides DP: readmita no DP ou confira a demissão no RHSenso.</dd>
 </dl>
+<h4>Só no Sólides DP</h4>
+<p>
+    A conferência também lista quem está <strong>ativo no Sólides DP sem colaborador ativo no RHSenso</strong> com o mesmo CPF,
+    com o que o RHSenso diz do CPF (não existe, desligado em tal data, estagiário fora dos tipos da integração...). A integração
+    não mexe nesses cadastros: só desliga quem ela mesma vinculou. Com o <strong>piloto</strong> preenchido esta parte não aparece,
+    porque fora do piloto todo mundo pareceria "só no Sólides DP".
+</p>
+<dl class="ajuda-def">
+    <dt>Deve sair do ponto</dt>
+    <dd>Desligue a pessoa no Sólides DP.</dd>
+    <dt>Está certo assim (ex.: coordenador contratado direto no DP, que nunca vai para a folha)</dt>
+    <dd>
+        Marque a pessoa e use <strong>Ignorar os marcados</strong>. Ela deixa de ser validada nesta empresa: some das próximas
+        conferências e do relatório de vinculação da simulação. Nada muda no Sólides DP (fica na auditoria como
+        <code>IGNORADO_INCLUIDO</code>). A lista fica na tela <a asp-controller="Ajuda" asp-action="Index" asp-fragment="empresas">Empresas</a>,
+        com o botão <strong>Voltar a validar</strong>.
+    </dd>
+    <dt>A pessoa ignorada entrou na folha</dt>
+    <dd>
+        Quando o CPF aparece <strong>ativo na folha da empresa</strong> (qualquer tipo de colaborador ou filial), a integração tira a
+        pessoa da lista sozinha (aviso <code>ignorado_voltou</code> na execução) e ela passa a seguir as regras normais: se for de um
+        tipo que a integração não leva, como estagiário fora dos tipos, ela não é enviada e volta a aparecer aqui com esse motivo.
+    </dd>
+</dl>
 <p>
     Na conferência semanal com diferenças, quem recebe o <strong>resumo diário</strong> daquela empresa (tela Notificações) recebe
     um e-mail com a lista. As conferências antigas são apagadas pela limpeza do histórico (a última de cada empresa fica).

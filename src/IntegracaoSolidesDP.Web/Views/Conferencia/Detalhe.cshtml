@@ -36,7 +36,8 @@ else
                 @if (podeOperar)
                 {
                     <span>Marque quem deve ficar como está no RHSenso e use <strong>Reenviar do RHSenso</strong>: a próxima execução da empresa reenvia o cadastro inteiro.
-                    Se a correta é a informação do Sólides DP, corrija o RHSenso.</span>
+                    Se a correta é a informação do Sólides DP, corrija o RHSenso.
+                    Quem está <strong>Só no Sólides DP</strong> e não vai para a folha (ex.: contratado direto no DP) pode ser marcado e <strong>Ignorado</strong>.</span>
                 }
             </p>
             <div id="conferencia-resumo" class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filtrar por campo"></div>
@@ -54,6 +55,15 @@ else
                     <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-arrow-repeat"></i> Reenviar do RHSenso os marcados</button>
                 }
             </form>
+            @if (podeOperar)
+            {
+                <form asp-action="Ignorar" asp-route-id="@Model.Id" method="post" id="conferencia-ignorar" class="mt-2 d-none"
+                      data-dialogo-titulo="Ignorar quem está só no Sólides DP" data-dialogo-tipo="aviso"
+                      data-confirmar="@($"As pessoas \"Só no Sólides DP\" marcadas passam a ser ignoradas na empresa {Model.Cdempresa}: não serão mais validadas pela integração (somem da conferência e do relatório de vinculação). Nada é alterado no Sólides DP. Se a pessoa entrar na folha da empresa, ela sai da lista sozinha. A lista fica na tela Empresas, onde dá para voltar a validar.")">
+                    <div id="conferencia-ignorar-marcados"></div>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye-slash"></i> Ignorar os marcados (só no Sólides DP)</button>
+                </form>
+            }
         </div>
     </div>
     <partial name="_Grade" model="Model.Id" />

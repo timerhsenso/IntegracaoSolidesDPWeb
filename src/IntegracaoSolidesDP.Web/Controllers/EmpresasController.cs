@@ -16,7 +16,9 @@ namespace IntegracaoSolidesDP.Web.Controllers;
 public sealed class EmpresasController(
     EmpresasRepository empresas,
     PainelRepository painel,
-    GestaoService gestao) : Controller
+    GestaoService gestao,
+    IIgnoradoStore ignorados,
+    Auditoria auditoria) : Controller
 {
     private const int TamanhoMotivo = 500;
 
@@ -151,6 +153,28 @@ public sealed class EmpresasController(
         return RedirectToAction(nameof(Editar), new { id });
     }
 
+    /// <summary>
+    /// Tira da lista de ignorados quem foi ignorado na conferência ("Só no Sólides DP"): a pessoa volta a aparecer na
+    /// conferência e no relatório de vinculação. Nada muda no Sólides DP.
+    /// </summary>
+    [HttpPost]
+    [Authorize(Policy = Politicas.Operar)]
+    public async Task<IActionResult> VoltarAValidar(int id, long ignorado)
+    {
+        var ct = HttpContext.RequestAborted;
+        var pessoa = (await ignorados.VigentesAsync(id, ct)).FirstOrDefault(i => i.Id == ignorado);
+        if (pessoa is null || !await ignorados.RemoverAsync(id, ignorado, HttpContext.Usuario(), "voltou a validar na tela Empresas", ct))
+        {
+            TempData["Erro"] = "Esta pessoa já não estava ignorada.";
+            return RedirectToAction(nameof(Editar), new { id });
+        }
+
+        await auditoria.RegistrarAsync(AcoesAuditoria.IgnoradoRemovido, FormattableString.Invariant(
+            $"empresa {id}: {pessoa.NomeDp} (cadastro {pessoa.CadastroDp} no DP) voltou a ser validado"), ct: ct);
+        TempData["Sucesso"] = $"{pessoa.NomeDp ?? "A pessoa"} voltou a ser validada: aparece de novo na próxima conferência e na próxima simulação.";
+        return RedirectToAction(nameof(Editar), new { id });
+    }
+
     /// <summary>Pedido ao serviço só desta empresa (simular, executar, testar o token, consultar o Sólides DP...).</summary>
     [HttpPost]
     [Authorize(Policy = Politicas.Operar)]
@@ -188,6 +212,7 @@ public sealed class EmpresasController(
             Token = tokens.GetValueOrDefault(id),
             Vinculos = (await empresas.VinculosAsync(ct)).GetValueOrDefault(id),
             UltimaExecucao = await painel.UltimaExecucaoAsync(somenteReal: false, ct, id),
+            Ignorados = await ignorados.HistoricoAsync(id, 200, ct),
             IntegracaoDesativada = atual is { Active: false },
             PodeEditar = User.IsInRole(Perfis.Admin),
             PodeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin),

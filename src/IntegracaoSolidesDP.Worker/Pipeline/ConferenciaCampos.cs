@@ -14,7 +14,8 @@ namespace IntegracaoSolidesDP.Worker.Pipeline;
 /// está no Sólides DP. O find-all (uma leitura por empresa) diz quem existe e quem está desligado; os campos vêm do
 /// employee/find de cada colaborador, porque o find-all da API real não traz CTPS, série, telefone, código do cargo nem
 /// local. Não grava nada no DP: as divergências vão para solidesdp.conferencia e a Web oferece "Reenviar do RHSenso".
-/// O que é do DP por regra não é comparado: vigência, escala, regra de ponto e Código Externo.
+/// O que é do DP por regra não é comparado: vigência, escala, regra de ponto e Código Externo. Também lista quem está
+/// ativo no DP sem colaborador no RHSenso ("Só no Sólides DP"), menos os que o RH mandou ignorar (<see cref="ColaboradoresIgnorados"/>).
 /// </summary>
 public sealed class ConferenciaCampos(
     ISourceReader source,
@@ -25,6 +26,7 @@ public sealed class ConferenciaCampos(
     SolidesDpAccount account,
     ISolidesDpClient api,
     EmployeeMapper mapper,
+    ColaboradoresIgnorados ignorados,
     Notificador notificador,
     EpochDates dates,
     TimeProvider clock,
@@ -221,6 +223,12 @@ public sealed class ConferenciaCampos(
             linhas.AddRange(Comparar(payload, dp, dates, empresasPorId).Select(d => Linha(d.Campo, d.RhSenso, d.Dp)));
         }
 
+        // Quem está ativo no DP sem colaborador no RHSenso. Com piloto não se aplica: fora dele todo mundo pareceria "só no DP".
+        if (options.ExternalIdAllowList.Count == 0)
+        {
+            linhas.AddRange(await SoNoDpAsync(empresa.Cdempresa, options, plan, vinculos, ativos.Value, ct));
+        }
+
         if (naoLidos > 0 && conferidos == 0)
         {
             throw new SyncAbortedException(FormattableString.Invariant(
@@ -228,6 +236,52 @@ public sealed class ConferenciaCampos(
         }
 
         return (conferidos, linhas);
+    }
+
+    /// <summary>Linhas "Só no Sólides DP" da empresa, sem os ignorados (e tirando da lista quem apareceu na folha).</summary>
+    private async Task<IReadOnlyList<DivergenciaCampo>> SoNoDpAsync(
+        int cdempresa, SyncOptions options, EmployeePlan plan, IReadOnlyDictionary<string, EntityState> vinculos,
+        IReadOnlyList<EmployeeDto> ativosDp, CancellationToken ct)
+    {
+        var ignoradosDaEmpresa = await ignorados.CarregarAsync(cdempresa, options, ct);
+        var casos = (await SoNoDpAnalise.AnalisarAsync(
+                ativosDp.Where(e => e.Fired != true), plan, vinculos, options, cdempresa, dates.Today(clock), source, ct))
+            .Where(c => !ignoradosDaEmpresa.Contem(c.Dp.Id, c.Cpf))
+            .ToList();
+        if (casos.Count == 0)
+        {
+            return [];
+        }
+
+        // O find-all traz o cargo só com o id: completa com a lista de cargos da conta.
+        var cargos = new Dictionary<long, JobRoleDto>();
+        var lista = await api.FindAllJobRolesAsync(ct);
+        ReferenceResolver.ThrowIfUnauthorized(lista);
+        var todosCargos = lista.IsSuccess && lista.Value is not null ? lista.Value : Array.Empty<JobRoleDto>();
+        foreach (var cargo in todosCargos)
+        {
+            if (cargo.Id > 0)
+            {
+                cargos.TryAdd(cargo.Id, cargo);
+            }
+        }
+
+        return casos.Select(caso =>
+        {
+            var cargo = caso.Dp.JobRole is { Id: > 0 } j && cargos.TryGetValue(j.Id, out var completo) ? completo : caso.Dp.JobRole;
+            var cargoTexto = Rotular(cargo?.ExternalId, cargo?.Description);
+            return new DivergenciaCampo
+            {
+                Rotulo = caso.Saida?.Label ?? string.Empty,
+                Nome = caso.Dp.Name?.Trim(),
+                Cpf = caso.Cpf ?? FormattableString.Invariant($"dp-{caso.Dp.Id}"),
+                CpfMascarado = caso.Cpf is null ? "sem CPF no DP" : VinculacaoReport.MascararCpf(caso.Cpf),
+                CadastroDp = caso.Dp.Id,
+                Campo = CamposConferencia.SoNoDp,
+                RhSenso = caso.Motivo,
+                Dp = cargoTexto is null ? "ativo" : $"ativo · {cargoTexto}",
+            };
+        }).ToList();
     }
 
     /// <summary>

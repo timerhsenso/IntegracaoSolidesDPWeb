@@ -266,6 +266,23 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             );
             CREATE INDEX ix_solidesdp_conferencia_empresa ON solidesdp.conferencia (instance_name, cdempresa, iniciada_em DESC);
         END;
+
+        IF OBJECT_ID(N'solidesdp.colaborador_ignorado', N'U') IS NULL
+        BEGIN
+            CREATE TABLE solidesdp.colaborador_ignorado (
+                id             bigint IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_colaborador_ignorado PRIMARY KEY,
+                cdempresa      int               NOT NULL,
+                cpf            char(11)          NULL,
+                tangerino_id   bigint            NOT NULL,
+                nome_dp        nvarchar(200)     NULL,
+                ignorado_por   nvarchar(64)      NOT NULL,
+                ignorado_em    datetimeoffset(7) NOT NULL,
+                removido_em    datetimeoffset(7) NULL,
+                removido_por   nvarchar(64)      NULL,
+                motivo_remocao nvarchar(500)     NULL
+            );
+            CREATE INDEX ix_solidesdp_colaborador_ignorado_empresa ON solidesdp.colaborador_ignorado (cdempresa, removido_em);
+        END;
         """;
 
     private const int UniqueKeyViolation = 2627;
@@ -580,6 +597,11 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         ("conferencia", "gatilho", "agendada = a semanal (Sync:ConferenciaDiaSemana/ConferenciaHora); pedido = Conferir campos na Web."),
         ("conferencia", "pessoas", "Colaboradores com pelo menos um campo diferente."),
         ("conferencia", "linhas_json", "Uma linha por campo diferente: pessoa, campo, valor no RHSenso e no Sólides DP."),
+        ("colaborador_ignorado", null, "Cadastros ativos no Sólides DP sem colaborador no RHSenso que o RH mandou ignorar na conferência (por empresa). Nada é apagado: quem volta a ser validado ganha removido_em."),
+        ("colaborador_ignorado", "cpf", "CPF só com dígitos do cadastro no DP; nulo quando o DP não tem CPF válido (aí vale o tangerino_id)."),
+        ("colaborador_ignorado", "tangerino_id", "Id do cadastro no Sólides DP."),
+        ("colaborador_ignorado", "removido_em", "Quando voltou a ser validado: pela Web (Voltar a validar) ou pelo serviço, quando o CPF apareceu ativo na folha da empresa. Nulo = ignorado."),
+        ("colaborador_ignorado", "removido_por", "Login de quem voltou a validar, ou serviço (a pessoa apareceu na folha)."),
         ("servico_sinal", null, "Sinal de vida de cada serviço (instância e máquina): a Web avisa quando o último sinal fica velho (Sync:ServicoSemRespostaMinutos)."),
         ("servico_sinal", "ultimo_sinal", "Último sinal (a cada Gestao:IntervaloSinalDeVida, também durante as execuções)."),
         ("servico_sinal", "iniciado_em", "Quando o processo atual do serviço começou."),

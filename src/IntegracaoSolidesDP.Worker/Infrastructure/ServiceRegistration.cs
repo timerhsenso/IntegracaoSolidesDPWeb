@@ -61,6 +61,8 @@ public static class ServiceRegistration
         services.AddSingleton<IConferenciaStore, SqlConferenciaStore>();
         services.AddSingleton<ConferenciaAgendada>();
         services.AddScoped<ConferenciaCampos>();
+        services.AddSingleton<IIgnoradoStore, SqlIgnoradoStore>();
+        services.AddScoped<ColaboradoresIgnorados>();
         services.AddSingleton<ITokenProtector>(sp => new TokenProtector(new TokenProtectionOptions
         {
             ChaveBase64 = sp.GetRequiredService<IOptions<ManagementOptions>>().Value.ChaveTokens,

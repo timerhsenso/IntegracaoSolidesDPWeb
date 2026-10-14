@@ -85,6 +85,9 @@ public static class CamposConferencia
     public const string Cargo = "Cargo";
     public const string Local = "Local de trabalho";
     public const string Empresa = "Empresa";
+
+    /// <summary>Ativo no Sólides DP sem colaborador no RHSenso (não é um campo: a pessoa inteira). Pode ser ignorado.</summary>
+    public const string SoNoDp = "Só no Sólides DP";
 }
 
 /// <summary>Conferências DP x RHSenso (solidesdp.conferencia, criada pelo serviço no SqlManagementStore).</summary>

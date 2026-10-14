@@ -59,6 +59,9 @@ internal sealed class InMemoryPipeline : IAsyncDisposable
     /// <summary>Conferências DP x RHSenso gravadas.</summary>
     public MemoryConferenciaStore Conferencias { get; } = new();
 
+    /// <summary>Ignorados da conferência ("Só no Sólides DP").</summary>
+    public MemoryIgnoradoStore Ignorados { get; } = new();
+
     public Dictionary<string, string?> Settings { get; } = new()
     {
         ["SolidesDP:BaseUrl"] = "http://solidesdp-fake",
@@ -115,6 +118,7 @@ internal sealed class InMemoryPipeline : IAsyncDisposable
         services.AddSingleton<INotificacaoStore>(Notificacoes);
         services.AddSingleton<IEnviadorEmail>(Emails);
         services.AddSingleton<IConferenciaStore>(Conferencias);
+        services.AddSingleton<IIgnoradoStore>(Ignorados);
         services.AddSingleton<ITokenProtector>(new PlainTokens());
 
         foreach (var name in new[] { SolidesDpClient.RetryClientName, SolidesDpClient.NoRetryClientName })
@@ -313,6 +317,51 @@ internal sealed class MemoryConferenciaStore : IConferenciaStore
         }
 
         return Task.FromResult(cpfs.Count);
+    }
+}
+
+/// <summary>Ignorados em memória (o SQL tem testes próprios).</summary>
+internal sealed class MemoryIgnoradoStore : IIgnoradoStore
+{
+    public List<ColaboradorIgnorado> Todos { get; } = [];
+
+    public Task<IReadOnlyList<ColaboradorIgnorado>> VigentesAsync(int cdempresa, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<ColaboradorIgnorado>>(Todos.Where(i => i.Cdempresa == cdempresa && i.Vigente).ToList());
+
+    public Task<IReadOnlyList<ColaboradorIgnorado>> HistoricoAsync(int cdempresa, int quantidade, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<ColaboradorIgnorado>>(Todos.Where(i => i.Cdempresa == cdempresa).Take(quantidade).ToList());
+
+    public Task<int> IgnorarAsync(int cdempresa, IReadOnlyCollection<NovoIgnorado> pessoas, string usuario, CancellationToken ct)
+    {
+        var incluidos = 0;
+        foreach (var pessoa in pessoas)
+        {
+            if (Todos.Any(i => i.Cdempresa == cdempresa && i.Vigente && i.Corresponde(pessoa.CadastroDp, pessoa.Cpf)))
+            {
+                continue;
+            }
+
+            Todos.Add(new ColaboradorIgnorado
+            {
+                Id = Todos.Count + 1, Cdempresa = cdempresa, Cpf = pessoa.Cpf, CadastroDp = pessoa.CadastroDp, NomeDp = pessoa.NomeDp,
+                IgnoradoPor = usuario, IgnoradoEm = DateTimeOffset.UtcNow,
+            });
+            incluidos++;
+        }
+
+        return Task.FromResult(incluidos);
+    }
+
+    public Task<bool> RemoverAsync(int cdempresa, long id, string removidoPor, string motivo, CancellationToken ct)
+    {
+        var indice = Todos.FindIndex(i => i.Id == id && i.Cdempresa == cdempresa && i.Vigente);
+        if (indice < 0)
+        {
+            return Task.FromResult(false);
+        }
+
+        Todos[indice] = Todos[indice] with { RemovidoEm = DateTimeOffset.UtcNow, RemovidoPor = removidoPor, MotivoRemocao = motivo };
+        return Task.FromResult(true);
     }
 }
 

@@ -137,5 +137,8 @@ public sealed class EmpresaEditarViewModel
     public bool PodeEditar { get; init; }
     public bool PodeOperar { get; init; }
 
+    /// <summary>Ignorados na conferência ("Só no Sólides DP"): os vigentes primeiro, depois os que voltaram a ser validados.</summary>
+    public IReadOnlyList<ColaboradorIgnorado> Ignorados { get; init; } = [];
+
     public bool TemToken => Token?.TokenCifrado is not null;
 }

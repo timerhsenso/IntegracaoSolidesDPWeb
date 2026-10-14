@@ -30,6 +30,7 @@ public sealed class EmployeeStep(
     EmployeeMapper mapper,
     EpochDates dates,
     SyncOptionsAccessor syncOptions,
+    ColaboradoresIgnorados ignorados,
     TimeProvider clock)
 {
     /// <summary>Depois do limite de recusas, intervalo até a próxima tentativa com os mesmos dados.</summary>
@@ -41,6 +42,14 @@ public sealed class EmployeeStep(
     {
         var states = await state.LoadEntityStatesAsync(context.Cdempresa, EntityTypes.Employee, ct);
         var failures = await state.LoadEmployeeFailuresAsync(context.Cdempresa, ct);
+        var ignoradosDaEmpresa = await ignorados.CarregarAsync(context.Cdempresa, Options, ct);
+        foreach (var voltou in ignoradosDaEmpresa.Voltaram)
+        {
+            context.Add(new RunItem(EntityTypes.Employee, voltou.Rotulo, ItemActions.None, ItemStatuses.Warning,
+                Message: FormattableString.Invariant(
+                    $"ignorado_voltou: {voltou.Ignorado.NomeDp ?? "o cadastro"} (cadastro {voltou.Ignorado.CadastroDp} no DP) estava ignorado na conferência e apareceu ativo na folha; saiu da lista de ignorados e segue as regras da integração")));
+        }
+
         ReportOutOfScope(context, plan, states);
         if (context.DryRun)
         {
@@ -183,7 +192,7 @@ public sealed class EmployeeStep(
             await UpsertAsync(context, candidate, decision, failures, ct);
         }
 
-        await SoNoDpAsync(context, plan, states, ct);
+        await SoNoDpAsync(context, plan, states, ignoradosDaEmpresa, ct);
     }
 
     /// <summary>
@@ -191,7 +200,8 @@ public sealed class EmployeeStep(
     /// A integração não desliga esse cadastro (só desliga quem ela vinculou); o relatório mostra o que o RHSenso diz
     /// da pessoa para o RH decidir. Com piloto preenchido não se aplica: fora do piloto todo mundo pareceria "só no DP".
     /// </summary>
-    private async Task SoNoDpAsync(SyncContext context, EmployeePlan plan, Dictionary<string, EntityState> states, CancellationToken ct)
+    private async Task SoNoDpAsync(
+        SyncContext context, EmployeePlan plan, Dictionary<string, EntityState> states, IgnoradosDaEmpresa ignoradosDaEmpresa, CancellationToken ct)
     {
         if (!context.DryRun || !context.CanQueryDp || Options.ExternalIdAllowList.Count > 0)
         {
@@ -199,161 +209,48 @@ public sealed class EmployeeStep(
         }
 
         var ativos = await EnsureIndexAsync(context, ct);
-        var saidas = plan.Departures.ToDictionary(d => d.Key, StringComparer.Ordinal);
+        var casos = await SoNoDpAnalise.AnalisarAsync(ativos.Todos, plan, states, Options, context.Cdempresa, context.Today, source, ct);
         var vinculos = states.Values
             .Where(s => s.RemoteId is not null)
             .GroupBy(s => s.RemoteId!.Value)
             .ToDictionary(g => g.Key, g => g.First());
-        var soNoDp = new List<(EmployeeDto Dp, string? Cpf, Departure? Saida)>();
-        foreach (var dp in ativos.Todos)
+
+        var quantosIgnorados = 0;
+        foreach (var caso in casos)
         {
-            var cpf = Documents.NormalizeCpf(dp.Cpf).Value;
-            if (cpf is not null && plan.CpfsAtivosNoRhSenso.Contains(cpf))
+            // Ignorado na conferência (cadastro só do Sólides DP, por decisão do RH): fica fora do relatório.
+            if (ignoradosDaEmpresa.Contem(caso.Dp.Id, caso.Cpf))
             {
+                quantosIgnorados++;
                 continue;
             }
 
-            Departure? saida = null;
-            if (cpf is not null && saidas.TryGetValue(cpf, out var encontrada))
-            {
-                // Já vinculado: o DismissalStep desliga (linha "Desligar"); não é decisão do RH.
-                if (IsLinked(states.GetValueOrDefault(cpf)))
-                {
-                    continue;
-                }
-
-                saida = encontrada;
-            }
-
-            soNoDp.Add((dp, cpf, saida));
-        }
-
-        // Sem saída nesta empresa: procura o CPF no func1 inteiro (outras empresas, tipos e situações) para dizer onde está.
-        var procurar = soNoDp.Where(s => s.Cpf is not null && s.Saida is null).Select(s => s.Cpf!).Distinct(StringComparer.Ordinal).ToList();
-        var noRhSenso = (await source.ReadEmployeesByCpfAsync(procurar, ct))
-            .GroupBy(r => r.Chave!, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => (IReadOnlyList<EmployeeRow>)g.ToList(), StringComparer.Ordinal);
-
-        foreach (var (dp, cpf, saida) in soNoDp)
-        {
-            vinculos.TryGetValue(dp.Id, out var vinculo);
-            var linhas = cpf is null ? null : noRhSenso.GetValueOrDefault(cpf);
+            vinculos.TryGetValue(caso.Dp.Id, out var vinculo);
             context.Vinculacao.Add(new VinculacaoLinha
             {
-                Rotulo = saida?.Label ?? string.Empty,
-                Nome = saida is null ? null : plan.NomesPorRotulo.GetValueOrDefault(saida.Label),
-                Cpf = cpf,
+                Rotulo = caso.Saida?.Label ?? string.Empty,
+                Nome = caso.Saida is null ? null : plan.NomesPorRotulo.GetValueOrDefault(caso.Saida.Label),
+                Cpf = caso.Cpf,
                 Resultado = ResultadosVinculacao.SoNoDp,
-                CadastroDp = dp.Id,
-                NomeDp = dp.Name?.Trim(),
-                CodigoExternoDp = dp.ExternalId?.Trim(),
-                CargoDp = CargoDp(CargoAtual(context, dp.JobRole)),
-                Observacao = Join(SoNoDpMotivo(context, plan, cpf, saida, dp, linhas), SoNoDpVinculo(vinculo)),
+                CadastroDp = caso.Dp.Id,
+                NomeDp = caso.Dp.Name?.Trim(),
+                CodigoExternoDp = caso.Dp.ExternalId?.Trim(),
+                CargoDp = CargoDp(CargoAtual(context, caso.Dp.JobRole)),
+                Observacao = Join(caso.Motivo, SoNoDpVinculo(vinculo)),
             });
         }
 
-        var total = soNoDp.Count;
+        var total = casos.Count - quantosIgnorados;
+        var ignoradosTexto = quantosIgnorados == 0
+            ? string.Empty
+            : FormattableString.Invariant($" Outros {quantosIgnorados} estão ignorados na conferência (só no Sólides DP por decisão do RH).");
         if (total > 0)
         {
             context.Add(new RunItem(EntityTypes.Employee, "-", ItemActions.None, ItemStatuses.Warning,
                 Message: FormattableString.Invariant(
-                    $"so_no_dp: {total} cadastro(s) ativo(s) no Sólides DP sem colaborador ativo no RHSenso; a integração não mexe neles. Ver \"Só no Sólides DP\" no relatório de vinculação.")));
+                    $"so_no_dp: {total} cadastro(s) ativo(s) no Sólides DP sem colaborador ativo no RHSenso; a integração não mexe neles. Ver \"Só no Sólides DP\" no relatório de vinculação.") + ignoradosTexto));
         }
     }
-
-    /// <summary>
-    /// O que o RHSenso diz do CPF de quem está ativo só no Sólides DP. <c>linhas</c> = linhas de func1 com este CPF em
-    /// qualquer empresa, tipo ou situação (null quando não houve busca).
-    /// </summary>
-    private string SoNoDpMotivo(SyncContext context, EmployeePlan plan, string? cpf, Departure? saida, EmployeeDto dp, IReadOnlyList<EmployeeRow>? linhas)
-    {
-        if (cpf is null)
-        {
-            return "CPF vazio ou inválido no Sólides DP: não dá para comparar com o RHSenso; corrigir o CPF no DP";
-        }
-
-        if (saida is not null)
-        {
-            var quando = saida.Date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
-            var futuro = saida.Date > context.Today;
-            return saida.IsTransfer
-                ? $"transferido para outra empresa no RHSenso em {quando}; desligar nesta conta do Sólides DP" +
-                  (futuro ? " nessa data" : string.Empty) + " (na conta da nova empresa a pessoa é vinculada pelo CPF)"
-                : $"desligado no RHSenso em {quando} ({saida.Reason}); a integração só desliga quem ela vinculou: desligar no Sólides DP" +
-                  (futuro ? " nessa data" : string.Empty);
-        }
-
-        if (linhas is { Count: > 0 })
-        {
-            return OndeEstaNoRhSenso(linhas);
-        }
-
-        if (EmployeeMapper.Clean(dp.ExternalId) is { } codigo && MatriculaComCodigo(plan, codigo) is { } matricula)
-        {
-            return FormattableString.Invariant(
-                $"o Código Externo {codigo} é a matrícula {context.Cdempresa}-{matricula} do RHSenso, que tem outro CPF: conferir o CPF no Sólides DP ou no RHSenso");
-        }
-
-        return "CPF não existe no RHSenso (em nenhuma empresa, tipo de colaborador ou situação): cadastro feito só no Sólides DP; " +
-               "conferir se a pessoa deve continuar no ponto";
-    }
-
-    /// <summary>
-    /// "no RHSenso: empresa 1, matrícula 00001112: desligado em 18/01/2007; ..." — vínculos ativos primeiro, depois os mais recentes;
-    /// no máximo três.
-    /// </summary>
-    private string OndeEstaNoRhSenso(IReadOnlyList<EmployeeRow> linhas)
-    {
-        var tipos = Options.TiposColaborador.ToHashSet();
-        var ignoradas = Options.SituacoesIgnoradas.Select(s => s.Trim()).ToHashSet(StringComparer.Ordinal);
-        var desligamento = Options.SituacoesDesligamento.Select(s => s.Trim()).ToHashSet(StringComparer.Ordinal);
-        var transferido = Options.SituacaoTransferido.Trim();
-
-        var descricoes = linhas
-            .Select(r =>
-            {
-                var desligada = r.SituacaoDeDesligamento || (r.Situacao is { } s && desligamento.Contains(s));
-                var transferida = !desligada && r.Situacao == transferido;
-                return (Row: r, Desligada: desligada, Transferida: transferida);
-            })
-            .OrderBy(x => x.Desligada || x.Transferida ? 1 : 0)
-            .ThenByDescending(x => x.Row.DataDemissao ?? x.Row.DataTransferencia ?? x.Row.DataAdmissao)
-            .Select(x =>
-            {
-                var r = x.Row;
-                var onde = FormattableString.Invariant($"empresa {r.Cdempresa}, matrícula {r.Nomatric.Trim()}");
-                if (x.Desligada)
-                {
-                    return $"{onde}: desligado em {Dia(r.DataDemissao)}";
-                }
-
-                if (x.Transferida)
-                {
-                    return $"{onde}: transferido em {Dia(r.DataTransferencia)}";
-                }
-
-                if (r.Situacao is { } situacao && ignoradas.Contains(situacao))
-                {
-                    return $"{onde}: situação {situacao}, ignorada pela integração";
-                }
-
-                return tipos.Contains(r.TipoColaborador)
-                    ? $"{onde}: ativo"
-                    : FormattableString.Invariant($"{onde}: ativo, tipo de colaborador {r.TipoColaborador}, fora dos tipos da integração");
-            })
-            .ToList();
-
-        var texto = string.Join("; ", descricoes.Take(3));
-        if (descricoes.Count > 3)
-        {
-            texto += FormattableString.Invariant($"; e mais {descricoes.Count - 3}");
-        }
-
-        return $"no RHSenso: {texto}. Conferir se a pessoa deve continuar no ponto desta conta";
-    }
-
-    private static string Dia(DateTime? data) =>
-        data is { } d ? d.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) : "data não informada";
 
     /// <summary>Carrega uma vez os cargos da conta no DP (só na simulação). Sem eles, o relatório sai sem o cargo atual.</summary>
     private async Task CarregarCargosDpAsync(SyncContext context, CancellationToken ct)
@@ -392,24 +289,6 @@ public sealed class EmployeeStep(
         { Status: EntityStatuses.Dismissed } => "a integração já desligou este cadastro, mas ele está ativo no Sólides DP (readmitido lá?)",
         { } outro => $"vinculado pela integração à matrícula {outro.Matricula ?? "?"}: conferir se o CPF foi alterado no RHSenso",
     };
-
-    /// <summary>Matrícula do RHSenso igual ao Código Externo do DP, também sem os zeros à esquerda ("7811" = "00007811").</summary>
-    private static string? MatriculaComCodigo(EmployeePlan plan, string codigo)
-    {
-        if (plan.KeyByMatricula.ContainsKey(codigo))
-        {
-            return codigo;
-        }
-
-        if (!codigo.All(char.IsAsciiDigit))
-        {
-            return null;
-        }
-
-        var semZeros = codigo.TrimStart('0');
-        return plan.KeyByMatricula.Keys.FirstOrDefault(m =>
-            m.All(char.IsAsciiDigit) && string.Equals(m.TrimStart('0'), semZeros, StringComparison.Ordinal));
-    }
 
     /// <summary>Carrega uma vez por execução os colaboradores ativos da conta no DP.</summary>
     public async Task<DpEmployeeIndex> EnsureIndexAsync(SyncContext context, CancellationToken ct)

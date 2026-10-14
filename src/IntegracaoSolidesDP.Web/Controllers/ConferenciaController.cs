@@ -12,10 +12,11 @@ namespace IntegracaoSolidesDP.Web.Controllers;
 /// <summary>
 /// Conferência DP x RHSenso: o que está diferente no Sólides DP para os colaboradores vinculados. Quem confere é o
 /// serviço (semanal ou pelo pedido "Conferir campos"); aqui se vê o resultado e se pede "Reenviar do RHSenso", que só
-/// marca o vínculo para a próxima execução reenviar o cadastro.
+/// marca o vínculo para a próxima execução reenviar o cadastro. Quem está só no Sólides DP (e não vai para a folha)
+/// pode ser "Ignorado": sai das próximas conferências e do relatório de vinculação da empresa.
 /// </summary>
 [ExigeGestaoPreparada]
-public sealed class ConferenciaController(IConferenciaStore conferencias, Auditoria auditoria) : Controller
+public sealed class ConferenciaController(IConferenciaStore conferencias, IIgnoradoStore ignorados, Auditoria auditoria) : Controller
 {
     private const int NaLista = 60;
 
@@ -27,23 +28,36 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, Audito
         return conferencia is null ? NotFound() : View(conferencia with { Linhas = [] });
     }
 
-    /// <summary>Linhas para a grade (sem o CPF completo).</summary>
+    /// <summary>
+    /// Linhas para a grade (sem o CPF completo). <c>chave</c> identifica a pessoa na grade: a matrícula, ou "dp-{cadastro}"
+    /// para quem está só no Sólides DP; <c>ignorado</c> = já foi ignorado depois desta conferência.
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> Linhas(long id)
     {
-        var conferencia = await conferencias.ObterAsync(id, HttpContext.RequestAborted);
-        return conferencia is null
-            ? NotFound()
-            : Json(conferencia.Linhas.Select(l => new
-            {
-                rotulo = l.Rotulo,
-                nome = l.Nome,
-                cpf = l.CpfMascarado,
-                cadastroDp = l.CadastroDp,
-                campo = l.Campo,
-                rhSenso = l.RhSenso,
-                dp = l.Dp,
-            }));
+        var ct = HttpContext.RequestAborted;
+        var conferencia = await conferencias.ObterAsync(id, ct);
+        if (conferencia is null)
+        {
+            return NotFound();
+        }
+
+        var vigentes = conferencia.Linhas.Any(SoNoDp)
+            ? await ignorados.VigentesAsync(conferencia.Cdempresa, ct)
+            : Array.Empty<ColaboradorIgnorado>();
+        return Json(conferencia.Linhas.Select(l => new
+        {
+            chave = SoNoDp(l) ? Chave(l) : l.Rotulo,
+            soNoDp = SoNoDp(l),
+            ignorado = SoNoDp(l) && l.CadastroDp is { } cadastro && vigentes.Any(i => i.Corresponde(cadastro, CpfDaLinha(l))),
+            rotulo = l.Rotulo,
+            nome = l.Nome,
+            cpf = l.CpfMascarado,
+            cadastroDp = l.CadastroDp,
+            campo = l.Campo,
+            rhSenso = l.RhSenso,
+            dp = l.Dp,
+        }));
     }
 
     [HttpGet]
@@ -91,7 +105,7 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, Audito
 
         var marcados = (rotulos ?? []).ToHashSet(StringComparer.Ordinal);
         var pessoas = conferencia.Linhas
-            .Where(l => marcados.Contains(l.Rotulo))
+            .Where(l => !SoNoDp(l) && marcados.Contains(l.Rotulo))
             .GroupBy(l => l.Cpf, StringComparer.Ordinal)
             .Select(g => g.First())
             .ToList();
@@ -109,6 +123,51 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, Audito
             : $"{marcadas} de {pessoas.Count} colaborador(es) marcado(s); os demais já estavam aguardando reenvio ou não estão mais vinculados.";
         return RedirectToAction(nameof(Detalhe), new { id });
     }
+
+    /// <summary>
+    /// "Ignorar" quem está só no Sólides DP (marcados pelo id do cadastro no DP): a pessoa não aparece mais nas conferências
+    /// nem no relatório de vinculação desta empresa. Nada muda no Sólides DP. Se o CPF aparecer ativo na folha da empresa,
+    /// o serviço tira da lista sozinho.
+    /// </summary>
+    [HttpPost]
+    [Authorize(Policy = Politicas.Operar)]
+    public async Task<IActionResult> Ignorar(long id, long[]? cadastros)
+    {
+        var ct = HttpContext.RequestAborted;
+        var conferencia = await conferencias.ObterAsync(id, ct);
+        if (conferencia is null)
+        {
+            return NotFound();
+        }
+
+        var marcados = (cadastros ?? []).ToHashSet();
+        var pessoas = conferencia.Linhas
+            .Where(l => SoNoDp(l) && l.CadastroDp is { } cadastro && marcados.Contains(cadastro))
+            .GroupBy(l => l.CadastroDp!.Value)
+            .Select(g => g.First())
+            .ToList();
+        if (pessoas.Count == 0)
+        {
+            TempData["Erro"] = "Marque pelo menos uma pessoa \"Só no Sólides DP\" da lista.";
+            return RedirectToAction(nameof(Detalhe), new { id });
+        }
+
+        var incluidos = await ignorados.IgnorarAsync(conferencia.Cdempresa,
+            pessoas.Select(p => new NovoIgnorado(CpfDaLinha(p), p.CadastroDp!.Value, p.Nome)).ToList(), HttpContext.Usuario(), ct);
+        await auditoria.RegistrarAsync(AcoesAuditoria.IgnoradoIncluido, string.Create(CultureInfo.InvariantCulture,
+            $"empresa {conferencia.Cdempresa}, conferência {id}: {string.Join(", ", pessoas.Select(p => FormattableString.Invariant($"{p.Nome} (cadastro {p.CadastroDp} no DP)")))}"), ct: ct);
+        TempData["Sucesso"] = incluidos == pessoas.Count
+            ? $"{incluidos} pessoa(s) ignorada(s) na empresa {conferencia.Cdempresa}: não aparecem mais na conferência nem no relatório de vinculação. A lista fica na tela Empresas."
+            : $"{incluidos} de {pessoas.Count} pessoa(s) ignorada(s); as demais já estavam ignoradas.";
+        return RedirectToAction(nameof(Detalhe), new { id });
+    }
+
+    private static bool SoNoDp(DivergenciaCampo linha) => linha.Campo == CamposConferencia.SoNoDp;
+
+    private static string Chave(DivergenciaCampo linha) => string.Create(CultureInfo.InvariantCulture, $"dp-{linha.CadastroDp}");
+
+    /// <summary>O CPF da linha "Só no Sólides DP"; null quando o cadastro do DP não tem CPF (a chave é "dp-{cadastro}").</summary>
+    private static string? CpfDaLinha(DivergenciaCampo linha) => linha.Cpf.StartsWith("dp-", StringComparison.Ordinal) ? null : linha.Cpf;
 
     private static string Campo(string? valor)
     {
