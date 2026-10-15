@@ -1,0 +1,17 @@
+@model string
+@using IntegracaoSolidesDP.Worker.Erros
+@switch (Model)
+{
+    case SituacoesErro.Aberto:
+        <span class="badge text-bg-danger">Aberto</span>
+        break;
+    case SituacoesErro.Silenciado:
+        <span class="badge text-bg-secondary">Silenciado</span>
+        break;
+    case SituacoesErro.Resolvido:
+        <span class="badge text-bg-success">Resolvido</span>
+        break;
+    default:
+        <span class="badge text-bg-light">@Model</span>
+        break;
+}

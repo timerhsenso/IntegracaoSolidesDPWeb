@@ -1,4 +1,5 @@
 using IntegracaoSolidesDP.Worker.Commands;
+using IntegracaoSolidesDP.Worker.Erros;
 using IntegracaoSolidesDP.Worker.Infrastructure;
 using IntegracaoSolidesDP.Worker.Pipeline;
 using IntegracaoSolidesDP.Worker.Scheduling;
@@ -43,11 +44,15 @@ builder.Services.AddSerilog((services, logger) => logger
     .ReadFrom.Configuration(builder.Configuration, new ConfigurationReaderOptions(
         typeof(ConsoleLoggerConfigurationExtensions).Assembly,
         typeof(FileLoggerConfigurationExtensions).Assembly))
-    .Enrich.FromLogContext());
+    .Enrich.FromLogContext()
+    // Erros (nível Error) também vão para solidesdp.erro_aplicacao: tela "Erros da aplicação" na Web.
+    .WriteTo.Sink(new CapturaErrosSink(services.GetRequiredService<FilaErros>())));
 
 builder.Services.AddIntegracaoSolidesDP(builder.Configuration);
 if (command.Mode == CliMode.Service)
 {
+    // Primeiro: os hosted services param na ordem inversa, e o gravador ainda grava os erros da parada dos outros.
+    builder.Services.AddHostedService<GravadorErros>();
     builder.Services.AddHostedService<SyncWorker>();
     builder.Services.AddHostedService<SinalVidaWorker>();
 }

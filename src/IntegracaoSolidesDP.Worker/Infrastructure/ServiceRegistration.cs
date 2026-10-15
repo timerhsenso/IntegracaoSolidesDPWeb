@@ -1,5 +1,6 @@
 using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Commands;
+using IntegracaoSolidesDP.Worker.Erros;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
 using IntegracaoSolidesDP.Worker.Notificacoes;
@@ -58,6 +59,8 @@ public static class ServiceRegistration
         services.AddSingleton<ISinalServicoStore, SqlSinalServicoStore>();
         services.AddSingleton<ILimpezaStore, SqlLimpezaStore>();
         services.AddSingleton<Limpeza>();
+        services.AddSingleton<FilaErros>();
+        services.AddSingleton<IErroStore, SqlErroStore>();
         services.AddSingleton<IConferenciaStore, SqlConferenciaStore>();
         services.AddSingleton<ConferenciaAgendada>();
         services.AddScoped<ConferenciaCampos>();

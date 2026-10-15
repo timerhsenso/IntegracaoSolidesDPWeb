@@ -283,6 +283,51 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             );
             CREATE INDEX ix_solidesdp_colaborador_ignorado_empresa ON solidesdp.colaborador_ignorado (cdempresa, removido_em);
         END;
+
+        IF OBJECT_ID(N'solidesdp.erro_aplicacao', N'U') IS NULL
+        BEGIN
+            CREATE TABLE solidesdp.erro_aplicacao (
+                id                   bigint IDENTITY(1,1) NOT NULL CONSTRAINT pk_solidesdp_erro_aplicacao PRIMARY KEY,
+                assinatura           char(64)          NOT NULL CONSTRAINT uq_solidesdp_erro_aplicacao UNIQUE,
+                origem               varchar(16)       NOT NULL,
+                fonte                nvarchar(256)     NULL,
+                tipo                 nvarchar(256)     NULL,
+                mensagem             nvarchar(2000)    NOT NULL,
+                detalhe              nvarchar(max)     NULL,
+                usuario              nvarchar(64)      NULL,
+                tela                 nvarchar(400)     NULL,
+                cdempresa            int               NULL,
+                maquina              nvarchar(128)     NULL,
+                versao               nvarchar(32)      NULL,
+                primeira_vez         datetimeoffset(7) NOT NULL,
+                ultima_vez           datetimeoffset(7) NOT NULL,
+                ocorrencias          int               NOT NULL,
+                situacao             varchar(16)       NOT NULL,
+                situacao_por         nvarchar(64)      NULL,
+                situacao_em          datetimeoffset(7) NULL,
+                execucao_caida       bit               NOT NULL,
+                ultimo_aviso         datetimeoffset(7) NULL,
+                ocorrencias_no_aviso int               NOT NULL CONSTRAINT df_solidesdp_erro_aplicacao_aviso DEFAULT (0)
+            );
+            CREATE INDEX ix_solidesdp_erro_aplicacao_ultima ON solidesdp.erro_aplicacao (ultima_vez DESC);
+        END;
+
+        IF OBJECT_ID(N'solidesdp.erro_config', N'U') IS NULL
+        CREATE TABLE solidesdp.erro_config (
+            id              int               NOT NULL CONSTRAINT pk_solidesdp_erro_config PRIMARY KEY CONSTRAINT ck_solidesdp_erro_config_id CHECK (id = 1),
+            modo_envio      varchar(16)       NOT NULL,
+            origem_web      bit               NOT NULL,
+            origem_servico  bit               NOT NULL,
+            execucao_caida  bit               NOT NULL,
+            resumo_horas    int               NOT NULL,
+            limite_dia      int               NOT NULL,
+            operador_ve     bit               NOT NULL,
+            operador_envia  bit               NOT NULL,
+            retencao_dias   int               NOT NULL,
+            nome_cliente    nvarchar(100)     NULL,
+            atualizado_por  nvarchar(64)      NOT NULL,
+            atualizado_em   datetimeoffset(7) NOT NULL
+        );
         """;
 
     private const int UniqueKeyViolation = 2627;
@@ -602,6 +647,22 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         ("colaborador_ignorado", "tangerino_id", "Id do cadastro no Sólides DP."),
         ("colaborador_ignorado", "removido_em", "Quando voltou a ser validado: pela Web (Voltar a validar) ou pelo serviço, quando o CPF apareceu ativo na folha da empresa. Nulo = ignorado."),
         ("colaborador_ignorado", "removido_por", "Login de quem voltou a validar, ou serviço (a pessoa apareceu na folha)."),
+        ("erro_aplicacao", null, "Erros técnicos da Web e do serviço (exceções e logs de nível Error). O mesmo erro fica numa linha só e conta as ocorrências. Apagados pela limpeza diária depois de erro_config.retencao_dias sem acontecer."),
+        ("erro_aplicacao", "id", "O código que o usuário vê na tela de erro e informa ao suporte (E-id)."),
+        ("erro_aplicacao", "assinatura", "SHA-256 de origem, fonte, tipo da exceção e mensagem sem números: agrupa as ocorrências do mesmo erro."),
+        ("erro_aplicacao", "origem", "web ou servico."),
+        ("erro_aplicacao", "mensagem", "Mensagem com CPF mascarado e token/senha apagados."),
+        ("erro_aplicacao", "detalhe", "Exceção completa (pilha), também limpa de CPF e segredos."),
+        ("erro_aplicacao", "situacao", "aberto, silenciado (continua contando, não avisa) ou resolvido (se acontecer de novo, volta a aberto)."),
+        ("erro_aplicacao", "execucao_caida", "1 = execução que caiu (DP ou banco fora), registrada só com erro_config.execucao_caida ligado."),
+        ("erro_aplicacao", "ultimo_aviso", "Quando o último e-mail deste erro saiu para o suporte."),
+        ("erro_aplicacao", "ocorrencias_no_aviso", "Ocorrências já contadas no último e-mail (o resumo manda só as novas)."),
+        ("erro_config", null, "Configuração dos erros da aplicação (uma linha, id = 1). Editada na Web (Notificações). Sem linha, valem os padrões."),
+        ("erro_config", "modo_envio", "desligado, manual (só pelo botão na Web) ou automatico."),
+        ("erro_config", "resumo_horas", "Erro que continua acontecendo: um resumo a cada tantas horas."),
+        ("erro_config", "limite_dia", "Máximo de e-mails de erro por dia (para não encher a caixa do suporte)."),
+        ("erro_config", "operador_ve", "1 = o perfil Operador vê a tela Erros da aplicação."),
+        ("erro_config", "retencao_dias", "Dias sem acontecer até o erro ser apagado. 0 = nunca apaga."),
         ("servico_sinal", null, "Sinal de vida de cada serviço (instância e máquina): a Web avisa quando o último sinal fica velho (Sync:ServicoSemRespostaMinutos)."),
         ("servico_sinal", "ultimo_sinal", "Último sinal (a cada Gestao:IntervaloSinalDeVida, também durante as execuções)."),
         ("servico_sinal", "iniciado_em", "Quando o processo atual do serviço começou."),

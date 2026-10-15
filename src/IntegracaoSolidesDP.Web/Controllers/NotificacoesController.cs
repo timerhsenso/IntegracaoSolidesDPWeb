@@ -3,6 +3,7 @@ using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Identity;
 using IntegracaoSolidesDP.Web.Infrastructure;
 using IntegracaoSolidesDP.Web.Models;
+using IntegracaoSolidesDP.Worker.Erros;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Notificacoes;
 using Microsoft.AspNetCore.Authorization;
@@ -22,6 +23,8 @@ public sealed class NotificacoesController(
     IManagementStore store,
     EmpresasRepository empresas,
     ITokenProtector tokens,
+    IErroStore erros,
+    AcessoErros acessoErros,
     Auditoria auditoria,
     IOptions<WebOptions> options) : Controller
 {
@@ -59,6 +62,25 @@ public sealed class NotificacoesController(
             ? "Configuração gravada. Cadastre os destinatários e use \"Enviar e-mail de teste\"."
             : "Configuração gravada. O serviço passa a usá-la na próxima execução.";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>Card "Erros da aplicação": só os campos dele; o resto da configuração dos erros fica como está.</summary>
+    [HttpPost]
+    public async Task<IActionResult> SalvarErros([Bind(Prefix = "Erros")] ErrosConfigForm form)
+    {
+        var ct = HttpContext.RequestAborted;
+        if (!ModelState.IsValid)
+        {
+            TempData["Erro"] = string.Join(" ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+            return RedirectToAction(nameof(Index), controllerName: null, fragment: "erros");
+        }
+
+        var configuracao = form.Aplicar(await erros.ConfiguracaoAsync(ct));
+        await erros.SalvarConfiguracaoAsync(configuracao, HttpContext.Usuario(), ct);
+        acessoErros.Invalidar();
+        await auditoria.RegistrarAsync(AcoesAuditoria.ErroConfigAlterada, ErrosController.Descrever(configuracao), ct: ct);
+        TempData["Sucesso"] = "Opções dos erros da aplicação gravadas.";
+        return RedirectToAction(nameof(Index), controllerName: null, fragment: "erros");
     }
 
     [HttpPost]
@@ -133,8 +155,11 @@ public sealed class NotificacoesController(
     private async Task<NotificacoesViewModel> MontarAsync(NotificacaoForm? form, CancellationToken ct)
     {
         var atual = await notificacoes.ConfiguracaoAsync(ct);
+        var errosAtual = await erros.ConfiguracaoAsync(ct);
         return new NotificacoesViewModel
         {
+            Erros = ErrosConfigForm.De(errosAtual),
+            ErrosAtual = errosAtual,
             Form = form ?? NotificacaoForm.De(atual),
             Atual = atual,
             TemSenha = atual?.SenhaCifrada is { Length: > 0 },

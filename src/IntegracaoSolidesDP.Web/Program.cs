@@ -1,4 +1,5 @@
 using IntegracaoSolidesDP.Web.Infrastructure;
+using IntegracaoSolidesDP.Worker.Erros;
 using Serilog;
 using Serilog.Settings.Configuration;
 
@@ -25,7 +26,9 @@ builder.Services.AddSerilog((services, logger) => logger
     .ReadFrom.Configuration(builder.Configuration, new ConfigurationReaderOptions(
         typeof(ConsoleLoggerConfigurationExtensions).Assembly,
         typeof(FileLoggerConfigurationExtensions).Assembly))
-    .Enrich.FromLogContext());
+    .Enrich.FromLogContext()
+    // Erros (nível Error) também vão para solidesdp.erro_aplicacao: tela "Erros da aplicação".
+    .WriteTo.Sink(new CapturaErrosSink(services.GetRequiredService<FilaErros>(), services.GetRequiredService<IHttpContextAccessor>())));
 
 builder.Services.AddIntegracaoSolidesDPWeb(builder.Configuration);
 

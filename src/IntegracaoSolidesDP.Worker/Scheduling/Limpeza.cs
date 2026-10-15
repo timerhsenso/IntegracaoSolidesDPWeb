@@ -1,3 +1,4 @@
+using IntegracaoSolidesDP.Worker.Erros;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
 using IntegracaoSolidesDP.Worker.Options;
@@ -12,13 +13,15 @@ public sealed record ResultadoLimpeza(int Execucoes, int Envios, int Sinais, int
 /// <summary>
 /// Limpeza diária do histórico, conforme as regras gerais em vigor (Sync:RetencaoExecucoesDias,
 /// Sync:RetencaoArquivosDias, Sync:LimpezaHora): execuções antigas (com itens e relatórios), e-mails enviados,
-/// sinais de serviços que não rodam mais e arquivos da pasta de relatórios. Vínculos, auditoria e pedidos não são apagados.
+/// sinais de serviços que não rodam mais, erros da aplicação (prazo próprio, na Web em Notificações) e arquivos da pasta
+/// de relatórios. Vínculos, auditoria e pedidos não são apagados.
 /// Nunca lança: um erro só vai para o log e a limpeza é tentada de novo no dia seguinte.
 /// </summary>
 public sealed class Limpeza(
     ILimpezaStore store,
     ISinalServicoStore sinais,
     IConferenciaStore conferencias,
+    IErroStore erros,
     IManagementStore management,
     IOptions<SyncOptions> configured,
     IOptions<ManagementOptions> gestao,
@@ -92,6 +95,11 @@ public sealed class Limpeza(
             }
         }
 
+        if (gestao.Value.Habilitada)
+        {
+            await LimparErrosAsync(agora, ct);
+        }
+
         if (regras.RetencaoArquivosDias > 0)
         {
             arquivos = ApagarArquivos(agora.AddDays(-regras.RetencaoArquivosDias).UtcDateTime);
@@ -103,6 +111,22 @@ public sealed class Limpeza(
             "(retenção de {Dias} dias no banco e {DiasArquivos} dias nos arquivos; 0 = não apaga)",
             execucoes, envios, removidos, arquivos, regras.RetencaoExecucoesDias, regras.RetencaoArquivosDias);
         return resultado;
+    }
+
+    /// <summary>Erros da aplicação sem acontecer há mais que erro_config.retencao_dias (0 = guarda para sempre).</summary>
+    private async Task LimparErrosAsync(DateTimeOffset agora, CancellationToken ct)
+    {
+        var dias = (await erros.ConfiguracaoAsync(ct)).RetencaoDias;
+        if (dias <= 0)
+        {
+            return;
+        }
+
+        var apagados = await erros.ApagarAntigosAsync(agora.AddDays(-dias), ct);
+        if (apagados > 0)
+        {
+            logger.LogInformation("Limpeza do histórico: {Erros} erros da aplicação apagados (sem acontecer há mais de {Dias} dias)", apagados, dias);
+        }
     }
 
     /// <summary>Regras gerais em vigor: a versão vigente da configuração com a gestão ligada, senão o appsettings.json.</summary>

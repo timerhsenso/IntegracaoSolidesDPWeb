@@ -1,5 +1,6 @@
 using IntegracaoSolidesDP.Web.Data;
 using IntegracaoSolidesDP.Web.Identity;
+using IntegracaoSolidesDP.Worker.Erros;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Source;
@@ -28,6 +29,11 @@ public static class WebRegistration
         services.AddSingleton<ISinalServicoStore, SqlSinalServicoStore>();
         services.AddSingleton<IConferenciaStore, SqlConferenciaStore>();
         services.AddSingleton<IIgnoradoStore, SqlIgnoradoStore>();
+        // Erros da aplicação: o sink do Serilog (Program.cs) põe na fila e o gravador grava em solidesdp.erro_aplicacao.
+        services.AddSingleton<FilaErros>();
+        services.AddSingleton<IErroStore, SqlErroStore>();
+        services.AddSingleton<AcessoErros>();
+        services.AddHostedService<GravadorErros>();
         services.AddSingleton<ITokenProtector>(sp => new TokenProtector(new TokenProtectionOptions
         {
             ChaveBase64 = sp.GetRequiredService<IOptions<WebOptions>>().Value.ChaveTokens,

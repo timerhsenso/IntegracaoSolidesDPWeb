@@ -1,0 +1,34 @@
+@* Ajuda › Erros da aplicação *@
+<p>
+    Erros <strong>técnicos</strong> da Web e do serviço: uma exceção numa tela, uma falha inesperada numa execução, o banco que não
+    respondeu. Não são as pendências de cadastro (CPF só de um lado, PIS inválido, recusa do Sólides DP): essas continuam em
+    <a href="#pendencias">Pendências</a> e nos avisos de <a href="#notificacoes">Notificações</a>.
+    A tela é do <span class="badge text-bg-dark">Admin</span>; o <span class="badge text-bg-secondary">Operador</span> só vê com a opção
+    <em>Operador vê a tela de erros</em> ligada em Notificações.
+</p>
+<h4>Como um erro é registrado</h4>
+<ul>
+    <li>Todo erro técnico fica registrado, mesmo sem nenhum envio de e-mail: os da Web e os do serviço (com a gestão pela Web ligada).</li>
+    <li>O <strong>mesmo erro</strong> fica numa linha só, com o número de <strong>ocorrências</strong>, a primeira e a última vez. Assim
+        um problema que se repete a cada execução não vira centenas de linhas.</li>
+    <li>Cada erro tem um <strong>código</strong> (ex.: <code>E-1027</code>). Quando uma tela da Web dá erro, o usuário vê só o código:
+        é ele que deve ser informado ao administrador ou ao suporte, que o encontra nesta tela.</li>
+    <li>O texto é limpo antes de gravar: CPF mascarado (<code>529.***.***-25</code>), token, senha e "Authorization" apagados.</li>
+    <li>Execução que <strong>caiu</strong> (Sólides DP ou banco fora do ar, token inválido) também entra, se a opção
+        <em>Execução que caiu também é erro</em> estiver ligada (padrão). A falha continua avisada em "Falhas" de qualquer jeito.</li>
+</ul>
+<h4>Situações</h4>
+<dl class="ajuda-def">
+    <dt>Aberto</dt>
+    <dd>Novo, ou que voltou a acontecer depois de resolvido.</dd>
+    <dt>Silenciado</dt>
+    <dd>Erro conhecido: continua sendo registrado e contado, mas não gera aviso por e-mail.</dd>
+    <dt>Resolvido</dt>
+    <dd>Corrigido. Se acontecer de novo, volta sozinho para <em>Aberto</em>.</dd>
+</dl>
+<p>Silenciar, resolver e reabrir são do Admin e ficam na <a href="#auditoria">Auditoria</a>.</p>
+<h4>Por quanto tempo fica</h4>
+<p>
+    A limpeza diária apaga o erro que não acontece há mais que <em>Guardar erros por (dias)</em> (padrão: 90; 0 = nunca apaga).
+    Os erros também continuam nos arquivos de log da Web e do serviço.
+</p>

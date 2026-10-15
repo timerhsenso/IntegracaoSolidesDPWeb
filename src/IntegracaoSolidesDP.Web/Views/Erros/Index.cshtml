@@ -1,0 +1,74 @@
+@model ErrosViewModel
+@using IntegracaoSolidesDP.Worker.Erros
+@{
+    ViewData["Title"] = "Erros da aplicação";
+    string Origem(string origem) => origem == OrigensErro.Web ? "Web" : "Serviço";
+    string Resumo(string texto) => texto.Length <= 160 ? texto : string.Concat(texto.AsSpan(0, 157), "...");
+}
+<div class="alert alert-light border small">
+    <i class="bi bi-info-circle"></i>
+    Erros <strong>técnicos</strong> da Web e do serviço (não são as pendências de cadastro). O mesmo erro fica numa linha só, com o
+    número de ocorrências. O <strong>código</strong> é o que aparece para o usuário na tela de erro.
+</div>
+<form method="get" class="d-flex flex-wrap gap-2 align-items-end mb-3">
+    <div>
+        <label for="filtro-situacao" class="form-label small mb-0">Situação</label>
+        <select id="filtro-situacao" name="situacao" class="form-select form-select-sm">
+            <option value="">Todas</option>
+            <option value="@SituacoesErro.Aberto" selected="@(Model.Situacao == SituacoesErro.Aberto)">Abertos</option>
+            <option value="@SituacoesErro.Silenciado" selected="@(Model.Situacao == SituacoesErro.Silenciado)">Silenciados</option>
+            <option value="@SituacoesErro.Resolvido" selected="@(Model.Situacao == SituacoesErro.Resolvido)">Resolvidos</option>
+        </select>
+    </div>
+    <div>
+        <label for="filtro-origem" class="form-label small mb-0">Origem</label>
+        <select id="filtro-origem" name="origem" class="form-select form-select-sm">
+            <option value="">Web e serviço</option>
+            <option value="@OrigensErro.Web" selected="@(Model.Origem == OrigensErro.Web)">Web</option>
+            <option value="@OrigensErro.Servico" selected="@(Model.Origem == OrigensErro.Servico)">Serviço</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-funnel"></i> Filtrar</button>
+</form>
+<div class="card">
+    <div class="card-body">
+        @if (Model.Erros.Count == 0)
+        {
+            <p class="text-body-secondary small mb-0">Nenhum erro registrado@(Model.Situacao is null && Model.Origem is null ? "" : " com este filtro").</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead>
+                        <tr><th>Código</th><th>Origem</th><th>Erro</th><th class="text-end">Ocorrências</th><th>Primeira vez</th><th>Última vez</th><th>Situação</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var erro in Model.Erros)
+                        {
+                            <tr>
+                                <td class="text-nowrap"><a asp-action="Detalhe" asp-route-id="@erro.Id" class="font-monospace">@erro.Codigo</a></td>
+                                <td>@Origem(erro.Origem)@(erro.ExecucaoCaida ? " (execução)" : "")</td>
+                                <td class="small">
+                                    @Resumo(erro.Mensagem)
+                                    @if (erro.Tela is not null || erro.Cdempresa is not null)
+                                    {
+                                        <div class="text-body-secondary">@(erro.Tela ?? $"empresa {erro.Cdempresa}")</div>
+                                    }
+                                </td>
+                                <td class="text-end">@erro.Ocorrencias</td>
+                                <td class="text-nowrap small">@F.Data(erro.PrimeiraVez)</td>
+                                <td class="text-nowrap small">@F.Data(erro.UltimaVez)</td>
+                                <td><partial name="_Situacao" model="erro.Situacao" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.Erros.Count >= Model.Limite)
+            {
+                <p class="small text-body-secondary mt-2 mb-0">Mostrando os @Model.Limite erros mais recentes. Use os filtros para ver os demais.</p>
+            }
+        }
+    </div>
+</div>

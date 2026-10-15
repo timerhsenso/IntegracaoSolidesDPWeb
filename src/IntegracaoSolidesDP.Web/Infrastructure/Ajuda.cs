@@ -35,6 +35,7 @@ public static class AjudaTopicos
         new("usuarios", "Usuários", "bi-person-gear", "Usuarios"),
         new("auditoria", "Auditoria", "bi-journal-text", "Auditoria"),
         new("notificacoes", "Notificações por e-mail", "bi-envelope", "Notificacoes"),
+        new("erros", "Erros da aplicação", "bi-bug", "Erros"),
         new("regras", "Como a integração decide", "bi-diagram-3"),
         new("status", "Glossário de status", "bi-tags"),
         new("problemas", "Deu problema, e agora?", "bi-life-preserver"),

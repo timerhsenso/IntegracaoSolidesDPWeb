@@ -57,4 +57,8 @@ public static class AcoesAuditoria
     public const string ReenvioSolicitado = "REENVIO_SOLICITADO";
     public const string IgnoradoIncluido = "IGNORADO_INCLUIDO";
     public const string IgnoradoRemovido = "IGNORADO_REMOVIDO";
+    public const string ErroSilenciado = "ERRO_SILENCIADO";
+    public const string ErroResolvido = "ERRO_RESOLVIDO";
+    public const string ErroReaberto = "ERRO_REABERTO";
+    public const string ErroConfigAlterada = "ERRO_CONFIG_ALTERADA";
 }

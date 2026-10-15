@@ -1,4 +1,5 @@
 using IntegracaoSolidesDP.Tests.Pipeline;
+using IntegracaoSolidesDP.Worker.Erros;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Options;
 using IntegracaoSolidesDP.Worker.Scheduling;
@@ -95,6 +96,7 @@ public sealed class LimpezaTests : IAsyncLifetime
             _store,
             new SqlSinalServicoStore(new ConnectionFactory("Server=nao-usado")),
             new SqlConferenciaStore(new ConnectionFactory("Server=nao-usado")),
+            new SqlErroStore(new ConnectionFactory("Server=nao-usado"), _clock),
             new MemoryManagement(),
             Options.Create(regras),
             Options.Create(new ManagementOptions { Habilitada = false }),

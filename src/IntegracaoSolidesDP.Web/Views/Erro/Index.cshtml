@@ -1,8 +1,20 @@
+@model ErroViewModel
 @{
     ViewData["Title"] = "Erro";
     Layout = "_LayoutLogin";
 }
 <div class="alert alert-danger small">
-    <i class="bi bi-bug"></i> Ocorreu um erro inesperado. O detalhe ficou registrado no log da aplicação; tente de novo ou avise o suporte.
+    <i class="bi bi-bug"></i> Ocorreu um erro inesperado.
+    @if (Model.Codigo is { } codigo)
+    {
+        <div class="mt-2">
+            Código do erro: <strong class="font-monospace fs-6" id="codigo-erro">@codigo</strong>
+        </div>
+        <div class="mt-1">Informe este código ao administrador do sistema. Tente de novo em alguns instantes.</div>
+    }
+    else
+    {
+        <span>O detalhe ficou registrado no log da aplicação; tente de novo ou avise o administrador.</span>
+    }
 </div>
 <a class="btn btn-outline-secondary w-100" href="~/">Voltar ao início</a>

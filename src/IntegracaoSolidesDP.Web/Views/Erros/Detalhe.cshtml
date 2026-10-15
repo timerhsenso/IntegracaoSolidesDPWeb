@@ -1,0 +1,80 @@
+@model ErroDetalheViewModel
+@using IntegracaoSolidesDP.Worker.Erros
+@{
+    var erro = Model.Erro;
+    ViewData["Title"] = $"Erro {erro.Codigo}";
+}
+<div class="card mb-3">
+    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+        <span class="font-monospace fw-semibold">@erro.Codigo</span>
+        <partial name="_Situacao" model="erro.Situacao" />
+        @if (Model.PodeAlterar)
+        {
+            <div class="ms-auto d-flex flex-wrap gap-2">
+                @if (erro.Situacao != SituacoesErro.Silenciado)
+                {
+                    <form asp-action="Silenciar" asp-route-id="@erro.Id" method="post"
+                          data-confirmar="O erro continua sendo registrado e contado, mas não gera aviso por e-mail.">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-bell-slash"></i> Silenciar</button>
+                    </form>
+                }
+                @if (erro.Situacao != SituacoesErro.Resolvido)
+                {
+                    <form asp-action="Resolver" asp-route-id="@erro.Id" method="post"
+                          data-confirmar="Marcar como resolvido. Se o erro acontecer de novo, ele volta a ficar aberto.">
+                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-check2-circle"></i> Marcar como resolvido</button>
+                    </form>
+                }
+                @if (erro.Situacao != SituacoesErro.Aberto)
+                {
+                    <form asp-action="Reabrir" asp-route-id="@erro.Id" method="post">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-counterclockwise"></i> Reabrir</button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+    <div class="card-body">
+        <p class="mensagem mb-3">@erro.Mensagem</p>
+        <dl class="row mb-0 small">
+            <dt class="col-sm-3">Origem</dt>
+            <dd class="col-sm-9">@(erro.Origem == OrigensErro.Web ? "Web" : "Serviço")@(erro.ExecucaoCaida ? " — execução que caiu" : "")</dd>
+            @if (erro.Tipo is not null)
+            {
+                <dt class="col-sm-3">Tipo</dt><dd class="col-sm-9 font-monospace">@erro.Tipo</dd>
+            }
+            @if (erro.Fonte is not null)
+            {
+                <dt class="col-sm-3">Onde</dt><dd class="col-sm-9 font-monospace">@erro.Fonte</dd>
+            }
+            @if (erro.Tela is not null)
+            {
+                <dt class="col-sm-3">Tela</dt><dd class="col-sm-9 font-monospace">@erro.Tela</dd>
+            }
+            @if (erro.Usuario is not null)
+            {
+                <dt class="col-sm-3">Usuário</dt><dd class="col-sm-9">@erro.Usuario</dd>
+            }
+            @if (erro.Cdempresa is not null)
+            {
+                <dt class="col-sm-3">Empresa</dt><dd class="col-sm-9">@erro.Cdempresa</dd>
+            }
+            <dt class="col-sm-3">Ocorrências</dt><dd class="col-sm-9">@erro.Ocorrencias</dd>
+            <dt class="col-sm-3">Primeira / última vez</dt><dd class="col-sm-9">@F.Data(erro.PrimeiraVez) / @F.Data(erro.UltimaVez)</dd>
+            <dt class="col-sm-3">Máquina / versão</dt><dd class="col-sm-9">@(erro.Maquina ?? "—") / @(erro.Versao ?? "—")</dd>
+            @if (erro.SituacaoPor is not null)
+            {
+                <dt class="col-sm-3">Situação mudada por</dt><dd class="col-sm-9">@erro.SituacaoPor em @F.Data(erro.SituacaoEm)</dd>
+            }
+        </dl>
+        <div class="form-text">Os dados da última ocorrência. CPF mascarado; token e senha nunca são gravados.</div>
+    </div>
+</div>
+@if (!string.IsNullOrWhiteSpace(erro.Detalhe))
+{
+    <div class="card">
+        <div class="card-header">Detalhe técnico</div>
+        <div class="card-body"><pre class="resultado mb-0">@erro.Detalhe</pre></div>
+    </div>
+}
+<a class="btn btn-outline-secondary mt-3" asp-action="Index"><i class="bi bi-arrow-left"></i> Erros da aplicação</a>

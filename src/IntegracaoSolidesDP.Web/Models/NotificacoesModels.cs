@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using IntegracaoSolidesDP.Web.Data;
+using IntegracaoSolidesDP.Worker.Erros;
 using IntegracaoSolidesDP.Worker.Notificacoes;
 
 namespace IntegracaoSolidesDP.Web.Models;
@@ -21,6 +22,12 @@ public sealed class NotificacoesViewModel
     public IReadOnlyList<EmpresaRhsenso> Empresas { get; init; } = [];
 
     public DestinatarioForm NovoDestinatario { get; init; } = new();
+
+    /// <summary>Card "Erros da aplicação".</summary>
+    public ErrosConfigForm Erros { get; init; } = new();
+
+    /// <summary>A configuração dos erros gravada (padrões quando nunca foi gravada).</summary>
+    public ConfiguracaoErros ErrosAtual { get; init; } = new();
 }
 
 public sealed class NotificacaoForm

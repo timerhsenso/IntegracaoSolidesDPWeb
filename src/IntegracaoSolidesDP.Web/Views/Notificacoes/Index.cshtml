@@ -204,6 +204,43 @@
     </div>
 </div>
 
+<div class="card mb-3" id="erros">
+    <div class="card-header">Erros da aplicação</div>
+    <div class="card-body">
+        <p class="small text-body-secondary">
+            Erros técnicos da Web e do serviço (não são as pendências de cadastro). Todos ficam registrados na tela
+            <a asp-controller="Erros" asp-action="Index">Erros da aplicação</a>, com um código que o usuário vê na tela de erro.
+        </p>
+        <form asp-action="SalvarErros" method="post" novalidate>
+            <div class="form-check form-switch mb-2">
+                <input asp-for="Erros.ExecucaoCaida" class="form-check-input" role="switch" />
+                <label asp-for="Erros.ExecucaoCaida" class="form-check-label"></label>
+                <dica-campo for="Erros.ExecucaoCaida" ajuda="erros" />
+            </div>
+            <div class="form-check form-switch mb-2">
+                <input asp-for="Erros.OperadorVe" class="form-check-input" role="switch" />
+                <label asp-for="Erros.OperadorVe" class="form-check-label"></label>
+                <dica-campo for="Erros.OperadorVe" ajuda="erros" />
+            </div>
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-6 col-lg-4">
+                    <label asp-for="Erros.RetencaoDias" class="form-label"></label>
+                    <input asp-for="Erros.RetencaoDias" class="form-control" />
+                    <dica-campo for="Erros.RetencaoDias" ajuda="erros" />
+                    <span asp-validation-for="Erros.RetencaoDias" class="text-danger small"></span>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <button type="submit" class="btn btn-outline-primary"><i class="bi bi-save"></i> Salvar erros da aplicação</button>
+                </div>
+            </div>
+            @if (Model.ErrosAtual.AtualizadoPor is { } por)
+            {
+                <div class="form-text mt-2">Gravado por @por em @F.Data(Model.ErrosAtual.AtualizadoEm).</div>
+            }
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">Últimos envios</div>
     <div class="card-body">
