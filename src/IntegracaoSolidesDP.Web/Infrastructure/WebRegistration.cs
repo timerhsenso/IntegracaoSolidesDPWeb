@@ -78,10 +78,15 @@ public static class WebRegistration
         // Usuário desativado ou com perfil alterado perde o acesso em até 1 minuto.
         services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(1));
 
-        // Chaves do cookie no banco: o login sobrevive à reciclagem do app pool do IIS.
-        services.AddDataProtection()
+        // Chaves do cookie no banco: o login sobrevive à reciclagem do app pool do IIS. No Windows as chaves novas são
+        // cifradas com o DPAPI da máquina: quem só lê o banco não consegue forjar o cookie de um Admin.
+        var protecao = services.AddDataProtection()
             .SetApplicationName("IntegracaoSolidesDP.Web")
             .PersistKeysToDbContext<AuthDbContext>();
+        if (OperatingSystem.IsWindows())
+        {
+            protecao.ProtectKeysWithDpapi(protectToLocalMachine: true);
+        }
 
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())

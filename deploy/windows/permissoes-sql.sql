@@ -89,6 +89,10 @@ BEGIN
 END;
 GO
 
+-- O login da Web (usuários, senhas, chaves do cookie) não é lido pelo serviço. db_datareader daria leitura a tudo.
+DENY SELECT ON SCHEMA::solidesdp_auth TO integracao_solidesdp;
+GO
+
 /* ---------------------------------------------------------------- conferência */
 
 SELECT usuario = dp.name,

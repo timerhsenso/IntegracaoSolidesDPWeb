@@ -78,6 +78,22 @@ public sealed class WebTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Login_does_not_reveal_a_deactivated_user_to_who_does_not_know_the_password()
+    {
+        var login = await _web.CriarUsuarioAsync(Perfis.Consulta);
+        await db.ExecuteAsync("UPDATE solidesdp_auth.AspNetUsers SET Ativo = 0 WHERE UserName = @login", new { login });
+
+        var errada = await WebHarness.PostFormAsync(_web.Cliente(), "/Conta/Entrar", "/Conta/Entrar",
+            new() { ["Usuario"] = login, ["Senha"] = "errada" });
+        var certa = await WebHarness.PostFormAsync(_web.Cliente(), "/Conta/Entrar", "/Conta/Entrar",
+            new() { ["Usuario"] = login, ["Senha"] = WebHarness.Senha });
+
+        WebUtility.HtmlDecode(await errada.Content.ReadAsStringAsync(Ct)).Should().Contain("Usuário ou senha inválidos").And.NotContain("desativado");
+        WebUtility.HtmlDecode(await certa.Content.ReadAsStringAsync(Ct)).Should().Contain("Usuário desativado");
+        certa.StatusCode.Should().Be(HttpStatusCode.OK, "desativado não entra, mesmo com a senha certa");
+    }
+
+    [Fact]
     public async Task Wrong_password_is_refused_and_audited()
     {
         var login = await _web.CriarUsuarioAsync(Perfis.Consulta);

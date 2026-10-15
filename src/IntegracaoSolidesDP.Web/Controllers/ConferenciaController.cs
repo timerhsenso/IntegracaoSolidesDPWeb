@@ -171,7 +171,7 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, IIgnor
 
     private static string Campo(string? valor)
     {
-        var texto = valor ?? string.Empty;
+        var texto = CsvSeguro.Neutralizar(valor ?? string.Empty);
         return texto.IndexOfAny([';', '"', '\r', '\n']) < 0 ? texto : "\"" + texto.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
     }
 }

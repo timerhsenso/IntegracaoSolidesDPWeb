@@ -13,6 +13,9 @@ public sealed class ContaController(
     UserManager<ApplicationUser> users,
     Auditoria auditoria) : Controller
 {
+    private const string MensagemFalha =
+        "Usuário ou senha inválidos. Depois de 5 tentativas erradas, o acesso fica bloqueado por 15 minutos.";
+
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> Entrar(string? returnUrl)
@@ -43,8 +46,11 @@ public sealed class ContaController(
         var user = await users.FindByNameAsync(login);
         if (user is { Ativo: false })
         {
+            // Só diz que está desativado para quem acertou a senha: assim a tela não revela quais logins existem.
             await auditoria.RegistrarAsync(AcoesAuditoria.LoginRecusado, null, login);
-            ModelState.AddModelError(string.Empty, "Usuário desativado. Procure o administrador.");
+            ModelState.AddModelError(string.Empty, await users.CheckPasswordAsync(user, model.Senha)
+                ? "Usuário desativado. Procure o administrador."
+                : MensagemFalha);
             return View(model);
         }
 
@@ -65,16 +71,9 @@ public sealed class ContaController(
             return RedirectToAction("Index", "Painel");
         }
 
-        if (result.IsLockedOut)
-        {
-            await auditoria.RegistrarAsync(AcoesAuditoria.LoginBloqueado, null, login);
-            ModelState.AddModelError(string.Empty, "Usuário bloqueado por excesso de tentativas. Tente de novo em 15 minutos.");
-        }
-        else
-        {
-            await auditoria.RegistrarAsync(AcoesAuditoria.LoginFalhou, null, login);
-            ModelState.AddModelError(string.Empty, "Usuário ou senha inválidos.");
-        }
+        // A mesma mensagem para senha errada, login inexistente e conta bloqueada (a auditoria registra a diferença).
+        await auditoria.RegistrarAsync(result.IsLockedOut ? AcoesAuditoria.LoginBloqueado : AcoesAuditoria.LoginFalhou, null, login);
+        ModelState.AddModelError(string.Empty, MensagemFalha);
 
         return View(model);
     }

@@ -19,10 +19,11 @@
 
     const formatoData = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' });
 
+    // Escapa para HTML, inclusive dentro de atributos (aspas): o texto pode vir do Sólides DP ou do RHSenso.
     function esc(texto) {
-        const div = document.createElement('div');
-        div.textContent = texto == null ? '' : String(texto);
-        return div.innerHTML;
+        return texto == null ? '' : String(texto)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function data(iso) {

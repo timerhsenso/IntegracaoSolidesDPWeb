@@ -152,6 +152,8 @@ public sealed class RunReportWriter(IOptions<SyncOptions> options, ILogger<RunRe
             return "\"=\"\"" + value + "\"\"\"";
         }
 
+        // Texto que começa como fórmula (=, +, -, @) vira texto no Excel: o valor pode vir do Sólides DP.
+        value = Management.CsvSeguro.Neutralizar(value);
         return value.IndexOfAny([';', '"', '\n', '\r']) >= 0 ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"" : value;
     }
 
