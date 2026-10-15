@@ -50,7 +50,6 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, IIgnor
         {
             chave = SoNoDp(l) ? Chave(l) : l.Rotulo,
             soNoDp = SoNoDp(l),
-            aVincular = l.AVincular,
             ignorado = SoNoDp(l) && l.CadastroDp is { } cadastro && vigentes.Any(i => i.Corresponde(cadastro, CpfDaLinha(l))),
             rotulo = l.Rotulo,
             nome = l.Nome,
@@ -59,6 +58,7 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, IIgnor
             campo = l.Campo,
             rhSenso = l.RhSenso,
             dp = l.Dp,
+            aVincular = l.AVincular,
         }));
     }
 
