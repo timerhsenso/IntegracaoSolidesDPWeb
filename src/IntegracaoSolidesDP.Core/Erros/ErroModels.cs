@@ -90,6 +90,20 @@ public sealed record ErroAplicacao
 
     public DateTimeOffset? SituacaoEm { get; init; }
     public bool ExecucaoCaida { get; init; }
+
+    /// <summary>Quando o último e-mail deste erro saiu para o suporte.</summary>
+    public DateTimeOffset? UltimoAviso { get; init; }
+
+    /// <summary>Ocorrências já contadas no último e-mail (o resumo só sai se o erro voltou a acontecer).</summary>
+    public int OcorrenciasNoAviso { get; init; }
+
+    /// <summary>Comentários de quem viu o erro ("14/10 10:32 carlos: estava salvando a empresa 15").</summary>
+    public string? Comentario { get; init; }
+
+    /// <summary>"Enviar ao suporte" pedido e ainda não atendido pelo serviço.</summary>
+    public DateTimeOffset? EnvioPedidoEm { get; init; }
+
+    public string? EnvioPedidoPor { get; init; }
 }
 
 /// <summary>Configuração dos erros da aplicação (solidesdp.erro_config, uma linha). Sem linha, valem os padrões.</summary>

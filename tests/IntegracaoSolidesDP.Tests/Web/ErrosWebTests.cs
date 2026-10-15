@@ -59,6 +59,38 @@ public sealed class ErrosWebTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Admin_asks_to_send_the_error_with_a_comment_and_registers_the_support_email()
+    {
+        var login = await _web.CriarUsuarioAsync(Perfis.Admin);
+        var client = await _web.EntrarAsync(login);
+
+        var destinatario = await WebHarness.PostFormAsync(client, "/Notificacoes", "/Notificacoes/Destinatario", new()
+        {
+            ["NovoDestinatario.Email"] = "suporte@rhsenso.com.br",
+            ["NovoDestinatario.RecebeFalhas"] = "false",
+            ["NovoDestinatario.RecebeResumo"] = "false",
+            ["NovoDestinatario.RecebeErros"] = "true",
+        });
+        var detalhe = WebUtility.HtmlDecode(await client.GetStringAsync($"/Erros/Detalhe/{_id}", Ct));
+        var enviar = await WebHarness.PostFormAsync(client, $"/Erros/Detalhe/{_id}", $"/Erros/Enviar/{_id}", new()
+        {
+            ["comentario"] = "acontece ao salvar a empresa 15",
+        });
+
+        destinatario.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        (await new IntegracaoSolidesDP.Worker.Notificacoes.SqlNotificacaoStore(db.Connections, TimeProvider.System).DestinatariosAsync(Ct))
+            .Should().ContainSingle().Which.Should().Match<IntegracaoSolidesDP.Worker.Notificacoes.DestinatarioNotificacao>(d =>
+                d.RecebeErros && !d.RecebeFalhas && !d.RecebeResumo);
+        detalhe.Should().Contain("Enviar ao suporte agora").And.NotContain("Nenhum destinatário ativo recebe erros");
+        enviar.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        var comentario = $"{login}: acontece ao salvar a empresa 15";
+        (await new SqlErroStore(db.Connections, TimeProvider.System).ObterAsync(_id, Ct))!.Should().Match<ErroAplicacao>(e =>
+            e.EnvioPedidoPor == login && e.EnvioPedidoEm != null && e.Comentario!.EndsWith(comentario, StringComparison.Ordinal));
+        (await db.QueryAsync<string>("SELECT acao FROM solidesdp.auditoria WHERE usuario = @login", new { login }))
+            .Should().Contain(AcoesAuditoria.ErroEnvioSolicitado);
+    }
+
+    [Fact]
     public async Task Operator_sees_the_screen_only_when_the_admin_allows_and_never_changes_the_situation()
     {
         var admin = await _web.EntrarAsync(await _web.CriarUsuarioAsync(Perfis.Admin));

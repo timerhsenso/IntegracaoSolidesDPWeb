@@ -22,11 +22,40 @@
     <dt>Aberto</dt>
     <dd>Novo, ou que voltou a acontecer depois de resolvido.</dd>
     <dt>Silenciado</dt>
-    <dd>Erro conhecido: continua sendo registrado e contado, mas não gera aviso por e-mail.</dd>
+    <dd>Erro conhecido: continua sendo registrado e contado, mas não gera aviso automático por e-mail.</dd>
     <dt>Resolvido</dt>
     <dd>Corrigido. Se acontecer de novo, volta sozinho para <em>Aberto</em>.</dd>
 </dl>
 <p>Silenciar, resolver e reabrir são do Admin e ficam na <a href="#auditoria">Auditoria</a>.</p>
+<h4>Envio ao suporte por e-mail</h4>
+<p>
+    Vai para os destinatários com <strong>Recebe erros da aplicação</strong> marcado em <a href="#notificacoes">Notificações</a>
+    (ex.: o e-mail do suporte, que não precisa receber falhas nem pendências). Quem envia é o serviço, com o mesmo servidor de
+    e-mail dos outros avisos e só com os avisos ligados. O envio é configurado no card <em>Erros da aplicação</em> de Notificações:
+</p>
+<dl class="ajuda-def">
+    <dt>Desligado</dt>
+    <dd>Nada sai; os erros continuam registrados aqui.</dd>
+    <dt>Só manual</dt>
+    <dd>Sai só o que alguém pedir no botão <em>Enviar ao suporte</em> (no detalhe do erro ou na tela de erro).</dd>
+    <dt>Automático (padrão)</dt>
+    <dd>
+        O primeiro aviso de cada erro aberto sai na hora. Se o mesmo erro continuar acontecendo, sai no máximo um
+        <strong>resumo</strong> a cada tantas horas (padrão: 4). Erro silenciado ou resolvido não gera e-mail. Só entram erros das
+        últimas 24 horas: ligar o envio não manda o histórico. Dá para escolher se vão os erros da Web, do serviço ou os dois.
+    </dd>
+</dl>
+<ul>
+    <li><strong>Limite por dia</strong> (padrão: 20 e-mails): ao atingir, sai um único aviso "limite atingido" e o resto fica para o
+        dia seguinte. O pedido no botão sempre sai, mas conta no limite.</li>
+    <li><strong>Nome do cliente</strong> vai no assunto, para o suporte saber de onde é o erro:
+        <code>[Integração Sólides DP · ADN] Erro E-1027 no serviço: …</code></li>
+    <li>O e-mail leva o código, a mensagem, onde e quando aconteceu, os comentários e o detalhe técnico (CPF mascarado, sem token
+        nem senha).</li>
+    <li>Na tela de erro, quem pode enviar (Admin; Operador com <em>Operador pode enviar ao suporte</em>) conta o que estava fazendo.
+        No automático o comentário vai junto do aviso.</li>
+    <li>Os e-mails aparecem em Notificações › Últimos envios. Se o servidor de e-mail recusar, o serviço tenta de novo em 15 minutos.</li>
+</ul>
 <h4>Por quanto tempo fica</h4>
 <p>
     A limpeza diária apaga o erro que não acontece há mais que <em>Guardar erros por (dias)</em> (padrão: 90; 0 = nunca apaga).

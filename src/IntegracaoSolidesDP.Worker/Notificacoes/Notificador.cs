@@ -337,8 +337,8 @@ public sealed class Notificador(
         return html.ToString();
     }
 
-    /// <summary>Envia e registra em solidesdp.notificacao_envio. Devolve o erro (null = enviado).</summary>
-    private async Task<string?> EnviarAsync(
+    /// <summary>Envia e registra em solidesdp.notificacao_envio. Devolve o erro (null = enviado). Usado também pelos avisos de erro.</summary>
+    internal async Task<string?> EnviarAsync(
         ConfiguracaoNotificacao config, string tipo, int? cdempresa, IReadOnlyList<string> para, string assunto, string html, CancellationToken ct)
     {
         string? erro = null;

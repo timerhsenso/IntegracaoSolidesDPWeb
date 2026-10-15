@@ -88,9 +88,15 @@ internal sealed class MemoryErroStore : IErroStore
 {
     public List<ErroCapturado> Registrados { get; } = [];
 
+    /// <summary>Erros já gravados, para os avisos por e-mail.</summary>
+    public List<ErroAplicacao> Erros { get; } = [];
+
     public ConfiguracaoErros Configuracao { get; set; } = new();
 
     public bool Falhar { get; set; }
+
+    /// <summary>De onde vêm os envios do dia (o MemoryNotificacaoStore).</summary>
+    public Func<IEnumerable<IntegracaoSolidesDP.Worker.Notificacoes.EnvioNotificacao>> Envios { get; set; } = () => [];
 
     public Task<long?> RegistrarAsync(ErroCapturado erro, CancellationToken ct)
     {
@@ -104,9 +110,9 @@ internal sealed class MemoryErroStore : IErroStore
     }
 
     public Task<IReadOnlyList<ErroAplicacao>> ListarAsync(string? situacao, string? origem, int quantidade, CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<ErroAplicacao>>([]);
+        Task.FromResult<IReadOnlyList<ErroAplicacao>>(Erros.ToList());
 
-    public Task<ErroAplicacao?> ObterAsync(long id, CancellationToken ct) => Task.FromResult<ErroAplicacao?>(null);
+    public Task<ErroAplicacao?> ObterAsync(long id, CancellationToken ct) => Task.FromResult(Erros.FirstOrDefault(e => e.Id == id));
 
     public Task<bool> MudarSituacaoAsync(long id, string situacao, string usuario, CancellationToken ct) => Task.FromResult(false);
 
@@ -120,5 +126,49 @@ internal sealed class MemoryErroStore : IErroStore
     {
         Configuracao = configuracao;
         return Task.CompletedTask;
+    }
+
+    public Task<bool> ComentarAsync(long id, string usuario, string? comentario, bool pedirEnvio, CancellationToken ct)
+    {
+        var indice = Erros.FindIndex(e => e.Id == id);
+        if (indice < 0)
+        {
+            return Task.FromResult(false);
+        }
+
+        var erro = Erros[indice];
+        Erros[indice] = erro with
+        {
+            Comentario = comentario is null ? erro.Comentario : erro.Comentario is null ? comentario : erro.Comentario + "\n" + comentario,
+            EnvioPedidoEm = pedirEnvio ? DateTimeOffset.UtcNow : erro.EnvioPedidoEm,
+            EnvioPedidoPor = pedirEnvio ? usuario : erro.EnvioPedidoPor,
+        };
+        return Task.FromResult(true);
+    }
+
+    public Task<IReadOnlyList<ErroAplicacao>> ParaAvisarAsync(DateTimeOffset recentesDesde, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<ErroAplicacao>>(Erros
+            .Where(e => e.EnvioPedidoEm is not null
+                        || (e.Situacao == SituacoesErro.Aberto && e.UltimaVez >= recentesDesde && (e.UltimoAviso is null || e.Ocorrencias > e.OcorrenciasNoAviso)))
+            .OrderBy(e => e.EnvioPedidoEm is null ? 1 : 0).ThenBy(e => e.PrimeiraVez).ThenBy(e => e.Id)
+            .ToList());
+
+    public Task MarcarAvisadosAsync(IReadOnlyCollection<(long Id, int Ocorrencias)> avisados, DateTimeOffset quando, CancellationToken ct)
+    {
+        foreach (var (id, ocorrencias) in avisados)
+        {
+            var indice = Erros.FindIndex(e => e.Id == id);
+            Erros[indice] = Erros[indice] with { UltimoAviso = quando, OcorrenciasNoAviso = ocorrencias, EnvioPedidoEm = null, EnvioPedidoPor = null };
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<EnviosDeErro> EnviosDesdeAsync(DateTimeOffset desde, CancellationToken ct)
+    {
+        var doDia = Envios().Where(e => e.EnviadoEm >= desde).ToList();
+        return Task.FromResult(new EnviosDeErro(
+            doDia.Count(e => e.Ok && IntegracaoSolidesDP.Worker.Notificacoes.TiposNotificacao.ContamNoLimite.Contains(e.Tipo)),
+            doDia.Any(e => e.Tipo == IntegracaoSolidesDP.Worker.Notificacoes.TiposNotificacao.ErroLimite)));
     }
 }

@@ -96,6 +96,51 @@ public sealed class SqlErroStoreTests(SqlServerFixture db) : IAsyncLifetime
         (await _store.ObterAsync(velho, Ct)).Should().BeNull();
     }
 
+    [Fact]
+    public async Task Comments_and_send_requests_feed_the_emails_and_the_sent_ones_are_marked()
+    {
+        await CriarTabelasAsync();
+        var novo = (await _store.RegistrarAsync(Erro("novo"), Ct))!.Value;
+        var silenciado = (await _store.RegistrarAsync(Erro("silenciado"), Ct))!.Value;
+        var antigo = (await _store.RegistrarAsync(Erro("antigo") with { Quando = Inicio.AddDays(-3) }, Ct))!.Value;
+        await _store.MudarSituacaoAsync(silenciado, SituacoesErro.Silenciado, "carlos", Ct);
+
+        (await _store.ComentarAsync(silenciado, "ana", "14/10 10:00 ana: CPF 52998224725 salvando", pedirEnvio: true, Ct)).Should().BeTrue();
+        await _store.ComentarAsync(silenciado, "carlos", "14/10 10:05 carlos: de novo", pedirEnvio: false, Ct);
+        (await _store.ComentarAsync(999, "ana", "x", pedirEnvio: true, Ct)).Should().BeFalse();
+
+        var avisar = await _store.ParaAvisarAsync(Inicio.AddDays(-1), Ct);
+        avisar.Select(e => e.Id).Should().Equal([silenciado, novo], "o pedido vem primeiro; o antigo e os já avisados ficam de fora");
+        avisar[0].Should().Match<ErroAplicacao>(e =>
+            e.EnvioPedidoPor == "ana" && e.EnvioPedidoEm != null && e.Detalhe == "pilha"
+            && e.Comentario == "14/10 10:00 ana: CPF 529.***.***-25 salvando\n14/10 10:05 carlos: de novo");
+
+        await _store.MarcarAvisadosAsync([(silenciado, 1), (novo, 1)], Inicio.AddMinutes(1), Ct);
+        (await _store.ParaAvisarAsync(Inicio.AddDays(-1), Ct)).Should().BeEmpty();
+        await _store.RegistrarAsync(Erro("novo"), Ct);
+        (await _store.ParaAvisarAsync(Inicio.AddDays(-1), Ct)).Should().ContainSingle()
+            .Which.Should().Match<ErroAplicacao>(e => e.Id == novo && e.Ocorrencias == 2 && e.OcorrenciasNoAviso == 1 && e.UltimoAviso != null);
+        (await _store.ObterAsync(silenciado, Ct))!.EnvioPedidoEm.Should().BeNull();
+        (await _store.ObterAsync(antigo, Ct))!.UltimoAviso.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Emails_of_the_day_count_only_the_error_ones_that_went_out()
+    {
+        await CriarTabelasAsync();
+        await db.ExecuteAsync("""
+            INSERT INTO solidesdp.notificacao_envio (enviado_em, tipo, para, assunto, ok)
+            VALUES (@Ontem, 'erro', 'a@b.c', 'ontem', 1), (@Hoje, 'erro', 'a@b.c', 'hoje', 1), (@Hoje, 'erro_resumo', 'a@b.c', 'resumo', 1),
+                   (@Hoje, 'erro_manual', 'a@b.c', 'recusado', 0), (@Hoje, 'falha', 'a@b.c', 'falha', 1)
+            """, new { Ontem = Inicio.AddDays(-1), Hoje = Inicio });
+
+        (await _store.EnviosDesdeAsync(Inicio.AddHours(-1), Ct)).Should().Be(new EnviosDeErro(2, LimiteAvisado: false));
+
+        await db.ExecuteAsync("INSERT INTO solidesdp.notificacao_envio (enviado_em, tipo, para, assunto, ok) VALUES (@Hoje, 'erro_limite', 'a@b.c', 'limite', 1)",
+            new { Hoje = Inicio });
+        (await _store.EnviosDesdeAsync(Inicio.AddHours(-1), Ct)).LimiteAvisado.Should().BeTrue();
+    }
+
     private Task CriarTabelasAsync() => new SqlManagementStore(db.Connections, TimeProvider.System).EnsureSchemaAsync(Ct);
 
     private static ErroCapturado Erro(string mensagem) => new()

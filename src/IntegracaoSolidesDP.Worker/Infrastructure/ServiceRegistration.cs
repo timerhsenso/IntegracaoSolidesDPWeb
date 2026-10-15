@@ -61,6 +61,7 @@ public static class ServiceRegistration
         services.AddSingleton<Limpeza>();
         services.AddSingleton<FilaErros>();
         services.AddSingleton<IErroStore, SqlErroStore>();
+        services.AddSingleton<AvisoErros>();
         services.AddSingleton<IConferenciaStore, SqlConferenciaStore>();
         services.AddSingleton<ConferenciaAgendada>();
         services.AddScoped<ConferenciaCampos>();

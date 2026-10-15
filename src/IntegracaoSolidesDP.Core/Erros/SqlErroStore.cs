@@ -34,7 +34,42 @@ public interface IErroStore
     Task<ConfiguracaoErros> ConfiguracaoAsync(CancellationToken ct);
 
     Task SalvarConfiguracaoAsync(ConfiguracaoErros configuracao, string usuario, CancellationToken ct);
+
+    /// <summary>
+    /// Acrescenta um comentário ao erro (com quem e quando) e, com <paramref name="pedirEnvio"/>, pede ao serviço que o envie
+    /// ao suporte. False se o erro não existe.
+    /// </summary>
+    /// <param name="id">O erro.</param>
+    /// <param name="usuario">Login de quem comentou ou pediu.</param>
+    /// <param name="comentario">A linha do comentário, já com quem e quando (vazio = só o pedido de envio). CPF é mascarado.</param>
+    /// <param name="pedirEnvio">Pede o envio ao suporte (o serviço atende no próximo ciclo).</param>
+    /// <param name="ct">Cancelamento.</param>
+    Task<bool> ComentarAsync(long id, string usuario, string? comentario, bool pedirEnvio, CancellationToken ct);
+
+    /// <summary>
+    /// Erros que podem gerar e-mail, com detalhe e comentários: os com envio pedido (qualquer situação) e os abertos que
+    /// aconteceram desde <paramref name="recentesDesde"/> e ainda não foram avisados ou voltaram a acontecer depois do aviso.
+    /// </summary>
+    /// <param name="recentesDesde">Só erros com a última ocorrência a partir daqui (nada de avisar erro antigo).</param>
+    /// <param name="ct">Cancelamento.</param>
+    Task<IReadOnlyList<ErroAplicacao>> ParaAvisarAsync(DateTimeOffset recentesDesde, CancellationToken ct);
+
+    /// <summary>Registra o e-mail enviado: hora, ocorrências contadas e o pedido de envio atendido.</summary>
+    /// <param name="avisados">Id e ocorrências do erro no momento do envio.</param>
+    /// <param name="quando">Hora do envio.</param>
+    /// <param name="ct">Cancelamento.</param>
+    Task MarcarAvisadosAsync(IReadOnlyCollection<(long Id, int Ocorrencias)> avisados, DateTimeOffset quando, CancellationToken ct);
+
+    /// <summary>E-mails de erro enviados desde <paramref name="desde"/> (os que contam no limite) e se o aviso de limite já saiu.</summary>
+    /// <param name="desde">Começo do dia, em hora local.</param>
+    /// <param name="ct">Cancelamento.</param>
+    Task<EnviosDeErro> EnviosDesdeAsync(DateTimeOffset desde, CancellationToken ct);
 }
+
+/// <summary>E-mails de erro do dia.</summary>
+/// <param name="Enviados">Enviados com sucesso que contam no limite diário.</param>
+/// <param name="LimiteAvisado">O aviso "limite atingido" já saiu.</param>
+public sealed record EnviosDeErro(int Enviados, bool LimiteAvisado);
 
 public sealed class SqlErroStore(ConnectionFactory connections, TimeProvider clock) : IErroStore
 {
@@ -48,7 +83,8 @@ public sealed class SqlErroStore(ConnectionFactory connections, TimeProvider clo
         id AS Id, origem AS Origem, fonte AS Fonte, tipo AS Tipo, mensagem AS Mensagem, usuario AS Usuario, tela AS Tela,
         cdempresa AS Cdempresa, maquina AS Maquina, versao AS Versao, primeira_vez AS PrimeiraVez, ultima_vez AS UltimaVez,
         ocorrencias AS Ocorrencias, situacao AS Situacao, situacao_por AS SituacaoPor, situacao_em AS SituacaoEm,
-        execucao_caida AS ExecucaoCaida
+        execucao_caida AS ExecucaoCaida, ultimo_aviso AS UltimoAviso, ocorrencias_no_aviso AS OcorrenciasNoAviso,
+        envio_pedido_em AS EnvioPedidoEm, envio_pedido_por AS EnvioPedidoPor
         """;
 
     public async Task<long?> RegistrarAsync(ErroCapturado erro, CancellationToken ct)
@@ -140,7 +176,7 @@ public sealed class SqlErroStore(ConnectionFactory connections, TimeProvider clo
         await using var connection = await connections.OpenAsync(ct);
         return await connection.QuerySingleOrDefaultAsync<ErroAplicacao>(new CommandDefinition($"""
             IF OBJECT_ID(N'solidesdp.erro_aplicacao', N'U') IS NOT NULL
-                SELECT {Colunas}, detalhe AS Detalhe FROM solidesdp.erro_aplicacao WHERE id = @Id;
+                SELECT {Colunas}, detalhe AS Detalhe, comentario AS Comentario FROM solidesdp.erro_aplicacao WHERE id = @Id;
             ELSE
                 SELECT CAST(0 AS bigint) AS Id WHERE 1 = 0;
             """, new { Id = id }, cancellationToken: ct));
@@ -243,6 +279,70 @@ public sealed class SqlErroStore(ConnectionFactory connections, TimeProvider clo
                 Agora = clock.GetUtcNow(),
             },
             cancellationToken: ct));
+    }
+
+    public async Task<bool> ComentarAsync(long id, string usuario, string? comentario, bool pedirEnvio, CancellationToken ct)
+    {
+        var agora = clock.GetUtcNow();
+        var texto = string.IsNullOrWhiteSpace(comentario) ? null : ErroTexto.Limpar(comentario.Trim(), 1200);
+        await using var connection = await connections.OpenAsync(ct);
+        return await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE solidesdp.erro_aplicacao
+            SET comentario = CASE
+                    WHEN @Texto IS NULL THEN comentario
+                    WHEN comentario IS NULL THEN @Texto
+                    ELSE RIGHT(CAST(comentario AS nvarchar(max)) + NCHAR(10) + @Texto, 4000)
+                END,
+                envio_pedido_em = CASE WHEN @PedirEnvio = 1 THEN @Agora ELSE envio_pedido_em END,
+                envio_pedido_por = CASE WHEN @PedirEnvio = 1 THEN @Usuario ELSE envio_pedido_por END
+            WHERE id = @Id
+            """,
+            new { Id = id, Texto = texto, PedirEnvio = pedirEnvio, Agora = agora, Usuario = Cortar(usuario, 64) },
+            cancellationToken: ct)) == 1;
+    }
+
+    public async Task<IReadOnlyList<ErroAplicacao>> ParaAvisarAsync(DateTimeOffset recentesDesde, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        var linhas = await connection.QueryAsync<ErroAplicacao>(new CommandDefinition($"""
+            IF OBJECT_ID(N'solidesdp.erro_aplicacao', N'U') IS NOT NULL
+                SELECT TOP (200) {Colunas}, detalhe AS Detalhe, comentario AS Comentario FROM solidesdp.erro_aplicacao
+                WHERE envio_pedido_em IS NOT NULL
+                   OR (situacao = @Aberto AND ultima_vez >= @Desde AND (ultimo_aviso IS NULL OR ocorrencias > ocorrencias_no_aviso))
+                ORDER BY CASE WHEN envio_pedido_em IS NULL THEN 1 ELSE 0 END, primeira_vez, id;
+            ELSE
+                SELECT CAST(0 AS bigint) AS Id WHERE 1 = 0;
+            """, new { Aberto = SituacoesErro.Aberto, Desde = recentesDesde }, cancellationToken: ct));
+        return linhas.AsList();
+    }
+
+    public async Task MarcarAvisadosAsync(IReadOnlyCollection<(long Id, int Ocorrencias)> avisados, DateTimeOffset quando, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(avisados);
+        if (avisados.Count == 0)
+        {
+            return;
+        }
+
+        await using var connection = await connections.OpenAsync(ct);
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE solidesdp.erro_aplicacao
+            SET ultimo_aviso = @Quando, ocorrencias_no_aviso = @Ocorrencias, envio_pedido_em = NULL, envio_pedido_por = NULL
+            WHERE id = @Id
+            """, avisados.Select(a => new { a.Id, a.Ocorrencias, Quando = quando }), cancellationToken: ct));
+    }
+
+    public async Task<EnviosDeErro> EnviosDesdeAsync(DateTimeOffset desde, CancellationToken ct)
+    {
+        await using var connection = await connections.OpenAsync(ct);
+        var linha = await connection.QuerySingleAsync<(int Enviados, int Limite)>(new CommandDefinition("""
+            SELECT
+                (SELECT COUNT(*) FROM solidesdp.notificacao_envio WHERE enviado_em >= @Desde AND ok = 1 AND tipo IN @Contam),
+                (SELECT COUNT(*) FROM solidesdp.notificacao_envio WHERE enviado_em >= @Desde AND tipo = @Limite)
+            """,
+            new { Desde = desde, Contam = Notificacoes.TiposNotificacao.ContamNoLimite, Limite = Notificacoes.TiposNotificacao.ErroLimite },
+            cancellationToken: ct));
+        return new EnviosDeErro(linha.Enviados, linha.Limite > 0);
     }
 
     private static string? Cortar(string? texto, int tamanho) =>

@@ -104,7 +104,7 @@ public sealed class SqlNotificacaoStore(ConnectionFactory connections, TimeProvi
     {
         await using var connection = await connections.OpenAsync(ct);
         var rows = await connection.QueryAsync<DestinatarioNotificacao>(new CommandDefinition("""
-            SELECT id AS Id, email AS Email, cdempresa AS Cdempresa, recebe_falhas AS RecebeFalhas, recebe_resumo AS RecebeResumo, ativo AS Ativo
+            SELECT id AS Id, email AS Email, cdempresa AS Cdempresa, recebe_falhas AS RecebeFalhas, recebe_resumo AS RecebeResumo, recebe_erros AS RecebeErros, ativo AS Ativo
             FROM solidesdp.notificacao_destinatario
             ORDER BY ativo DESC, email, cdempresa
             """, cancellationToken: ct));
@@ -122,6 +122,7 @@ public sealed class SqlNotificacaoStore(ConnectionFactory connections, TimeProvi
             destinatario.Cdempresa,
             destinatario.RecebeFalhas,
             destinatario.RecebeResumo,
+            destinatario.RecebeErros,
             destinatario.Ativo,
             Usuario = usuario,
             Agora = clock.GetUtcNow(),
@@ -130,7 +131,7 @@ public sealed class SqlNotificacaoStore(ConnectionFactory connections, TimeProvi
         {
             await connection.ExecuteAsync(new CommandDefinition("""
                 UPDATE solidesdp.notificacao_destinatario
-                SET email = @Email, cdempresa = @Cdempresa, recebe_falhas = @RecebeFalhas, recebe_resumo = @RecebeResumo, ativo = @Ativo,
+                SET email = @Email, cdempresa = @Cdempresa, recebe_falhas = @RecebeFalhas, recebe_resumo = @RecebeResumo, recebe_erros = @RecebeErros, ativo = @Ativo,
                     atualizado_por = @Usuario, atualizado_em = @Agora
                 WHERE id = @Id
                 """, parametros, cancellationToken: ct));
@@ -138,9 +139,9 @@ public sealed class SqlNotificacaoStore(ConnectionFactory connections, TimeProvi
         }
 
         return await connection.ExecuteScalarAsync<long>(new CommandDefinition("""
-            INSERT INTO solidesdp.notificacao_destinatario (email, cdempresa, recebe_falhas, recebe_resumo, ativo, criado_por, criado_em)
+            INSERT INTO solidesdp.notificacao_destinatario (email, cdempresa, recebe_falhas, recebe_resumo, recebe_erros, ativo, criado_por, criado_em)
             OUTPUT INSERTED.id
-            VALUES (@Email, @Cdempresa, @RecebeFalhas, @RecebeResumo, @Ativo, @Usuario, @Agora)
+            VALUES (@Email, @Cdempresa, @RecebeFalhas, @RecebeResumo, @RecebeErros, @Ativo, @Usuario, @Agora)
             """, parametros, cancellationToken: ct));
     }
 

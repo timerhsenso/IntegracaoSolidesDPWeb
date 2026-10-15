@@ -18,7 +18,9 @@
         <tr><td><code>NOTIFICACAO_ALTERADA</code></td><td>Configuração dos avisos por e-mail gravada (servidor, horário do resumo, lembrete). A senha nunca é registrada, só se foi trocada.</td></tr>
         <tr><td><code>IGNORADO_INCLUIDO</code> / <code>IGNORADO_REMOVIDO</code></td><td>"Ignorar" quem está só no Sólides DP, na tela Conferência (nome e cadastro no DP), e "Voltar a validar", na tela Empresas. Quando a pessoa entra na folha e o serviço a tira da lista sozinho, isso fica na execução (<code>ignorado_voltou</code>) e no histórico da tela Empresas.</td></tr>
         <tr><td><code>ERRO_SILENCIADO</code> / <code>ERRO_RESOLVIDO</code> / <code>ERRO_REABERTO</code></td><td>Situação de um erro mudada na tela Erros da aplicação (com o código E-n e o começo da mensagem).</td></tr>
-        <tr><td><code>ERRO_CONFIG_ALTERADA</code></td><td>Opções dos erros da aplicação gravadas em Notificações (execução que caiu, Operador vê a tela, dias guardados).</td></tr>
+        <tr><td><code>ERRO_ENVIO_SOLICITADO</code></td><td>"Enviar ao suporte" pedido para um erro (na tela de erro ou em Erros da aplicação), com o código e o começo do comentário.</td></tr>
+        <tr><td><code>ERRO_COMENTADO</code></td><td>Comentário deixado na tela de erro com o envio automático (o comentário vai junto no e-mail do erro).</td></tr>
+        <tr><td><code>ERRO_CONFIG_ALTERADA</code></td><td>Opções dos erros da aplicação gravadas em Notificações (envio ao suporte, origens, resumo, limite diário, Operador, dias guardados).</td></tr>
         <tr><td><code>REENVIO_SOLICITADO</code></td><td>"Reenviar do RHSenso" na tela Conferência: os colaboradores marcados (matrícula) para a próxima execução reenviar o cadastro.</td></tr>
         <tr><td><code>NOTIFICACAO_DESTINATARIO</code></td><td>Destinatário dos avisos incluído, desativado ou reativado.</td></tr>
         <tr><td><code>INTEGRACAO_ATIVADA</code> / <code>INTEGRACAO_DESATIVADA</code></td><td>Ativar / desativar no Painel (com o motivo).</td></tr>

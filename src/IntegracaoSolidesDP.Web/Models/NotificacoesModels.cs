@@ -137,4 +137,7 @@ public sealed class DestinatarioForm
 
     [Display(Name = "Recebe resumo de pendências")]
     public bool RecebeResumo { get; set; } = true;
+
+    [Display(Name = "Recebe erros da aplicação", Description = "Para o suporte: só os erros técnicos, conforme o envio configurado em Erros da aplicação.")]
+    public bool RecebeErros { get; set; }
 }

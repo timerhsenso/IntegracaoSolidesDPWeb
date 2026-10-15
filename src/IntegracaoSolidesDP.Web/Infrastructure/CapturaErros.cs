@@ -100,8 +100,8 @@ public sealed class GravadorErros(FilaErros fila, IErroStore store, TimeProvider
 }
 
 /// <summary>
-/// Quem vê a tela "Erros da aplicação" (Admin sempre; Operador se a configuração permitir) e quantos erros estão abertos,
-/// para o menu. Guardado por 30 segundos: o menu é desenhado em toda tela.
+/// Quem vê a tela "Erros da aplicação" (Admin sempre; Operador se a configuração permitir), quem pode enviar um erro ao
+/// suporte e quantos erros estão abertos, para o menu. Guardado por 30 segundos: o menu é desenhado em toda tela.
 /// </summary>
 public sealed class AcessoErros(IErroStore store, TimeProvider clock, ILogger<AcessoErros> logger)
 {
@@ -118,8 +118,23 @@ public sealed class AcessoErros(IErroStore store, TimeProvider clock, ILogger<Ac
             return true;
         }
 
-        return usuario.IsInRole(Perfis.Operador) && (await SituacaoAsync(ct)).OperadorVe;
+        return usuario.IsInRole(Perfis.Operador) && (await SituacaoAsync(ct)).Configuracao.OperadorVe;
     }
+
+    /// <summary>
+    /// O usuário pode pedir o envio de um erro ao suporte: envio não desligado e Admin, ou Operador com "Operador pode
+    /// enviar" ligado.
+    /// </summary>
+    public async Task<bool> PodeEnviarAsync(ClaimsPrincipal usuario, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(usuario);
+        var configuracao = (await SituacaoAsync(ct)).Configuracao;
+        return configuracao.ModoEnvio != ModosEnvioErro.Desligado
+               && (usuario.IsInRole(Perfis.Admin) || (usuario.IsInRole(Perfis.Operador) && configuracao.OperadorEnvia));
+    }
+
+    /// <summary>A configuração dos erros (padrões se não deu para ler).</summary>
+    public async Task<ConfiguracaoErros> ConfiguracaoAsync(CancellationToken ct) => (await SituacaoAsync(ct)).Configuracao;
 
     /// <summary>Erros abertos (0 se não deu para ler).</summary>
     public async Task<int> AbertosAsync(CancellationToken ct) => (await SituacaoAsync(ct)).Abertos;
@@ -138,18 +153,17 @@ public sealed class AcessoErros(IErroStore store, TimeProvider clock, ILogger<Ac
         Situacao nova;
         try
         {
-            var configuracao = await store.ConfiguracaoAsync(ct);
-            nova = new Situacao(configuracao.OperadorVe, await store.AbertosAsync(ct), agora);
+            nova = new Situacao(await store.ConfiguracaoAsync(ct), await store.AbertosAsync(ct), agora);
         }
         catch (Microsoft.Data.SqlClient.SqlException ex)
         {
             logger.LogWarning(ex, "Não foi possível ler os erros da aplicação para o menu");
-            nova = new Situacao(OperadorVe: false, Abertos: 0, agora);
+            nova = new Situacao(new ConfiguracaoErros { OperadorVe = false, ModoEnvio = ModosEnvioErro.Desligado }, Abertos: 0, agora);
         }
 
         _situacao = nova;
         return nova;
     }
 
-    private sealed record Situacao(bool OperadorVe, int Abertos, DateTimeOffset LidaEm);
+    private sealed record Situacao(ConfiguracaoErros Configuracao, int Abertos, DateTimeOffset LidaEm);
 }

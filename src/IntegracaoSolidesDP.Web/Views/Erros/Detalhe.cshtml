@@ -66,10 +66,55 @@
             {
                 <dt class="col-sm-3">Situação mudada por</dt><dd class="col-sm-9">@erro.SituacaoPor em @F.Data(erro.SituacaoEm)</dd>
             }
+            <dt class="col-sm-3">Suporte</dt>
+            <dd class="col-sm-9">
+                @if (erro.EnvioPedidoEm is { } pedido)
+                {
+                    <span class="badge text-bg-warning">Envio pedido</span> <span>por @erro.EnvioPedidoPor em @F.Data(pedido): o serviço envia em alguns segundos.</span>
+                }
+                else if (erro.UltimoAviso is { } aviso)
+                {
+                    <span>Último e-mail em @F.Data(aviso) (@erro.OcorrenciasNoAviso ocorrência(s) naquele momento).</span>
+                }
+                else
+                {
+                    <span class="text-body-secondary">Nenhum e-mail enviado.</span>
+                }
+            </dd>
         </dl>
         <div class="form-text">Os dados da última ocorrência. CPF mascarado; token e senha nunca são gravados.</div>
     </div>
 </div>
+@if (!string.IsNullOrWhiteSpace(erro.Comentario))
+{
+    <div class="card mb-3">
+        <div class="card-header">Comentários</div>
+        <div class="card-body"><pre class="resultado mb-0">@erro.Comentario</pre></div>
+    </div>
+}
+@if (Model.PodeEnviar)
+{
+    <div class="card mb-3">
+        <div class="card-header">Enviar ao suporte</div>
+        <div class="card-body">
+            @if (!Model.TemDestinatario)
+            {
+                <div class="alert alert-warning small mb-2">
+                    Nenhum destinatário ativo recebe erros da aplicação: marque "Recebe erros da aplicação" em Notificações, senão nada sai.
+                </div>
+            }
+            <form asp-action="Enviar" asp-route-id="@erro.Id" method="post">
+                <label for="comentario" class="form-label small">Comentário para o suporte (opcional)</label>
+                <textarea id="comentario" name="comentario" class="form-control mb-2" rows="3" maxlength="1000"
+                          placeholder="Ex.: acontece sempre que salvo as filiais da empresa 15"></textarea>
+                <button type="submit" class="btn btn-primary" disabled="@(erro.EnvioPedidoEm is not null)">
+                    <i class="bi bi-send"></i> Enviar ao suporte agora
+                </button>
+                <span class="form-text ms-2">Quem envia é o serviço, em alguns segundos. Fica em Notificações › Últimos envios.</span>
+            </form>
+        </div>
+    </div>
+}
 @if (!string.IsNullOrWhiteSpace(erro.Detalhe))
 {
     <div class="card">

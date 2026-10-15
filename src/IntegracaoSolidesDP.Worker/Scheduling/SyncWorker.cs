@@ -1,3 +1,4 @@
+using IntegracaoSolidesDP.Worker.Erros;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Options;
@@ -17,6 +18,7 @@ public sealed class SyncWorker(
     AgendaServico agenda,
     CommandProcessor commands,
     Notificador notificador,
+    AvisoErros avisoErros,
     Limpeza limpeza,
     ConferenciaAgendada conferencia,
     IOptions<ManagementOptions> management,
@@ -57,6 +59,8 @@ public sealed class SyncWorker(
                 await ProcessCommandsAsync(stoppingToken);
                 // Resumo diário das pendências: confere a hora a cada ciclo; envia uma vez por dia.
                 await notificador.ResumoSeDevidoAsync(stoppingToken);
+                // Erros da aplicação ao suporte: pedidos do botão, primeiro aviso e resumo (conforme o modo de envio).
+                await avisoErros.ProcessarAsync(stoppingToken);
                 // Conferência semanal DP x RHSenso: a partir do dia e hora configurados.
                 await conferencia.ConferirSeDevidoAsync(stoppingToken);
             }

@@ -65,6 +65,9 @@ public sealed record DestinatarioNotificacao
     /// <summary>Recebe o resumo diário das pendências.</summary>
     public bool RecebeResumo { get; init; }
 
+    /// <summary>Recebe os erros da aplicação (ex.: o suporte). Erro vale para todas as empresas.</summary>
+    public bool RecebeErros { get; init; }
+
     public bool Ativo { get; init; } = true;
 
     /// <summary>Vale para esta empresa (nula = todas).</summary>
@@ -137,4 +140,19 @@ public static class TiposNotificacao
 
     /// <summary>Conferência semanal DP x RHSenso com divergências.</summary>
     public const string Conferencia = "conferencia";
+
+    /// <summary>Primeiro aviso de um erro da aplicação (envio automático).</summary>
+    public const string Erro = "erro";
+
+    /// <summary>Resumo dos erros que continuam acontecendo.</summary>
+    public const string ErroResumo = "erro_resumo";
+
+    /// <summary>Erro enviado pelo botão "Enviar ao suporte".</summary>
+    public const string ErroManual = "erro_manual";
+
+    /// <summary>Aviso de que o limite diário de e-mails de erro foi atingido.</summary>
+    public const string ErroLimite = "erro_limite";
+
+    /// <summary>Os e-mails de erro que contam no limite diário.</summary>
+    public static readonly IReadOnlyList<string> ContamNoLimite = [Erro, ErroResumo, ErroManual];
 }

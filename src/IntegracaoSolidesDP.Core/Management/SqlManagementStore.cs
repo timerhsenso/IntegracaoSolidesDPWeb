@@ -202,6 +202,10 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
                 atualizado_em   datetimeoffset(7) NULL
             );
 
+        IF COL_LENGTH(N'solidesdp.notificacao_destinatario', N'recebe_erros') IS NULL
+            ALTER TABLE solidesdp.notificacao_destinatario ADD recebe_erros bit NOT NULL
+                CONSTRAINT df_solidesdp_notificacao_destinatario_erros DEFAULT (0);
+
         IF OBJECT_ID(N'solidesdp.notificacao_estado', N'U') IS NULL
             CREATE TABLE solidesdp.notificacao_estado (
                 cdempresa     int               NOT NULL CONSTRAINT pk_solidesdp_notificacao_estado PRIMARY KEY,
@@ -311,6 +315,12 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             );
             CREATE INDEX ix_solidesdp_erro_aplicacao_ultima ON solidesdp.erro_aplicacao (ultima_vez DESC);
         END;
+
+        IF COL_LENGTH(N'solidesdp.erro_aplicacao', N'comentario') IS NULL
+            ALTER TABLE solidesdp.erro_aplicacao ADD comentario nvarchar(4000) NULL;
+
+        IF COL_LENGTH(N'solidesdp.erro_aplicacao', N'envio_pedido_em') IS NULL
+            ALTER TABLE solidesdp.erro_aplicacao ADD envio_pedido_em datetimeoffset(7) NULL, envio_pedido_por nvarchar(64) NULL;
 
         IF OBJECT_ID(N'solidesdp.erro_config', N'U') IS NULL
         CREATE TABLE solidesdp.erro_config (
@@ -656,6 +666,10 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         ("erro_aplicacao", "execucao_caida", "1 = execução que caiu (DP ou banco fora), registrada só com erro_config.execucao_caida ligado."),
         ("erro_aplicacao", "ultimo_aviso", "Quando o último e-mail deste erro saiu para o suporte."),
         ("erro_aplicacao", "ocorrencias_no_aviso", "Ocorrências já contadas no último e-mail (o resumo manda só as novas)."),
+        ("erro_aplicacao", "comentario", "Comentários de quem viu o erro (tela de erro ou tela Erros da aplicação), com quem e quando. Vão no e-mail ao suporte."),
+        ("erro_aplicacao", "envio_pedido_em", "Pedido de Enviar ao suporte ainda não atendido pelo serviço (quem envia é o serviço). Nulo = nada pendente."),
+        ("erro_aplicacao", "envio_pedido_por", "Login de quem pediu o envio ao suporte."),
+        ("notificacao_destinatario", "recebe_erros", "1 = recebe os erros da aplicação (ex.: o suporte). Erro vale para todas as empresas."),
         ("erro_config", null, "Configuração dos erros da aplicação (uma linha, id = 1). Editada na Web (Notificações). Sem linha, valem os padrões."),
         ("erro_config", "modo_envio", "desligado, manual (só pelo botão na Web) ou automatico."),
         ("erro_config", "resumo_horas", "Erro que continua acontecendo: um resumo a cada tantas horas."),

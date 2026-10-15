@@ -93,9 +93,9 @@ public sealed class NotificacoesController(
             return RedirectToAction(nameof(Index));
         }
 
-        if (!form.RecebeFalhas && !form.RecebeResumo)
+        if (!form.RecebeFalhas && !form.RecebeResumo && !form.RecebeErros)
         {
-            TempData["Erro"] = "Marque o que o destinatário recebe: falhas, resumo de pendências ou os dois.";
+            TempData["Erro"] = "Marque o que o destinatário recebe: falhas, resumo de pendências e/ou erros da aplicação.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -114,9 +114,10 @@ public sealed class NotificacoesController(
             Cdempresa = form.Cdempresa,
             RecebeFalhas = form.RecebeFalhas,
             RecebeResumo = form.RecebeResumo,
+            RecebeErros = form.RecebeErros,
             Ativo = true,
         }, HttpContext.Usuario(), ct);
-        await auditoria.RegistrarAsync(AcoesAuditoria.NotificacaoDestinatario, Descrever(id, email, form.Cdempresa, form.RecebeFalhas, form.RecebeResumo, ativo: true), ct: ct);
+        await auditoria.RegistrarAsync(AcoesAuditoria.NotificacaoDestinatario, Descrever(id, email, form.Cdempresa, form.RecebeFalhas, form.RecebeResumo, form.RecebeErros, ativo: true), ct: ct);
         TempData["Sucesso"] = $"Destinatário {email} gravado.";
         return RedirectToAction(nameof(Index));
     }
@@ -135,7 +136,7 @@ public sealed class NotificacoesController(
         var alterado = destinatario with { Ativo = !destinatario.Ativo };
         await notificacoes.SalvarDestinatarioAsync(alterado, HttpContext.Usuario(), ct);
         await auditoria.RegistrarAsync(AcoesAuditoria.NotificacaoDestinatario,
-            Descrever(id, alterado.Email, alterado.Cdempresa, alterado.RecebeFalhas, alterado.RecebeResumo, alterado.Ativo), ct: ct);
+            Descrever(id, alterado.Email, alterado.Cdempresa, alterado.RecebeFalhas, alterado.RecebeResumo, alterado.RecebeErros, alterado.Ativo), ct: ct);
         TempData["Sucesso"] = alterado.Ativo ? $"{alterado.Email} volta a receber os avisos." : $"{alterado.Email} não recebe mais os avisos.";
         return RedirectToAction(nameof(Index));
     }
@@ -169,11 +170,12 @@ public sealed class NotificacoesController(
         };
     }
 
-    private static string Descrever(long id, string email, int? cdempresa, bool falhas, bool resumo, bool ativo) =>
+    private static string Descrever(long id, string email, int? cdempresa, bool falhas, bool resumo, bool erros, bool ativo) =>
         string.Join(", ",
             $"destinatário {id.ToString(CultureInfo.InvariantCulture)}: {email}",
             cdempresa is { } e ? $"empresa {e.ToString(CultureInfo.InvariantCulture)}" : "todas as empresas",
             falhas ? "recebe falhas" : "sem falhas",
             resumo ? "recebe resumo" : "sem resumo",
+            erros ? "recebe erros da aplicação" : "sem erros da aplicação",
             ativo ? "ativo" : "desativado");
 }

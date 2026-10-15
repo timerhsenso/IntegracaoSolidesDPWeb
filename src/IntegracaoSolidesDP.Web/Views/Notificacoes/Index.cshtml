@@ -12,6 +12,10 @@
         TiposNotificacao.Resumo => "Resumo de pendências",
         TiposNotificacao.Teste => "Teste",
         TiposNotificacao.Conferencia => "Conferência DP x RHSenso",
+        TiposNotificacao.Erro => "Erro da aplicação",
+        TiposNotificacao.ErroResumo => "Resumo de erros",
+        TiposNotificacao.ErroManual => "Erro enviado ao suporte",
+        TiposNotificacao.ErroLimite => "Limite de erros do dia",
         _ => tipo,
     };
 }
@@ -151,7 +155,7 @@
         {
             <table class="table table-sm align-middle">
                 <thead>
-                    <tr><th>E-mail</th><th>Empresa</th><th>Falhas</th><th>Resumo de pendências</th><th>Situação</th><th></th></tr>
+                    <tr><th>E-mail</th><th>Empresa</th><th>Falhas</th><th>Resumo de pendências</th><th>Erros da aplicação</th><th>Situação</th><th></th></tr>
                 </thead>
                 <tbody>
                     @foreach (var d in Model.Destinatarios)
@@ -161,6 +165,7 @@
                             <td>@Empresa(d.Cdempresa)</td>
                             <td>@(d.RecebeFalhas ? "Sim" : "Não")</td>
                             <td>@(d.RecebeResumo ? "Sim" : "Não")</td>
+                            <td>@(d.RecebeErros ? "Sim" : "Não")</td>
                             <td>@(d.Ativo ? "Ativo" : "Desativado")</td>
                             <td class="text-end">
                                 <form asp-action="AlternarDestinatario" asp-route-id="@d.Id" method="post">
@@ -196,6 +201,10 @@
                     <input asp-for="NovoDestinatario.RecebeResumo" class="form-check-input" />
                     <label asp-for="NovoDestinatario.RecebeResumo" class="form-check-label"></label>
                 </div>
+                <div class="form-check">
+                    <input asp-for="NovoDestinatario.RecebeErros" class="form-check-input" />
+                    <label asp-for="NovoDestinatario.RecebeErros" class="form-check-label"></label>
+                </div>
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-plus-lg"></i> Incluir</button>
@@ -210,8 +219,54 @@
         <p class="small text-body-secondary">
             Erros técnicos da Web e do serviço (não são as pendências de cadastro). Todos ficam registrados na tela
             <a asp-controller="Erros" asp-action="Index">Erros da aplicação</a>, com um código que o usuário vê na tela de erro.
+            Os e-mails vão só para os destinatários com <strong>Recebe erros da aplicação</strong> marcado e precisam dos avisos ligados acima.
         </p>
         <form asp-action="SalvarErros" method="post" novalidate>
+            <div class="row g-2 mb-2">
+                <div class="col-md-6 col-xl-4">
+                    <label asp-for="Erros.ModoEnvio" class="form-label"></label>
+                    <select asp-for="Erros.ModoEnvio" class="form-select">
+                        <option value="@IntegracaoSolidesDP.Worker.Erros.ModosEnvioErro.Automatico">Automático</option>
+                        <option value="@IntegracaoSolidesDP.Worker.Erros.ModosEnvioErro.Manual">Só manual (botão Enviar ao suporte)</option>
+                        <option value="@IntegracaoSolidesDP.Worker.Erros.ModosEnvioErro.Desligado">Desligado (só registra)</option>
+                    </select>
+                    <dica-campo for="Erros.ModoEnvio" ajuda="erros" />
+                </div>
+                <div class="col-md-6 col-xl-4">
+                    <label asp-for="Erros.NomeCliente" class="form-label"></label>
+                    <input asp-for="Erros.NomeCliente" class="form-control" placeholder="ADN" />
+                    <dica-campo for="Erros.NomeCliente" ajuda="erros" />
+                    <span asp-validation-for="Erros.NomeCliente" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                    <div class="form-label">No automático, enviar os erros</div>
+                    <div class="form-check form-check-inline">
+                        <input asp-for="Erros.OrigemWeb" class="form-check-input" />
+                        <label asp-for="Erros.OrigemWeb" class="form-check-label"></label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input asp-for="Erros.OrigemServico" class="form-check-input" />
+                        <label asp-for="Erros.OrigemServico" class="form-check-label"></label>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                    <label asp-for="Erros.ResumoHoras" class="form-label"></label>
+                    <input asp-for="Erros.ResumoHoras" class="form-control" />
+                    <dica-campo for="Erros.ResumoHoras" ajuda="erros" />
+                    <span asp-validation-for="Erros.ResumoHoras" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                    <label asp-for="Erros.LimiteDia" class="form-label"></label>
+                    <input asp-for="Erros.LimiteDia" class="form-control" />
+                    <dica-campo for="Erros.LimiteDia" ajuda="erros" />
+                    <span asp-validation-for="Erros.LimiteDia" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="form-check form-switch mb-2">
+                <input asp-for="Erros.OperadorEnvia" class="form-check-input" role="switch" />
+                <label asp-for="Erros.OperadorEnvia" class="form-check-label"></label>
+                <dica-campo for="Erros.OperadorEnvia" ajuda="erros" />
+            </div>
             <div class="form-check form-switch mb-2">
                 <input asp-for="Erros.ExecucaoCaida" class="form-check-input" role="switch" />
                 <label asp-for="Erros.ExecucaoCaida" class="form-check-label"></label>

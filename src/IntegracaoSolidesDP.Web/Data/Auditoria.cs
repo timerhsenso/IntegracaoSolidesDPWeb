@@ -61,4 +61,6 @@ public static class AcoesAuditoria
     public const string ErroResolvido = "ERRO_RESOLVIDO";
     public const string ErroReaberto = "ERRO_REABERTO";
     public const string ErroConfigAlterada = "ERRO_CONFIG_ALTERADA";
+    public const string ErroEnvioSolicitado = "ERRO_ENVIO_SOLICITADO";
+    public const string ErroComentado = "ERRO_COMENTADO";
 }
