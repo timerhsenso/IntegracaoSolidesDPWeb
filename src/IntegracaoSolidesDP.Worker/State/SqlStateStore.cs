@@ -245,8 +245,7 @@ public sealed class SqlStateStore(ConnectionFactory connections, TimeProvider cl
     public async Task EnsureSchemaAsync(CancellationToken ct)
     {
         await using var connection = await connections.OpenAsync(ct);
-        await connection.ExecuteAsync(new CommandDefinition(SchemaSql, cancellationToken: ct));
-        await connection.ExecuteAsync(new CommandDefinition(Descricoes, cancellationToken: ct));
+        await Management.CriacaoEsquema.ExecutarAsync(connection, [SchemaSql, Descricoes], ct);
     }
 
     public async Task<IAsyncDisposable?> TryAcquireRunLockAsync(string instanceName, int cdempresa, CancellationToken ct)

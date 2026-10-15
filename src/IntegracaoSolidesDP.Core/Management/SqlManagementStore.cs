@@ -336,8 +336,7 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
     public async Task EnsureSchemaAsync(CancellationToken ct)
     {
         await using var connection = await connections.OpenAsync(ct);
-        await connection.ExecuteAsync(new CommandDefinition(SchemaSql, cancellationToken: ct));
-        await connection.ExecuteAsync(new CommandDefinition(Descricoes, cancellationToken: ct));
+        await CriacaoEsquema.ExecutarAsync(connection, [SchemaSql, Descricoes], ct);
     }
 
     public async Task<ConfigurationVersion?> GetCurrentConfigurationAsync(string instanceName, CancellationToken ct)
