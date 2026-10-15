@@ -10,7 +10,14 @@
             <dt class="col-sm-3">Empresa</dt><dd class="col-sm-9">@Model.Cdempresa</dd>
             <dt class="col-sm-3">Quando</dt><dd class="col-sm-9">@F.Data(Model.IniciadaEm)</dd>
             <dt class="col-sm-3">Origem</dt><dd class="col-sm-9">@(Model.Gatilho == GatilhosConferencia.Agendada ? "Conferência semanal" : $"Pedida por {Model.SolicitadoPor}")</dd>
-            <dt class="col-sm-3">Conferidos</dt><dd class="col-sm-9">@Model.Conferidos colaboradores ativos e vinculados</dd>
+            <dt class="col-sm-3">Conferidos</dt>
+            <dd class="col-sm-9" data-conferidos="@Model.Conferidos">
+                @Model.Conferidos colaborador(es) ativo(s): @(Model.Conferidos - Model.AVincular) vinculado(s), @Model.AVincular a vincular pelo CPF
+                @if (Model.AVincular > 0)
+                {
+                    <div class="text-body-secondary">A vincular = ainda não enviado; o CPF já está ativo no Sólides DP. No primeiro envio real a integração vincula e atualiza o DP com o RHSenso.</div>
+                }
+            </dd>
             <dt class="col-sm-3">Com diferença</dt><dd class="col-sm-9" data-pessoas="@Model.Pessoas">@Model.Pessoas colaborador(es), @Model.Divergencias campo(s)</dd>
         </dl>
     </div>
@@ -36,10 +43,12 @@ else
                 @if (podeOperar)
                 {
                     <span>Marque quem deve ficar como está no RHSenso e use <strong>Reenviar do RHSenso</strong>: a próxima execução da empresa reenvia o cadastro inteiro.
+                    Quem está <strong>A vincular</strong> não precisa: o primeiro envio real já leva o cadastro do RHSenso (a diferença mostra o que vai mudar no DP).
                     Se a correta é a informação do Sólides DP, corrija o RHSenso.
                     Quem está <strong>Só no Sólides DP</strong> e não vai para a folha (ex.: contratado direto no DP) pode ser marcado e <strong>Ignorado</strong>.</span>
                 }
             </p>
+            <div id="conferencia-grupos" class="d-flex flex-wrap gap-2 mb-2 align-items-center d-none" role="group" aria-label="Filtrar por grupo"></div>
             <div id="conferencia-resumo" class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filtrar por campo"></div>
             <form asp-action="Reenviar" asp-route-id="@Model.Id" method="post" id="conferencia-reenviar"
                   data-dialogo-titulo="Reenviar do RHSenso" data-dialogo-tipo="aviso"

@@ -31,6 +31,26 @@ public sealed class ComandosController(PainelRepository painel, GestaoService ge
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>Situação do pedido para o acompanhamento na tela (consultada a cada poucos segundos enquanto está em aberto).</summary>
+    [HttpGet]
+    public async Task<IActionResult> Situacao(long id)
+    {
+        var comando = await painel.ComandoAsync(id, HttpContext.RequestAborted);
+        if (comando is null)
+        {
+            return NotFound();
+        }
+
+        return Json(new
+        {
+            status = comando.Status,
+            emAberto = comando.Status is Worker.Management.CommandStatuses.Pending or Worker.Management.CommandStatuses.Running,
+            solicitadoEm = comando.SolicitadoEm,
+            iniciadoEm = comando.IniciadoEm,
+            concluidoEm = comando.ConcluidoEm,
+        });
+    }
+
     public async Task<IActionResult> Detalhe(long id)
     {
         var comando = await painel.ComandoAsync(id, HttpContext.RequestAborted);

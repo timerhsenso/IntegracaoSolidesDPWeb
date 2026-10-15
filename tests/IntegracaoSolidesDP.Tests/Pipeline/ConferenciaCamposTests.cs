@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using IntegracaoSolidesDP.Worker.Api;
 using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Pipeline;
@@ -129,6 +130,36 @@ public sealed class ConferenciaCamposTests : IAsyncLifetime
             DayOfWeek.Monday, 6, TestData.Dates.Zone);
 
         marco.Should().Be(DateTimeOffset.Parse(esperado, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public async Task Before_the_first_real_run_who_will_be_linked_by_cpf_is_compared_and_marked()
+    {
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000001", nome: "MARIA DA SILVA"));
+        _pipeline.Source.Employees.Add(TestData.Employee(matric: "00000002", cpf: TestData.Cpf2, nome: "JOAO NOVO"));
+        using (var hr = _pipeline.DpAsHr())
+        {
+            var effective = TestData.Dates.StartOfDay(new DateOnly(2026, 1, 1));
+            var response = await hr.PostAsJsonAsync("/employee/register?allowUpdate=true", new
+            {
+                externalId = "",
+                name = "MARIA",
+                cpf = TestData.Cpf1,
+                admissionDate = TestData.Dates.StartOfDay(new DateOnly(2020, 3, 2)),
+                effectiveDate = effective,
+                workScheduleDateInMillis = effective,
+                punchRuleDateInMillis = effective,
+            }, Ct);
+            response.IsSuccessStatusCode.Should().BeTrue(await response.Content.ReadAsStringAsync(Ct));
+        }
+
+        var conferencia = (await _pipeline.ConferirAsync(ct: Ct)).Should().ContainSingle().Subject;
+
+        conferencia.Erro.Should().BeNull();
+        conferencia.Should().Match<Conferencia>(c => c.Conferidos == 1 && c.AVincular == 1, "o João não está no DP: vai ser criado, não há o que comparar");
+        conferencia.Linhas.Should().OnlyContain(l => l.AVincular && l.Rotulo == "1-00000001")
+            .And.Contain(l => l.Campo == CamposConferencia.Nome && l.RhSenso == "MARIA DA SILVA" && l.Dp == "MARIA");
+        (await _pipeline.WritesAsync(Ct)).Where(w => w.Path == "/employee/register").Should().HaveCount(1, "a conferência não grava nada no DP");
     }
 
     [Fact]

@@ -49,6 +49,39 @@ public sealed class ConferenciaWebTests(SqlServerFixture db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Who_is_still_to_be_linked_shows_up_marked_and_is_not_resent()
+    {
+        var agora = DateTimeOffset.UtcNow;
+        var id = await new SqlConferenciaStore(db.Connections).SalvarAsync(new Conferencia
+        {
+            Instancia = "default", Cdempresa = 15, IniciadaEm = agora, ConcluidaEm = agora, Gatilho = GatilhosConferencia.Pedido,
+            SolicitadoPor = "carlos", Conferidos = 31, AVincular = 31, Pessoas = 1, Divergencias = 1,
+            Linhas =
+            [
+                new DivergenciaCampo
+                {
+                    Rotulo = "15-00000002", Nome = "JOAO", Cpf = TestData.Cpf2, CpfMascarado = "111.***.***-35", CadastroDp = 77,
+                    Campo = CamposConferencia.Email, RhSenso = "joao@adn.com.br", Dp = "outro@adn.com.br", AVincular = true,
+                },
+            ],
+        }, Ct);
+        var login = await _web.CriarUsuarioAsync(Perfis.Operador);
+        var client = await _web.EntrarAsync(login);
+
+        var detalhe = System.Net.WebUtility.HtmlDecode(await client.GetStringAsync($"/Conferencia/Detalhe/{id}", Ct));
+        var linhas = await client.GetStringAsync($"/Conferencia/Linhas/{id}", Ct);
+        var resposta = await WebHarness.PostFormAsync(client, $"/Conferencia/Detalhe/{id}", $"/Conferencia/Reenviar/{id}",
+            new() { ["rotulos"] = "15-00000002" });
+
+        detalhe.Should().Contain("0 vinculado(s), 31 a vincular pelo CPF");
+        linhas.Should().Contain("\"aVincular\":true");
+        resposta.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        (await db.QueryAsync<string>("SELECT acao FROM solidesdp.auditoria WHERE usuario = @login", new { login }))
+            .Should().NotContain(AcoesAuditoria.ReenvioSolicitado, "quem está a vincular recebe o cadastro do RHSenso no primeiro envio real");
+        (await new SqlConferenciaStore(db.Connections).ObterAsync(id, Ct))!.AVincular.Should().Be(31);
+    }
+
+    [Fact]
     public async Task Consulta_profile_sees_but_cannot_resend()
     {
         var id = await SemearAsync();

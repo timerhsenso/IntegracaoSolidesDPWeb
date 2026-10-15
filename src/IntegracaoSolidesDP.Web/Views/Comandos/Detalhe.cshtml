@@ -6,9 +6,42 @@
 }
 @if (emAberto)
 {
-    <meta http-equiv="refresh" content="5" />
-    <div class="alert alert-info"><span class="spinner-border spinner-border-sm"></span> Aguardando o serviço. Esta página se atualiza sozinha.</div>
+    var executando = Model.Status == CommandStatuses.Running;
+    <div class="card processando mb-3" id="processando" role="status" aria-live="polite"
+         data-situacao-url="@Url.Action("Situacao", new { id = Model.Id })"
+         data-solicitado-em="@Model.SolicitadoEm.ToUnixTimeMilliseconds()"
+         data-status="@Model.Status" data-status-fila="@CommandStatuses.Pending" data-status-executando="@CommandStatuses.Running">
+        <div class="card-body d-flex flex-wrap gap-4 align-items-center">
+            <div class="spinner-border text-primary processando-spinner" aria-hidden="true"></div>
+            <div class="flex-grow-1">
+                <h2 class="h5 mb-1" data-processando-titulo>@(executando ? "Processando…" : "Aguardando o serviço…")</h2>
+                <p class="mb-3 small text-body-secondary" data-processando-texto>
+                    @(executando
+                        ? $"O serviço está executando “{Rotulos.Comando(Model.Tipo)}”. Isso pode levar alguns minutos."
+                        : "O pedido foi registrado e entra na fila do serviço em alguns segundos.")
+                </p>
+                <ol class="processando-etapas mb-2">
+                    <li class="feita"><i class="bi bi-check-circle-fill"></i> Pedido registrado</li>
+                    <li class="@(executando ? "feita" : "atual")" data-etapa="fila"><i class="bi @(executando ? "bi-check-circle-fill" : "bi-hourglass-split")"></i> Na fila do serviço</li>
+                    <li class="@(executando ? "atual" : "")" data-etapa="executando"><i class="bi bi-gear"></i> Em execução</li>
+                    <li data-etapa="concluido"><i class="bi bi-flag"></i> Resultado</li>
+                </ol>
+                <div class="small text-body-secondary">
+                    Tempo: <span class="font-monospace" data-processando-tempo>—</span>.
+                    Pode sair desta tela: o resultado fica gravado no pedido e aparece aqui quando terminar.
+                </div>
+                <div class="alert alert-warning small mt-3 mb-0 d-none" data-processando-aviso>
+                    <i class="bi bi-exclamation-triangle"></i> O serviço ainda não pegou este pedido. Confira abaixo se ele está respondendo
+                    (o serviço precisa estar em execução, com a gestão pela Web ligada).
+                </div>
+            </div>
+        </div>
+        <div class="progress processando-barra" aria-hidden="true">
+            <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+        </div>
+    </div>
     @await Component.InvokeAsync("SituacaoServico", new { compacto = true })
+    <noscript><meta http-equiv="refresh" content="5" /></noscript>
 }
 <div class="card mb-3">
     <div class="card-body">

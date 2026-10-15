@@ -1,7 +1,7 @@
 @model long
 @* Grade das divergências de uma conferência (Conferencia/Detalhe). As linhas vêm de Conferencia/Linhas (JSON).
    Cada pessoa tem uma chave (a matrícula, ou "dp-{cadastro}" para quem está só no Sólides DP): as marcadas com matrícula
-   vão para Reenviar; as "Só no Sólides DP", para Ignorar. *@
+   vão para Reenviar (menos as "a vincular", que não têm caixa); as "Só no Sólides DP", para Ignorar. *@
 @{
     var podeOperar = User.IsInRole(Perfis.Operador) || User.IsInRole(Perfis.Admin);
 }
@@ -21,8 +21,10 @@
         }
 
         let filtro = '';
+        let grupo = '';
+        const grupoDe = l => l.soNoDp ? 'so-no-dp' : l.aVincular ? 'a-vincular' : 'vinculado';
         DataTable.ext.search.push((settings, dados, indice, linha) =>
-            settings.nTable.id !== 'conferencia-grade' || !filtro || linha.campo === filtro);
+            settings.nTable.id !== 'conferencia-grade' || ((!filtro || linha.campo === filtro) && (!grupo || grupoDe(linha) === grupo)));
 
         const marcados = new Set();
         const grade = new DataTable('#conferencia-grade', {
@@ -35,6 +37,8 @@
                     data: 'chave', orderable: false, searchable: false, visible: podeOperar,
                     render: (v, tipo, r) => tipo !== 'display' ? v : r.ignorado
                         ? '<i class="bi bi-eye-slash text-body-secondary" title="Ignorado depois desta conferência"></i>'
+                        : r.aVincular
+                        ? '<i class="bi bi-link-45deg text-body-secondary" title="A vincular: o primeiro envio real leva o cadastro do RHSenso"></i>'
                         : `<input type="checkbox" class="form-check-input" data-chave="${app.esc(v)}" ${marcados.has(v) ? 'checked' : ''} aria-label="Marcar ${app.esc(r.nome || v)}">`
                 },
                 { data: 'rotulo', render: v => app.esc(v) },
@@ -49,7 +53,8 @@
                     data: 'campo',
                     render: (v, tipo, r) => tipo !== 'display' ? v
                         : `<span class="badge ${r.soNoDp ? 'text-bg-info' : 'text-bg-warning'}">${app.esc(v)}</span>` +
-                          (r.ignorado ? ' <span class="badge text-bg-secondary">ignorado</span>' : '')
+                          (r.ignorado ? ' <span class="badge text-bg-secondary">ignorado</span>' : '') +
+                          (r.aVincular ? ' <span class="badge text-bg-light border" title="Ainda não vinculado: o primeiro envio real atualiza o DP com o RHSenso">a vincular</span>' : '')
                 },
                 { data: 'rhSenso', render: (v, tipo) => tipo === 'display' ? (v ? app.esc(v) : nada) : (v || '') },
                 { data: 'dp', render: (v, tipo) => tipo === 'display' ? (v ? app.esc(v) : nada) : (v || '') }
@@ -77,6 +82,30 @@
                 document.getElementById('conferencia-ignorar-marcados').innerHTML = [...marcados].filter(c => soNoDp.has(c))
                     .map(c => `<input type="hidden" name="cadastros" value="${app.esc(c.slice(3))}">`).join('');
             }, true);
+        }
+
+        // Grupos: só aparecem quando há mais de um (antes do go-live, os "a vincular").
+        const pessoasPorGrupo = { 'vinculado': new Set(), 'a-vincular': new Set(), 'so-no-dp': new Set() };
+        linhas.forEach(l => pessoasPorGrupo[grupoDe(l)].add(l.chave));
+        const grupos = [['vinculado', 'Vinculados', 'success'], ['a-vincular', 'A vincular', 'primary'], ['so-no-dp', 'Só no Sólides DP', 'info']]
+            .filter(([valor]) => pessoasPorGrupo[valor].size > 0);
+        const resumoGrupos = document.getElementById('conferencia-grupos');
+        if (resumoGrupos && grupos.length > 1) {
+            const botaoGrupo = (valor, texto, cor, quantidade) =>
+                `<button type="button" class="btn btn-sm btn-outline-${cor}" data-grupo="${valor}">${app.esc(texto)} <span class="badge text-bg-${cor}">${quantidade}</span></button>`;
+            resumoGrupos.innerHTML = '<span class="small text-body-secondary me-1">Pessoas:</span>' +
+                botaoGrupo('', 'Todas', 'secondary', new Set(linhas.map(l => l.chave)).size) +
+                grupos.map(([valor, texto, cor]) => botaoGrupo(valor, texto, cor, pessoasPorGrupo[valor].size)).join('');
+            resumoGrupos.classList.remove('d-none');
+            const marcarGrupo = valor => resumoGrupos.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.grupo === valor));
+            marcarGrupo('');
+            resumoGrupos.addEventListener('click', ev => {
+                const b = ev.target.closest('button[data-grupo]');
+                if (!b) return;
+                grupo = b.dataset.grupo;
+                marcarGrupo(grupo);
+                grade.draw();
+            });
         }
 
         const contagem = {};

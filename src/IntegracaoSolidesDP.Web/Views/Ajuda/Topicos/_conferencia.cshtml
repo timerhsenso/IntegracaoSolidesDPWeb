@@ -8,13 +8,24 @@
 <ul>
     <li><strong>Toda semana</strong>, no dia e hora das <a href="#cfg-ConferenciaDiaSemana">regras gerais</a> (padrão: segunda-feira, 6h), para cada empresa habilitada com token.</li>
     <li><strong>Quando pedida</strong>: botão "Conferir agora" desta tela, ou o pedido "Conferir campos" em Pedidos ao serviço (para uma empresa só).</li>
-    <li>Só <strong>lê</strong> o Sólides DP: a lista de colaboradores da empresa e, depois, o cadastro completo de cada vinculado (a lista não traz CTPS, série, telefone, cargo nem local). Não grava nada lá.</li>
+    <li>Só <strong>lê</strong> o Sólides DP: a lista de colaboradores da empresa e, depois, o cadastro completo de cada vinculado ou a vincular (a lista não traz CTPS, série, telefone, cargo nem local). Não grava nada lá.</li>
 </ul>
 <h4>O que é comparado</h4>
 <p>
     Para cada colaborador <strong>ativo no RHSenso e já vinculado</strong>, o que a integração enviaria hoje contra o que está no
     Sólides DP: nome, PIS, CTPS e série, nascimento, admissão, e-mail, telefone, sexo, cargo, local de trabalho, empresa e situação
     (ativo no RHSenso e desligado no DP, ou cadastro que não existe mais no DP). Espaços e maiúsculas no nome não contam.
+</p>
+<p>
+    Antes do primeiro envio real (implantação, simulação), ninguém está vinculado ainda. Por isso a conferência também compara quem
+    está ativo no RHSenso e tem o <strong>CPF ativo no Sólides DP</strong> (um cadastro só): é quem a simulação mostra como
+    "Vincular pelo CPF". Essas pessoas aparecem no grupo <strong>A vincular</strong>, e a diferença mostra o que o primeiro envio
+    real vai mudar no DP (a integração vincula e atualiza o cadastro com o RHSenso). Para elas não há "Reenviar": o primeiro envio
+    já leva o cadastro inteiro. Quem não tem cadastro no DP será criado e não entra na conferência.
+</p>
+<p>
+    Na grade, os botões <strong>Vinculados</strong>, <strong>A vincular</strong> e <strong>Só no Sólides DP</strong> filtram as
+    pessoas; o CSV traz o grupo de cada linha.
 </p>
 <p>
     <strong>Não é comparado</strong> o que é do Sólides DP por regra: início da vigência, escala, regra de ponto e Código Externo.

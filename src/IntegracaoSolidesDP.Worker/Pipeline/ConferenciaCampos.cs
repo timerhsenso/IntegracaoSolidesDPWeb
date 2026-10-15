@@ -4,6 +4,7 @@ using IntegracaoSolidesDP.Worker.Management;
 using IntegracaoSolidesDP.Worker.Mapping;
 using IntegracaoSolidesDP.Worker.Notificacoes;
 using IntegracaoSolidesDP.Worker.Options;
+using IntegracaoSolidesDP.Worker.Pipeline.Steps;
 using IntegracaoSolidesDP.Worker.Source;
 using IntegracaoSolidesDP.Worker.State;
 
@@ -11,7 +12,8 @@ namespace IntegracaoSolidesDP.Worker.Pipeline;
 
 /// <summary>
 /// Conferência DP x RHSenso: para cada colaborador ativo e vinculado, compara o que a integração enviaria hoje com o que
-/// está no Sólides DP. O find-all (uma leitura por empresa) diz quem existe e quem está desligado; os campos vêm do
+/// está no Sólides DP. Quem ainda não foi vinculado mas tem o CPF ativo (um só cadastro) no DP também é comparado, marcado
+/// "a vincular": é o que a primeira execução real vai sobrescrever no DP. O find-all (uma leitura por empresa) diz quem existe e quem está desligado; os campos vêm do
 /// employee/find de cada colaborador, porque o find-all da API real não traz CTPS, série, telefone, código do cargo nem
 /// local. Não grava nada no DP: as divergências vão para solidesdp.conferencia e a Web oferece "Reenviar do RHSenso".
 /// O que é do DP por regra não é comparado: vigência, escala, regra de ponto e Código Externo. Também lista quem está
@@ -95,11 +97,12 @@ public sealed class ConferenciaCampos(
         account.Use(empresa.Cdempresa, token);
         try
         {
-            var (conferidos, linhas) = await CompararEmpresaAsync(empresa, ct);
+            var (conferidos, aVincular, linhas) = await CompararEmpresaAsync(empresa, ct);
             return resultado with
             {
                 ConcluidaEm = clock.GetUtcNow(),
                 Conferidos = conferidos,
+                AVincular = aVincular,
                 Pessoas = linhas.Select(l => l.Cpf).Distinct(StringComparer.Ordinal).Count(),
                 Divergencias = linhas.Count,
                 Linhas = linhas,
@@ -120,7 +123,7 @@ public sealed class ConferenciaCampos(
         }
     }
 
-    private async Task<(int Conferidos, List<DivergenciaCampo> Linhas)> CompararEmpresaAsync(EmpresaSettings empresa, CancellationToken ct)
+    private async Task<(int Conferidos, int AVincular, List<DivergenciaCampo> Linhas)> CompararEmpresaAsync(EmpresaSettings empresa, CancellationToken ct)
     {
         var options = empresa.Options;
         var escopo = SyncPipeline.Escopo(empresa, await source.ReadWorkplacesAsync(ct));
@@ -157,14 +160,34 @@ public sealed class ConferenciaCampos(
         }
 
         var empresasPorId = empresasPorCnpj?.Values.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First());
+        var indice = DpEmployeeIndex.From(ativos.Value);
         var conferidos = 0;
+        var aVincular = 0;
         var naoLidos = 0;
         var linhas = new List<DivergenciaCampo>();
         foreach (var row in plan.Active.OrderBy(r => r.Nomatric, StringComparer.Ordinal))
         {
-            if (row.Chave is not { } cpf || !vinculos.TryGetValue(cpf, out var vinculo)
-                || vinculo.RemoteId is not { } remoteId || vinculo.Status == EntityStatuses.Dismissed)
+            if (row.Chave is not { } cpf)
             {
+                continue;
+            }
+
+            long remoteId;
+            var vinculado = false;
+            if (vinculos.TryGetValue(cpf, out var vinculo) && vinculo.RemoteId is { } id && vinculo.Status != EntityStatuses.Dismissed)
+            {
+                remoteId = id;
+                vinculado = true;
+            }
+            else if (indice.ByCpf(cpf) is [var unico])
+            {
+                // Ainda não vinculado (ou desligado e readmitido): a primeira execução real vincula por este CPF, como o
+                // EmployeeStep, e atualiza o DP com o RHSenso.
+                remoteId = unico.Id;
+            }
+            else
+            {
+                // Sem cadastro no DP (será criado) ou CPF repetido no DP (pendência na execução): nada a comparar.
                 continue;
             }
 
@@ -178,6 +201,7 @@ public sealed class ConferenciaCampos(
                 Campo = campo,
                 RhSenso = valorRh,
                 Dp = valorDp,
+                AVincular = !vinculado,
             };
 
             if (!porId.TryGetValue(remoteId, out var resumo))
@@ -220,6 +244,7 @@ public sealed class ConferenciaCampos(
             }
 
             conferidos++;
+            aVincular += vinculado ? 0 : 1;
             linhas.AddRange(Comparar(payload, dp, dates, empresasPorId).Select(d => Linha(d.Campo, d.RhSenso, d.Dp)));
         }
 
@@ -235,7 +260,7 @@ public sealed class ConferenciaCampos(
                 $"nenhum cadastro foi lido no Sólides DP ({naoLidos} tentativas): veja o log do serviço"));
         }
 
-        return (conferidos, linhas);
+        return (conferidos, aVincular, linhas);
     }
 
     /// <summary>Linhas "Só no Sólides DP" da empresa, sem os ignorados (e tirando da lista quem apareceu na folha).</summary>

@@ -28,6 +28,12 @@ public sealed record DivergenciaCampo
 
     /// <summary>O que está no Sólides DP.</summary>
     public string? Dp { get; init; }
+
+    /// <summary>
+    /// Ainda não vinculado: o CPF está ativo no Sólides DP e a primeira execução real vincula e atualiza o DP com o valor do
+    /// RHSenso. "Reenviar do RHSenso" não se aplica.
+    /// </summary>
+    public bool AVincular { get; init; }
 }
 
 /// <summary>Uma conferência DP x RHSenso de uma empresa.</summary>
@@ -44,8 +50,11 @@ public sealed record Conferencia
 
     public string? SolicitadoPor { get; init; }
 
-    /// <summary>Colaboradores ativos e vinculados conferidos.</summary>
+    /// <summary>Colaboradores conferidos: os vinculados e os a vincular pelo CPF.</summary>
     public int Conferidos { get; init; }
+
+    /// <summary>Dos conferidos, os ainda não vinculados (a primeira execução real vincula pelo CPF).</summary>
+    public int AVincular { get; init; }
 
     /// <summary>Colaboradores com pelo menos uma divergência.</summary>
     public int Pessoas { get; init; }
@@ -121,7 +130,7 @@ public sealed class SqlConferenciaStore(ConnectionFactory connections) : IConfer
 
     private const string Colunas = """
         id AS Id, instance_name AS Instancia, cdempresa AS Cdempresa, iniciada_em AS IniciadaEm, concluida_em AS ConcluidaEm,
-        gatilho AS Gatilho, solicitado_por AS SolicitadoPor, conferidos AS Conferidos, pessoas AS Pessoas,
+        gatilho AS Gatilho, solicitado_por AS SolicitadoPor, conferidos AS Conferidos, a_vincular AS AVincular, pessoas AS Pessoas,
         divergencias AS Divergencias, erro AS Erro
         """;
 
@@ -131,14 +140,14 @@ public sealed class SqlConferenciaStore(ConnectionFactory connections) : IConfer
         await using var connection = await connections.OpenAsync(ct);
         return await connection.ExecuteScalarAsync<long>(new CommandDefinition("""
             INSERT INTO solidesdp.conferencia
-                (instance_name, cdempresa, iniciada_em, concluida_em, gatilho, solicitado_por, conferidos, pessoas, divergencias, erro, linhas_json)
+                (instance_name, cdempresa, iniciada_em, concluida_em, gatilho, solicitado_por, conferidos, a_vincular, pessoas, divergencias, erro, linhas_json)
             OUTPUT INSERTED.id
-            VALUES (@Instancia, @Cdempresa, @IniciadaEm, @ConcluidaEm, @Gatilho, @SolicitadoPor, @Conferidos, @Pessoas, @Divergencias, @Erro, @LinhasJson)
+            VALUES (@Instancia, @Cdempresa, @IniciadaEm, @ConcluidaEm, @Gatilho, @SolicitadoPor, @Conferidos, @AVincular, @Pessoas, @Divergencias, @Erro, @LinhasJson)
             """,
             new
             {
                 conferencia.Instancia, conferencia.Cdempresa, conferencia.IniciadaEm, conferencia.ConcluidaEm, conferencia.Gatilho,
-                conferencia.SolicitadoPor, conferencia.Conferidos, conferencia.Pessoas, conferencia.Divergencias, conferencia.Erro,
+                conferencia.SolicitadoPor, conferencia.Conferidos, conferencia.AVincular, conferencia.Pessoas, conferencia.Divergencias, conferencia.Erro,
                 LinhasJson = JsonSerializer.Serialize(conferencia.Linhas, Json),
             },
             cancellationToken: ct));
@@ -222,6 +231,7 @@ public sealed class SqlConferenciaStore(ConnectionFactory connections) : IConfer
         public string Gatilho { get; set; } = string.Empty;
         public string? SolicitadoPor { get; set; }
         public int Conferidos { get; set; }
+        public int AVincular { get; set; }
         public int Pessoas { get; set; }
         public int Divergencias { get; set; }
         public string? Erro { get; set; }
@@ -237,6 +247,7 @@ public sealed class SqlConferenciaStore(ConnectionFactory connections) : IConfer
             Gatilho = Gatilho,
             SolicitadoPor = SolicitadoPor,
             Conferidos = Conferidos,
+            AVincular = AVincular,
             Pessoas = Pessoas,
             Divergencias = Divergencias,
             Erro = Erro,

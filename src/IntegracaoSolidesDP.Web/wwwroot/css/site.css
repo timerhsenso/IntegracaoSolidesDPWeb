@@ -359,3 +359,63 @@ a.dica-ajuda {
     opacity: .75;
     border-top: 1px solid rgba(255, 255, 255, .1);
 }
+
+/* Pedido em andamento (Comandos/Detalhe): spinner grande, etapas e barra animada. */
+.processando {
+    border-color: var(--bs-primary-border-subtle);
+    overflow: hidden;
+}
+
+.processando-spinner {
+    width: 3rem;
+    height: 3rem;
+    border-width: .3rem;
+    flex-shrink: 0;
+}
+
+.processando-etapas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem 1.25rem;
+    padding: 0;
+    list-style: none;
+    font-size: .875rem;
+    color: var(--bs-secondary-color);
+}
+
+.processando-etapas li.feita {
+    color: var(--bs-success);
+}
+
+.processando-etapas li.atual {
+    color: var(--bs-primary);
+    font-weight: 600;
+}
+
+.processando-etapas li.atual .bi-gear {
+    display: inline-block;
+    animation: processando-girar 2s linear infinite;
+}
+
+.processando-barra {
+    height: 4px;
+    border-radius: 0;
+}
+
+.processando.concluido .processando-barra .progress-bar {
+    animation: none;
+    background-color: var(--bs-success);
+}
+
+@keyframes processando-girar {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .processando-etapas li.atual .bi-gear { animation: none; }
+}
+
+/* Botão de formulário enviado: fica desabilitado com spinner até a próxima tela (evita clique duplo). */
+.btn[data-ocupado] {
+    pointer-events: none;
+}

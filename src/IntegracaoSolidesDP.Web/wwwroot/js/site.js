@@ -263,4 +263,122 @@
             form.submit();
         }
     });
+
+    // Formulário POST enviado (já confirmado): o botão fica desabilitado, com spinner, até a próxima tela.
+    // Evita o clique duplo e mostra que algo está acontecendo. <form data-sem-espera> desliga.
+    document.addEventListener('submit', e => {
+        const form = e.target;
+        if (e.defaultPrevented || (form.method || '').toLowerCase() !== 'post' || form.dataset.semEspera !== undefined) {
+            return;
+        }
+
+        const botao = e.submitter && e.submitter.form === form ? e.submitter : form.querySelector('button[type="submit"]');
+        if (!botao || botao.dataset.ocupado !== undefined) {
+            return;
+        }
+
+        botao.dataset.ocupado = '';
+        // Desabilitar já tiraria o nome/valor do botão do envio: só depois que o navegador montou o POST.
+        setTimeout(() => {
+            botao.disabled = true;
+            botao.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm me-1" data-spinner-envio aria-hidden="true"></span>');
+        }, 0);
+    });
+
+    // Voltar pelo navegador (cache da página): os botões voltam ao normal.
+    window.addEventListener('pageshow', ev => {
+        if (!ev.persisted) return;
+        document.querySelectorAll('.btn[data-ocupado]').forEach(b => {
+            b.disabled = false;
+            delete b.dataset.ocupado;
+            b.querySelector('[data-spinner-envio]')?.remove();
+        });
+    });
+
+    // Pedido ao serviço em andamento (Comandos/Detalhe): consulta a situação a cada 2 s e, quando termina, recarrega a
+    // tela com o resultado (o spinner some).
+    function acompanharPedido(painel) {
+        const url = painel.dataset.situacaoUrl;
+        const inicio = new Date(Number(painel.dataset.solicitadoEm));
+        const q = seletor => painel.querySelector(seletor);
+        const tempo = q('[data-processando-tempo]');
+        const etapa = nome => q(`[data-etapa="${nome}"]`);
+        let status = painel.dataset.status;
+        const naFila = painel.dataset.statusFila;
+        const executando = painel.dataset.statusExecutando;
+        let falhasSeguidas = 0;
+
+        const formatarTempo = ms => {
+            const total = Math.max(0, Math.round(ms / 1000));
+            const min = Math.floor(total / 60);
+            return min > 0 ? `${min}min ${String(total % 60).padStart(2, '0')}s` : `${total}s`;
+        };
+        const relogio = setInterval(() => {
+            const decorrido = Date.now() - inicio.getTime();
+            tempo.textContent = formatarTempo(decorrido);
+            // Mais de 1 minuto na fila: provavelmente o serviço está parado.
+            q('[data-processando-aviso]').classList.toggle('d-none', !(status === naFila && decorrido > 60000));
+        }, 1000);
+
+        const marcar = (el, classe, icone) => {
+            if (!el) return;
+            el.classList.remove('feita', 'atual');
+            if (classe) el.classList.add(classe);
+            if (icone) el.querySelector('.bi').className = `bi ${icone}`;
+        };
+
+        async function consultar() {
+            if (document.hidden) {
+                setTimeout(consultar, 2000);
+                return;
+            }
+
+            try {
+                const resposta = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+                if (resposta.status === 404) {
+                    // O pedido não existe mais: a tela mostra a situação atual.
+                    clearInterval(relogio);
+                    window.location.reload();
+                    return;
+                }
+                if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
+                const situacao = await resposta.json();
+                falhasSeguidas = 0;
+                if (situacao.status !== status && situacao.status === executando) {
+                    marcar(etapa('fila'), 'feita', 'bi-check-circle-fill');
+                    marcar(etapa('executando'), 'atual');
+                    q('[data-processando-titulo]').textContent = 'Processando…';
+                    q('[data-processando-texto]').textContent = 'O serviço está executando o pedido. Isso pode levar alguns minutos.';
+                }
+
+                status = situacao.status;
+                if (!situacao.emAberto) {
+                    clearInterval(relogio);
+                    painel.classList.add('concluido');
+                    marcar(etapa('fila'), 'feita', 'bi-check-circle-fill');
+                    marcar(etapa('executando'), 'feita', 'bi-check-circle-fill');
+                    marcar(etapa('concluido'), 'feita', 'bi-check-circle-fill');
+                    q('.processando-spinner').classList.add('d-none');
+                    q('[data-processando-titulo]').textContent = 'Concluído. Carregando o resultado…';
+                    setTimeout(() => window.location.reload(), 600);
+                    return;
+                }
+            } catch (erro) {
+                // Rede ou sessão: tenta de novo, mais devagar.
+                falhasSeguidas++;
+            }
+
+            setTimeout(consultar, falhasSeguidas > 0 ? Math.min(15000, 2000 * (falhasSeguidas + 1)) : 2000);
+        }
+
+        tempo.textContent = formatarTempo(Date.now() - inicio.getTime());
+        setTimeout(consultar, 2000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const painel = document.getElementById('processando');
+        if (painel && painel.dataset.situacaoUrl) {
+            acompanharPedido(painel);
+        }
+    });
 })();

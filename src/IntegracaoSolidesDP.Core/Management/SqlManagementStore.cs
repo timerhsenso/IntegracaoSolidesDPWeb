@@ -271,6 +271,9 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
             CREATE INDEX ix_solidesdp_conferencia_empresa ON solidesdp.conferencia (instance_name, cdempresa, iniciada_em DESC);
         END;
 
+        IF COL_LENGTH(N'solidesdp.conferencia', N'a_vincular') IS NULL
+            ALTER TABLE solidesdp.conferencia ADD a_vincular int NOT NULL CONSTRAINT df_solidesdp_conferencia_a_vincular DEFAULT (0);
+
         IF OBJECT_ID(N'solidesdp.colaborador_ignorado', N'U') IS NULL
         BEGIN
             CREATE TABLE solidesdp.colaborador_ignorado (
@@ -647,8 +650,9 @@ public sealed class SqlManagementStore(ConnectionFactory connections, TimeProvid
         ("notificacao_pendencia", "chave", "entidade|registro|código do motivo: a mesma pendência tem sempre a mesma chave."),
         ("notificacao_pendencia", "primeira_vez", "Quando apareceu (ou reapareceu depois de resolvida): define o que é novo no resumo."),
         ("notificacao_pendencia", "resolvida_em", "Quando deixou de aparecer nas execuções. Nulo = em aberto."),
-        ("conferencia", null, "Conferência DP x RHSenso: campos dos colaboradores vinculados que estão diferentes no Sólides DP (semanal ou pedida na Web)."),
+        ("conferencia", null, "Conferência DP x RHSenso: campos dos colaboradores vinculados (e dos a vincular pelo CPF) que estão diferentes no Sólides DP (semanal ou pedida na Web)."),
         ("conferencia", "gatilho", "agendada = a semanal (Sync:ConferenciaDiaSemana/ConferenciaHora); pedido = Conferir campos na Web."),
+        ("conferencia", "a_vincular", "Dos conferidos, os ainda não vinculados: CPF ativo no Sólides DP que a primeira execução real vincula (e atualiza com o RHSenso)."),
         ("conferencia", "pessoas", "Colaboradores com pelo menos um campo diferente."),
         ("conferencia", "linhas_json", "Uma linha por campo diferente: pessoa, campo, valor no RHSenso e no Sólides DP."),
         ("colaborador_ignorado", null, "Cadastros ativos no Sólides DP sem colaborador no RHSenso que o RH mandou ignorar na conferência (por empresa). Nada é apagado: quem volta a ser validado ganha removido_em."),

@@ -10,7 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace IntegracaoSolidesDP.Web.Controllers;
 
 /// <summary>
-/// Conferência DP x RHSenso: o que está diferente no Sólides DP para os colaboradores vinculados. Quem confere é o
+/// Conferência DP x RHSenso: o que está diferente no Sólides DP para os colaboradores vinculados e para os que a primeira
+/// execução real vai vincular pelo CPF ("a vincular": não se reenvia, o primeiro envio já atualiza o DP). Quem confere é o
 /// serviço (semanal ou pelo pedido "Conferir campos"); aqui se vê o resultado e se pede "Reenviar do RHSenso", que só
 /// marca o vínculo para a próxima execução reenviar o cadastro. Quem está só no Sólides DP (e não vai para a folha)
 /// pode ser "Ignorado": sai das próximas conferências e do relatório de vinculação da empresa.
@@ -49,6 +50,7 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, IIgnor
         {
             chave = SoNoDp(l) ? Chave(l) : l.Rotulo,
             soNoDp = SoNoDp(l),
+            aVincular = l.AVincular,
             ignorado = SoNoDp(l) && l.CadastroDp is { } cadastro && vigentes.Any(i => i.Corresponde(cadastro, CpfDaLinha(l))),
             rotulo = l.Rotulo,
             nome = l.Nome,
@@ -72,10 +74,10 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, IIgnor
 
         var arquivo = string.Create(CultureInfo.InvariantCulture,
             $"conferencia-empresa{conferencia.Cdempresa}-{conferencia.IniciadaEm.UtcDateTime:yyyyMMdd-HHmm}.csv");
-        var csv = new StringBuilder("Matrícula;Nome;CPF;Cadastro no DP;Campo;RHSenso;Sólides DP\r\n");
+        var csv = new StringBuilder("Grupo;Matrícula;Nome;CPF;Cadastro no DP;Campo;RHSenso;Sólides DP\r\n");
         foreach (var l in conferencia.Linhas)
         {
-            csv.Append(Campo(l.Rotulo)).Append(';').Append(Campo(l.Nome)).Append(';').Append(Campo(l.CpfMascarado)).Append(';')
+            csv.Append(Campo(Grupo(l))).Append(';').Append(Campo(l.Rotulo)).Append(';').Append(Campo(l.Nome)).Append(';').Append(Campo(l.CpfMascarado)).Append(';')
                 .Append(Campo(l.CadastroDp?.ToString(CultureInfo.InvariantCulture))).Append(';').Append(Campo(l.Campo)).Append(';')
                 .Append(Campo(l.RhSenso)).Append(';').Append(Campo(l.Dp)).Append("\r\n");
         }
@@ -105,13 +107,13 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, IIgnor
 
         var marcados = (rotulos ?? []).ToHashSet(StringComparer.Ordinal);
         var pessoas = conferencia.Linhas
-            .Where(l => !SoNoDp(l) && marcados.Contains(l.Rotulo))
+            .Where(l => !SoNoDp(l) && !l.AVincular && marcados.Contains(l.Rotulo))
             .GroupBy(l => l.Cpf, StringComparer.Ordinal)
             .Select(g => g.First())
             .ToList();
         if (pessoas.Count == 0)
         {
-            TempData["Erro"] = "Marque pelo menos um colaborador da lista.";
+            TempData["Erro"] = "Marque pelo menos um colaborador vinculado da lista (quem está \"a vincular\" recebe o cadastro do RHSenso no primeiro envio real).";
             return RedirectToAction(nameof(Detalhe), new { id });
         }
 
@@ -163,6 +165,10 @@ public sealed class ConferenciaController(IConferenciaStore conferencias, IIgnor
     }
 
     private static bool SoNoDp(DivergenciaCampo linha) => linha.Campo == CamposConferencia.SoNoDp;
+
+    /// <summary>Vinculado, A vincular (o primeiro envio real vincula pelo CPF) ou Só no Sólides DP.</summary>
+    private static string Grupo(DivergenciaCampo linha) =>
+        SoNoDp(linha) ? CamposConferencia.SoNoDp : linha.AVincular ? "A vincular" : "Vinculado";
 
     private static string Chave(DivergenciaCampo linha) => string.Create(CultureInfo.InvariantCulture, $"dp-{linha.CadastroDp}");
 
