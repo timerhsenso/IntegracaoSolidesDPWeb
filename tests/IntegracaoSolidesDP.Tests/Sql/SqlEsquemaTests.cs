@@ -24,6 +24,6 @@ public sealed class SqlEsquemaTests(SqlServerFixture db) : IAsyncLifetime
         (await db.QueryAsync<int>("""
             SELECT COUNT(*) FROM sys.extended_properties
             WHERE major_id = OBJECT_ID(N'solidesdp.erro_config') AND name = N'MS_Description'
-            """)).Should().Equal(6, "a tabela e as cinco colunas documentadas, uma vez só");
+            """)).Should().ContainSingle().Which.Should().Be(6, "a tabela e as cinco colunas documentadas, uma vez só");
     }
 }
