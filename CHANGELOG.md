@@ -4,6 +4,36 @@ Uma seção por versão, a mais nova primeiro. O título é `## <versão> — <d
 só gera o pacote de uma versão que tenha a sua seção aqui, e a Web mostra este arquivo em Ajuda › Novidades.
 Escreva para quem usa: o que mudou na tela e no comportamento, não o código.
 
+## 1.0.6 — 14/10/2026
+
+### Novidades
+- Conferência DP x RHSenso mostra também quem está ativo no Sólides DP sem colaborador no RHSenso ("Só no Sólides DP"),
+  com o que o RHSenso diz do CPF e o cargo no DP. Com o piloto preenchido, esta parte não aparece.
+- Ignorar: na conferência, marque quem está só no Sólides DP e não vai para a folha (ex.: coordenadores contratados
+  direto no DP) e use "Ignorar os marcados". A pessoa some das próximas conferências e do relatório de vinculação da
+  simulação. Vale por empresa; nada muda no Sólides DP (perfis Operador e Admin; auditoria IGNORADO_INCLUIDO).
+- Tela Empresas: quadro "Ignorados na conferência", com quem ignorou e quando, o botão "Voltar a validar" e o histórico
+  de quem voltou.
+- Quem estava ignorado e aparece ativo na folha da empresa sai da lista sozinho (aviso "ignorado_voltou" na execução) e
+  segue as regras normais: se for de um tipo que a integração não leva, como estagiário, continua sem ir.
+
+### Melhorias
+- Tela da empresa em uma coluna, na ordem de importância (integração, token, ignorados, filiais, piloto, conta do
+  Sólides DP, pedidos), com a barra "Salvar a empresa" fixa no rodapé enquanto se rola a tela.
+- Botão ☰ no topo de todas as telas: no computador recolhe o menu lateral e o conteúdo usa a largura toda; a escolha
+  fica guardada no navegador.
+
+### Segurança
+- Correções da revisão de 14/10/2026:
+  - textos vindos do Sólides DP e do RHSenso (como o nome do colaborador) passam a ser tratados também dentro dos
+    atributos das telas, e não podem mais executar código no navegador de quem abre a tela;
+  - CSV exportado (conferência, relatório de vinculação, itens da execução) não executa fórmulas ao abrir no Excel;
+  - a tela de login não revela quais usuários existem, estão desativados ou bloqueados (a auditoria continua
+    registrando o motivo);
+  - as chaves do cookie de login passam a ser gravadas cifradas pelo Windows. Depois de instalar, todos precisam
+    entrar de novo;
+  - permissoes-sql.sql: o login do serviço deixa de ler as tabelas de login da Web.
+
 ## 1.0.5 — 14/10/2026
 
 ### Novidades
@@ -19,6 +49,10 @@ Escreva para quem usa: o que mudou na tela e no comportamento, não o código.
 - Pacotes do .NET atualizados para a 10.0.13 (correções da Microsoft de 13/10/2026), incluindo
   System.Security.Cryptography.Pkcs e System.Security.Cryptography.Xml.
 
+### Observação para as empresas
+- A API do Sólides DP não devolve o CNPJ das empresas da conta. Em conta com uma empresa só, use em Empresas › Editar
+  "Empresa no Sólides DP = Não enviar empresa"; com "Procurar pelo CNPJ", o envio real fica bloqueado
+  (company_not_found).
 
 ## 1.0.4 — 12/10/2026
 
