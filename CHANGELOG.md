@@ -4,6 +4,47 @@ Uma seção por versão, a mais nova primeiro. O título é `## <versão> — <d
 só gera o pacote de uma versão que tenha a sua seção aqui, e a Web mostra este arquivo em Ajuda › Novidades.
 Escreva para quem usa: o que mudou na tela e no comportamento, não o código.
 
+## 1.0.7 — 15/10/2026
+
+### Novidades
+- Erros da aplicação (menu Suporte › Erros da aplicação): todo erro técnico da Web e do serviço fica registrado, mesmo
+  sem envio de e-mail. O mesmo erro fica numa linha só, com o número de ocorrências, a primeira e a última vez, a
+  máquina, a versão, o usuário e a tela (Web) ou a empresa (serviço). CPF mascarado; token e senha nunca são gravados.
+- A tela de erro mostra um código (ex.: E-1027) para informar ao administrador ou ao suporte; nada técnico aparece
+  para o usuário.
+- Na tela de erros: detalhe técnico, Silenciar (continua contando, sem aviso), Marcar como resolvido (se acontecer de
+  novo, volta a ficar aberto) e Reabrir, só para o Admin e registrados na auditoria. O Operador vê a tela se a opção
+  estiver ligada.
+- Envio dos erros ao suporte por e-mail (Notificações › Erros da aplicação):
+  - novo destinatário "Recebe erros da aplicação", separado de falhas e pendências (ex.: o e-mail do suporte);
+  - envio Desligado, Só manual ou Automático (padrão): o primeiro aviso de cada erro sai na hora e, se o mesmo erro
+    continuar acontecendo, sai no máximo um resumo a cada N horas (padrão: 4);
+  - escolha das origens (erros da Web e/ou do serviço), limite de e-mails por dia (padrão: 20, com um único aviso
+    "limite atingido") e nome do cliente no assunto;
+  - botão "Enviar ao suporte" com comentário no detalhe do erro e, na tela de erro, o campo "O que você estava
+    fazendo?" (Admin; Operador se permitido);
+  - os e-mails aparecem em Notificações › Últimos envios.
+- Execução que caiu (Sólides DP ou banco fora do ar, token inválido) também entra na lista de erros (configurável).
+- Os erros antigos entram na limpeza diária (padrão: 90 dias sem acontecer; 0 = nunca apaga).
+- Conferência DP x RHSenso: compara também quem será vinculado pelo CPF no primeiro envio real (grupo "A vincular"),
+  para ver antes do go-live o que vai mudar no Sólides DP. Para essas pessoas não há "Reenviar": o primeiro envio já
+  leva o cadastro do RHSenso. Filtros por grupo (Vinculados, A vincular, Só no Sólides DP), contagem separada no topo
+  e coluna Grupo no CSV. O relatório de vinculação da simulação aponta para a conferência.
+
+### Melhorias
+- Pedidos ao serviço: tela de andamento com etapas (registrado, na fila, em execução, resultado), tempo decorrido e
+  aviso se o serviço não pegar o pedido em 1 minuto. O resultado aparece sozinho quando termina.
+- Depois do clique, o botão do formulário fica bloqueado com indicação de processamento até a próxima tela (evita o
+  envio em dobro).
+
+### Correções
+- A criação das tabelas não falha mais ("A propriedade MS_Description já existe") quando a Web e o serviço sobem ao
+  mesmo tempo: a criação passa a ser feita uma de cada vez.
+
+### Auditoria
+- Novas ações: ERRO_SILENCIADO, ERRO_RESOLVIDO, ERRO_REABERTO, ERRO_CONFIG_ALTERADA, ERRO_ENVIO_SOLICITADO e
+  ERRO_COMENTADO.
+
 ## 1.0.6 — 14/10/2026
 
 ### Novidades
